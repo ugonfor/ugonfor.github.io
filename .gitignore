@@ -1,6 +1,6 @@
 # custom(ugonfor)
-.jekyll-cache
-.tweet-cache
+#.jekyll-cache
+#.tweet-cache
 
 
 # Ignore docs files

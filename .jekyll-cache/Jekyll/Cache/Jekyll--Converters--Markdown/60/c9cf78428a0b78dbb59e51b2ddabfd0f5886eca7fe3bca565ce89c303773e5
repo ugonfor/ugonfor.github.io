@@ -1,0 +1,69 @@
+I"ä
+<p>This is an example post with image galleries.</p>
+
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        
+
+
+<img class="img-fluid rounded z-depth-1" src="/assets/resized/9-1400x933.jpg" srcset="    /assets/resized/9-480x320.jpg 480w,    /assets/resized/9-800x533.jpg 800w,    /assets/resized/9-1400x933.jpg 1400w,/ assets/img/9.jpg 3000w" />
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        
+
+
+<img class="img-fluid rounded z-depth-1" src="/assets/resized/7-1400x933.jpg" srcset="    /assets/resized/7-480x320.jpg 480w,    /assets/resized/7-800x533.jpg 800w,    /assets/resized/7-1400x933.jpg 1400w,/ assets/img/7.jpg 3000w" />
+
+    </div>
+</div>
+<div class="caption">
+    A simple, elegant caption looks good between image rows, after each row, or doesn't have to be there at all.
+</div>
+
+<p>Images can be made zoomable.
+Simply add <code class="language-plaintext highlighter-rouge">data-zoomable</code> to <code class="language-plaintext highlighter-rouge">&lt;img&gt;</code> tags that you want to make zoomable.</p>
+
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        
+
+
+<img class="img-fluid rounded z-depth-1" src="/assets/resized/8-1400x973.jpg" srcset="    /assets/resized/8-480x334.jpg 480w,    /assets/resized/8-800x556.jpg 800w,    /assets/resized/8-1400x973.jpg 1400w,/ assets/img/8.jpg 3000w" data-zoomable="" />
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        
+
+
+<img class="img-fluid rounded z-depth-1" src="/assets/resized/10-1400x933.jpg" srcset="    /assets/resized/10-480x320.jpg 480w,    /assets/resized/10-800x533.jpg 800w,    /assets/resized/10-1400x933.jpg 1400w,/ assets/img/10.jpg 3000w" data-zoomable="" />
+
+    </div>
+</div>
+
+<p>The rest of the images in this post are all zoomable, arranged into different mini-galleries.</p>
+
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        
+
+
+<img class="img-fluid rounded z-depth-1" src="/assets/resized/11-1400x1956.jpg" srcset="    /assets/resized/11-480x671.jpg 480w,    /assets/resized/11-800x1118.jpg 800w,    /assets/resized/11-1400x1956.jpg 1400w,/ assets/img/11.jpg 2000w" data-zoomable="" />
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        
+
+
+<img class="img-fluid rounded z-depth-1" src="/assets/resized/12-1400x933.jpg" srcset="    /assets/resized/12-480x320.jpg 480w,    /assets/resized/12-800x533.jpg 800w,    /assets/resized/12-1400x933.jpg 1400w,/ assets/img/12.jpg 2000w" data-zoomable="" />
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        
+
+
+<img class="img-fluid rounded z-depth-1" src="/assets/resized/7-1400x933.jpg" srcset="    /assets/resized/7-480x320.jpg 480w,    /assets/resized/7-800x533.jpg 800w,    /assets/resized/7-1400x933.jpg 1400w,/ assets/img/7.jpg 3000w" data-zoomable="" />
+
+    </div>
+</div>
+:ET
