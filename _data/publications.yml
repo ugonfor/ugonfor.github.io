@@ -8,7 +8,7 @@ main:
     code: https://github.com/ugonfor/DGQ
     page: https://ugonfor.kr/DGQ
     # bibtex: https://bib.yliu.me/MICCAI23.txt
-    # image: ./assets/img/teaser_example_2.png
+    image: https://ugonfor.kr/DGQ/static/images/teaser.jpg
     # notes: 
   - title: "Memory-Efficient Fine-Tuning for Quantized Diffusion Model"
     authors: <strong>Hyogon Ryu</strong>, Seohyun Lim, Hyunjung Shim
@@ -18,5 +18,5 @@ main:
     code: https://github.com/ugonfor/TuneQDM
     # page: https://ugonfor.kr/DGQ
     # bibtex: https://bib.yliu.me/MICCAI23.txt
-    # image: ./assets/img/teaser_example_2.png
+    image: ./assets/img/teaser_TuneQDM.png
     # notes: 

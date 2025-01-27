@@ -13,15 +13,15 @@ canonical: https://ugonfor.kr
 # Links 
 # If you don't need one of them, you may delete the corresponding line.
 google_scholar: https://scholar.google.com/citations?user=Xq5B3LQAAAAJ
-cv_link: assets/files/cv_HyogonRyu.pdf
+cv_link: assets/files/CV_HyogonRyu.pdf
 github_link: https://github.com/ugonfor
 linkedin: https://www.linkedin.com/in/hyogon-ryu/
 # twitter: https://twitter.com/
 
 # Images (e.g., your profile picture and your website's favicon) 
 # "favicon" and "favicon_dark" are used for the light and dark modes, respectively. 
-avatar: ./assets/img/avatar.png
-favicon: ./assets/img/favicon.ico
+avatar: ./assets/img/avatar.jfif
+favicon: ./assets/img/favicon_io/favicon-32x32.png
 # favicon_dark: ./assets/img/favicon-dark.png
 
 # Footnote
