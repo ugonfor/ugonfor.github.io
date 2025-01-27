@@ -2,24 +2,25 @@
 layout: homepage
 ---
 
-## About Me
+<!-- ## About Me
+
+During my undergraduate journey, I was an active member of [CyKor](https://ctftime.org/team/369), a hacking team, and deeply interested in information security. Now, as I transition into the field of AI, I am passionate about applying my skills to solve real-world problems from a hacker’s perspective. -->
+
+<!-- ## Research Interests -->
 
 I’m currently pursuing a Master’s in AI at [CVML Lab](https://sites.google.com/view/cvml-kaist), KAIST. I earned my Bachelor’s degree in Cyber Defense from Korea University and completed high school at the Korea Science Academy of KAIST (KSA).
 
-During my undergraduate journey, I was an active member of [CyKor](https://ctftime.org/team/369), a hacking team, and deeply interested in information security. Now, as I transition into the field of AI, I am passionate about applying my skills to solve real-world problems from a hacker’s perspective.
+I am deeply interested in enhancing the **efficiency of deep learning models**, not only from a software perspective but also by focusing on **hardware and system-aware optimization**. While my work has primarily focused on **diffusion model quantization**, my broader goal is to eliminate redundancies in computationally intensive models to achieve sustainable AI.
+
 
 ## Education 
-- M.S. in Artificial Intelligence, KAIST, 2023-2025
-- B.S. in Cyber Defense, Korea University, 2019-2023
+- M.S. in Artificial Intelligence, KAIST, 2023.02-2025.02
+- B.S. in Cyber Defense, Korea University, 2019.03-2023.02
 
-## Research Interests
-
-I am deeply interested in enhancing the **efficiency of deep learning models**, not only from a software perspective but also by focusing on hardware and system-aware **optimization**. While my work has primarily focused on **diffusion model quantization**, my broader goal is to eliminate redundancies in computationally intensive models to achieve sustainable AI.
-
-<!-- ## News
+## News
 
 - **[Jan. 2025]** Our paper about Diffusion Quantization is accepted to ICLR 2025.
-- **[Jun. 2024]** Our paper about Quantization-aware Fine-Tuning is accepted to ECCV 2024. -->
+- **[Jun. 2024]** Our paper about Quantization-aware Fine-Tuning is accepted to ECCV 2024.
 
 {% include_relative _includes/publications.md %}
 
