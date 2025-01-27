@@ -14,8 +14,7 @@ During my undergraduate journey, I was an active member of [CyKor](https://ctfti
 
 ## Research Interests
 
-- **Model Compression**, **Diffusion Models**, **Multimodal Models**
-- **Computer System**, **Reverse Engineering**
+I am deeply interested in enhancing the **efficiency of deep learning models**, not only from a software perspective but also by focusing on hardware and system-aware **optimization**. While my work has primarily focused on **diffusion model quantization**, my broader goal is to eliminate redundancies in computationally intensive models to achieve sustainable AI.
 
 <!-- ## News
 
