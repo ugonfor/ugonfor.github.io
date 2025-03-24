@@ -1,13 +1,14 @@
 /* 글로벌 기본 스타일 */
 body {
-  font-family: 'Nanum Myeongjo', serif;
-  line-height: 1.6;
-  font-size: 18px;
+  font-family: 'Nanum Gothic', sans-serif;
+  line-height: 1.5;
+  font-size: 14px;
   background-color: #fff;
   color: #333;
   margin: 0;
   padding: 0;
 }
+
 
 /* 마크다운 콘텐츠 영역 */
 .markdown-body {
