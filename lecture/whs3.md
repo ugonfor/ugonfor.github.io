@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: post
 title: "Whitehat School - Secure Coding Lecture Material"
 ---
 
