@@ -1,0 +1,94 @@
+/* 글로벌 기본 스타일 */
+body {
+  font-family: 'Nanum Myeongjo', serif;
+  line-height: 1.6;
+  font-size: 18px;
+  background-color: #fff;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+/* 마크다운 콘텐츠 영역 */
+.markdown-body {
+  box-sizing: border-box;
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 40px;
+  background-color: #fff;
+}
+
+/* 헤딩 스타일 */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  line-height: 1.2;
+}
+
+/* 단락 스타일 */
+.markdown-body p {
+  margin-bottom: 1rem;
+  line-height: 1.8;
+}
+
+/* 목록 스타일 */
+.markdown-body ul,
+.markdown-body ol {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+
+/* 링크 스타일 */
+.markdown-body a {
+  color: #0366d6;
+  text-decoration: none;
+}
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+/* 인용문 스타일 */
+.markdown-body blockquote {
+  padding: 0.5rem 1rem;
+  margin: 0 0 1rem;
+  border-left: 4px solid #dfe2e5;
+  color: #6a737d;
+  background-color: #f6f8fa;
+}
+
+/* 인라인 코드 및 코드 블록 */
+.markdown-body code {
+  background-color: #f6f8fa;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+}
+
+.markdown-body pre {
+  background-color: #f6f8fa;
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 3px;
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+}
+
+/* 테이블 스타일 (필요한 경우) */
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #dfe2e5;
+  padding: 0.6em 1em;
+}
+.markdown-body th {
+  background-color: #f6f8fa;
+}
