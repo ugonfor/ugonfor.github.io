@@ -27,9 +27,9 @@
 
 화이트햇 스쿨 멘티 이외 외부에 공유하지 않도록 주의해주세요. 
 
-1\. Git 사용법 pdf 파일 링크 : https://ugonfor.kr/lecture/how-to-use-git.pdf
+1\. Git 사용법 pdf 파일 링크 : [https://ugonfor.kr/lecture/how-to-use-git.pdf](https://ugonfor.kr/lecture/how-to-use-git.pdf)
 
-2\. secure coding pdf 파일 링크 : https://ugonfor.kr/lecture/secure-coding-slide.v2.pdf
+2\. secure coding pdf 파일 링크 : [https://ugonfor.kr/lecture/secure-coding-slide.v2.pdf](https://ugonfor.kr/lecture/secure-coding-slide.v2.pdf)
 
 ## 희망 프로젝트 조사
 
@@ -41,4 +41,4 @@
 
 \*\* 주제 제안 시 참고할 예정으로, 제출 하셨어도 해당 프로젝트가 진행되지 않을 수 있습니다.
 
-설문 링크: https://forms.gle/NsKPs5usD7hg1M8z8
+설문 링크: [https://forms.gle/NsKPs5usD7hg1M8z8](https://forms.gle/NsKPs5usD7hg1M8z8)
