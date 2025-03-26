@@ -8,6 +8,7 @@
     padding: 10px 0;
     text-align: center;
     z-index: 1000; /* Ensures it's on top */
+    transition: transform 0.3s ease;
   }
   
   /* Menu List Styling */
