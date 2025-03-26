@@ -20,17 +20,10 @@ linkedin: https://www.linkedin.com/in/hyogon-ryu/
 
 # Images (e.g., your profile picture and your website's favicon) 
 # "favicon" and "favicon_dark" are used for the light and dark modes, respectively. 
-avatar: ./assets/img/avatar.jfif
-favicon: ./assets/img/favicon_io/favicon-32x32.png
+avatar: /assets/img/avatar.jfif
+favicon: /assets/img/favicon_io/favicon-32x32.png
 # favicon_dark: ./assets/img/favicon-dark.png
 
-# Footnote
-# You may use the option to disable the footnote, "Powered by Jekyll and Minimal Light theme."
-enable_footnote: False
-
-# Auto Dark Mode
-# You may use the option to disable the automatic dark theme
-auto_dark_mode: False
 
 # Font
 # You can use this option to choose between Serif or Sans Serif fonts.
@@ -49,9 +42,5 @@ exclude:
   - Gemfile
   - Gemfile.lock
   - README.md
-  - README_zh_Hans.md
-  - README_zh_Hant.md
-  - README_de.md
   - LICENSE
   - minimal-light.gemspec
-  - html_source_file/
