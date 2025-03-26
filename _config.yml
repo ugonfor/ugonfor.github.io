@@ -44,3 +44,5 @@ exclude:
   - README.md
   - LICENSE
   - minimal-light.gemspec
+
+future: true
