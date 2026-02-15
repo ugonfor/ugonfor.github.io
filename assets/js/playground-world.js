@@ -17,6 +17,9 @@
   const chatLogEl = document.getElementById("pg-chat-log");
   const chatInputEl = document.getElementById("pg-chat-input");
   const chatSendEl = document.getElementById("pg-chat-send");
+  const chatActiveTargetEl = document.getElementById("pg-chat-active-target");
+  const chatActiveStateEl = document.getElementById("pg-chat-active-state");
+  const chatModelEl = document.getElementById("pg-chat-model");
   const createNameEl = document.getElementById("pg-create-name");
   const createPersonalityEl = document.getElementById("pg-create-personality");
   const createBtnEl = document.getElementById("pg-create-btn");
@@ -25,6 +28,9 @@
   const saveBtn = document.getElementById("pg-save");
   const loadBtn = document.getElementById("pg-load");
   const uiToggleBtn = document.getElementById("pg-ui-toggle");
+  const leftToggleBtn = document.getElementById("pg-toggle-left");
+  const rightToggleBtn = document.getElementById("pg-toggle-right");
+  const chatToggleBtn = document.getElementById("pg-toggle-chat");
   const stageEl = document.querySelector(".pg-world-stage");
   const mobileInteractBtn = document.getElementById("pg-mobile-interact");
   const mobileRunBtn = document.getElementById("pg-mobile-run");
@@ -35,14 +41,27 @@
   const joystickKnob = document.getElementById("pg-joystick-knob");
 
   const SAVE_KEY = "playground_world_state_v2";
+  const UI_PREF_KEY = "playground_ui_pref_v1";
   const LLM_API_URL = String(window.PG_LLM_API_URL || "").trim();
+  const LLM_STREAM_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/npc-chat-stream") : "";
   const WORLD_NPC_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/world-npcs") : "";
+  const TURNSTILE_SITE_KEY = String(window.PG_TURNSTILE_SITE_KEY || "").trim();
   const CHAT_NEARBY_DISTANCE = 4.6;
+  let turnstileWidgetId = null;
 
   const keys = new Set();
   const logs = [];
   const chats = [];
   let llmAvailable = true;
+  let focusedNpcId = null;
+  let conversationFocusNpcId = null;
+  let lastLlmModel = "local";
+  let lastLlmError = "";
+  let nextSocialAt = 0;
+  const chatSession = {
+    npcId: null,
+    expiresAt: 0,
+  };
 
   const npcPersonas = {
     heo: { age: "20대", gender: "남성", personality: "차분하고 책임감이 강한 리더형" },
@@ -56,6 +75,8 @@
   };
 
   const cameraPan = { x: 0, y: 0 };
+  const convoPan = { x: 0, y: 0 };
+  let preConversationZoom = null;
   let dragging = false;
   let dragX = 0;
   let dragY = 0;
@@ -80,9 +101,15 @@
     paused: false,
     baseTileW: 40,
     baseTileH: 20,
-    zoom: 2.25,
+    zoom: 2.6,
     cameraX: canvas.width / 2,
     cameraY: 130,
+  };
+
+  const panelState = {
+    left: true,
+    right: true,
+    chat: true,
   };
 
   const palette = {
@@ -101,6 +128,7 @@
     y: 18,
     speed: 3.7,
     color: "#f2cc61",
+    moveTarget: null,
   };
 
   const places = {
@@ -158,6 +186,10 @@
       talkCooldown: 0,
       memory: [],
       personality,
+      roamTarget: null,
+      roamWait: 0,
+      roamRadius: 2.4 + Math.random() * 2.1,
+      nextLongTripAt: 8 + Math.random() * 14,
     };
   }
 
@@ -218,6 +250,45 @@
     return tones[sum % tones.length];
   }
 
+  function ensureTurnstileWidget() {
+    if (!TURNSTILE_SITE_KEY) return null;
+    if (!window.turnstile || typeof window.turnstile.render !== "function") {
+      throw new Error("Turnstile script is not loaded");
+    }
+    if (turnstileWidgetId !== null) return turnstileWidgetId;
+    const el = document.createElement("div");
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    el.style.top = "-9999px";
+    document.body.appendChild(el);
+    turnstileWidgetId = window.turnstile.render(el, {
+      sitekey: TURNSTILE_SITE_KEY,
+      size: "invisible",
+    });
+    return turnstileWidgetId;
+  }
+
+  async function getHumanVerificationToken(action = "npc_chat") {
+    if (typeof window.PG_HUMAN_TOKEN_PROVIDER === "function") {
+      const token = await window.PG_HUMAN_TOKEN_PROVIDER(action);
+      return String(token || "").trim();
+    }
+    if (!TURNSTILE_SITE_KEY) return "";
+    if (!window.turnstile || typeof window.turnstile.execute !== "function") {
+      throw new Error("Turnstile is not available");
+    }
+    const widgetId = ensureTurnstileWidget();
+    const token = await window.turnstile.execute(widgetId, { action });
+    return String(token || "").trim();
+  }
+
+  async function buildApiHeaders(action = "npc_chat") {
+    const headers = { "Content-Type": "application/json" };
+    const token = await getHumanVerificationToken(action);
+    if (token) headers["X-Turnstile-Token"] = token;
+    return headers;
+  }
+
   function spawnNpcFromSharedRecord(record) {
     if (!record || !record.id || !record.name) return null;
     if (npcs.some((n) => n.id === record.id)) return null;
@@ -266,9 +337,10 @@
 
   async function createSharedNpc(name, personality) {
     if (!WORLD_NPC_API_URL) throw new Error("Shared NPC endpoint is empty");
+    const headers = await buildApiHeaders("world_npc_create");
     const res = await fetch(WORLD_NPC_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ name, personality }),
     });
     if (!res.ok) {
@@ -310,6 +382,48 @@
     }
   }
 
+  function setPanelToggle(btn, active) {
+    if (!btn) return;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+
+  function applyPanelState() {
+    if (!stageEl) return;
+    stageEl.classList.toggle("pg-hide-left", !panelState.left);
+    stageEl.classList.toggle("pg-hide-right", !panelState.right);
+    stageEl.classList.toggle("pg-hide-chat", !panelState.chat);
+    setPanelToggle(leftToggleBtn, panelState.left);
+    setPanelToggle(rightToggleBtn, panelState.right);
+    setPanelToggle(chatToggleBtn, panelState.chat);
+  }
+
+  function savePanelState() {
+    try {
+      localStorage.setItem(UI_PREF_KEY, JSON.stringify(panelState));
+    } catch (_) {}
+  }
+
+  function defaultPanelStateByViewport() {
+    const w = window.innerWidth || 1280;
+    if (w < 1120) return { left: true, right: false, chat: true };
+    if (w < 1360) return { left: true, right: false, chat: true };
+    return { left: true, right: true, chat: true };
+  }
+
+  function loadPanelState() {
+    let loaded = null;
+    try {
+      const raw = localStorage.getItem(UI_PREF_KEY);
+      if (raw) loaded = JSON.parse(raw);
+    } catch (_) {}
+    const next = loaded && typeof loaded === "object" ? loaded : defaultPanelStateByViewport();
+    panelState.left = typeof next.left === "boolean" ? next.left : true;
+    panelState.right = typeof next.right === "boolean" ? next.right : false;
+    panelState.chat = typeof next.chat === "boolean" ? next.chat : true;
+    applyPanelState();
+  }
+
   function dist(a, b) {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
@@ -342,18 +456,103 @@
   function addLog(text) {
     logs.unshift({ text, stamp: formatTime() });
     if (logs.length > 16) logs.length = 16;
-    uiLog.innerHTML = logs
-      .map((entry) => `<div><strong>${entry.stamp}</strong> ${entry.text}</div>`)
-      .join("");
+    if (!uiLog) return;
+    const frag = document.createDocumentFragment();
+    for (const entry of logs) {
+      const row = document.createElement("div");
+      const stamp = document.createElement("strong");
+      stamp.textContent = entry.stamp;
+      row.appendChild(stamp);
+      row.appendChild(document.createTextNode(` ${entry.text}`));
+      frag.appendChild(row);
+    }
+    uiLog.replaceChildren(frag);
   }
 
   function addChat(speaker, text) {
     chats.unshift({ speaker, text, stamp: formatTime() });
     if (chats.length > 24) chats.length = 24;
+    renderChats();
+  }
+
+  function renderChats() {
     if (!chatLogEl) return;
-    chatLogEl.innerHTML = chats
-      .map((c) => `<div><strong>${c.speaker}</strong>: ${c.text}</div>`)
-      .join("");
+    const frag = document.createDocumentFragment();
+    for (const c of chats) {
+      const row = document.createElement("div");
+      const speaker = document.createElement("strong");
+      speaker.textContent = c.speaker;
+      row.appendChild(speaker);
+      row.appendChild(document.createTextNode(`: ${c.text}`));
+      frag.appendChild(row);
+    }
+    chatLogEl.replaceChildren(frag);
+  }
+
+  function startStreamingChat(speaker) {
+    const entry = { speaker, text: "", stamp: formatTime(), streaming: true };
+    chats.unshift(entry);
+    if (chats.length > 24) chats.length = 24;
+    renderChats();
+    return {
+      append(chunk) {
+        entry.text += chunk;
+        renderChats();
+      },
+      done() {
+        entry.streaming = false;
+        renderChats();
+      },
+      empty() {
+        return !entry.text.trim();
+      },
+      remove() {
+        const idx = chats.indexOf(entry);
+        if (idx >= 0) chats.splice(idx, 1);
+        renderChats();
+      },
+      text() {
+        return entry.text;
+      },
+    };
+  }
+
+  function nowMs() {
+    return performance.now();
+  }
+
+  function isTypingInInput() {
+    const el = document.activeElement;
+    if (!el) return false;
+    if (el === chatInputEl) return true;
+    const tag = String(el.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea") return true;
+    if (el.isContentEditable) return true;
+    return false;
+  }
+
+  function isChatTyping() {
+    return !!chatInputEl && document.activeElement === chatInputEl && !chatInputEl.disabled;
+  }
+
+  function setChatSession(npcId, holdMs = 12000) {
+    chatSession.npcId = npcId;
+    chatSession.expiresAt = nowMs() + holdMs;
+  }
+
+  function chatSessionActiveFor(npcId) {
+    return chatSession.npcId === npcId && nowMs() < chatSession.expiresAt;
+  }
+
+  function activeConversationNpc() {
+    const pinned = npcById(conversationFocusNpcId);
+    if (pinned && dist(player, pinned) <= CHAT_NEARBY_DISTANCE * 2.0) return pinned;
+
+    const target = chatTargetNpc();
+    if (!target) return null;
+    if (target.near && isChatTyping()) return target.npc;
+    if (target.near && chatSessionActiveFor(target.npc.id)) return target.npc;
+    return null;
   }
 
   function adjustRelation(key, delta) {
@@ -393,6 +592,68 @@
     return items.length ? items[0] : null;
   }
 
+  function npcById(id) {
+    if (!id) return null;
+    return npcs.find((n) => n.id === id) || null;
+  }
+
+  function chatTargetNpc() {
+    const pinned = npcById(conversationFocusNpcId);
+    if (pinned) {
+      const pd = dist(player, pinned);
+      if (pd <= CHAT_NEARBY_DISTANCE) return { npc: pinned, focused: true, near: true };
+      if (pd <= CHAT_NEARBY_DISTANCE * 2.0) return { npc: pinned, focused: true, near: false };
+      conversationFocusNpcId = null;
+    }
+
+    const focused = npcById(focusedNpcId);
+    if (focused) {
+      const d = dist(player, focused);
+      if (d <= CHAT_NEARBY_DISTANCE) return { npc: focused, focused: true, near: true };
+      return { npc: focused, focused: true, near: false };
+    }
+    const near = nearestNpc(CHAT_NEARBY_DISTANCE);
+    if (near) return { npc: near.npc, focused: false, near: true };
+    return null;
+  }
+
+  function moveNearNpcTarget(npc) {
+    const dx = player.x - npc.x;
+    const dy = player.y - npc.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const gap = 1.2;
+    let tx = npc.x + (dx / d) * gap;
+    let ty = npc.y + (dy / d) * gap;
+
+    if (!canStand(tx, ty)) {
+      const tries = [
+        [npc.x + gap, npc.y],
+        [npc.x - gap, npc.y],
+        [npc.x, npc.y + gap],
+        [npc.x, npc.y - gap],
+        [npc.x + gap * 0.7, npc.y + gap * 0.7],
+        [npc.x - gap * 0.7, npc.y - gap * 0.7],
+      ];
+      let found = false;
+      for (const [x, y] of tries) {
+        if (canStand(x, y)) {
+          tx = x;
+          ty = y;
+          found = true;
+          break;
+        }
+      }
+      if (!found) return false;
+    }
+
+    player.moveTarget = {
+      x: clamp(tx, 1, world.width - 1),
+      y: clamp(ty, 1, world.height - 1),
+      npcId: npc.id,
+    };
+    return true;
+  }
+
   function nearestHotspot(maxDist) {
     const items = hotspots
       .map((h) => ({ h, d: dist(player, h) }))
@@ -407,6 +668,31 @@
     if (h < 17) return npc.work;
     if (h < 21) return npc.hobby;
     return npc.home;
+  }
+
+  function randomPointNear(base, radius) {
+    for (let i = 0; i < 14; i += 1) {
+      const ang = Math.random() * Math.PI * 2;
+      const rr = radius * (0.25 + Math.random() * 0.75);
+      const x = clamp(base.x + Math.cos(ang) * rr, 1, world.width - 1);
+      const y = clamp(base.y + Math.sin(ang) * rr, 1, world.height - 1);
+      if (canStand(x, y)) return { x, y };
+    }
+    return { x: clamp(base.x, 1, world.width - 1), y: clamp(base.y, 1, world.height - 1) };
+  }
+
+  function pickNpcRoamTarget(npc) {
+    const placesList = [places.plaza, places.cafe, places.office, places.park, places.market];
+    const nowHour = hourOfDay() + minuteOfDay() / 60;
+    const anchor = targetFor(npc);
+
+    let base = anchor;
+    if (nowHour >= npc.nextLongTripAt) {
+      base = placesList[Math.floor(Math.random() * placesList.length)];
+      npc.nextLongTripAt = nowHour + 4 + Math.random() * 8;
+    }
+
+    npc.roamTarget = randomPointNear(base, npc.roamRadius);
   }
 
   function setQuestStage(stage, objective) {
@@ -595,9 +881,10 @@
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     try {
+      const headers = await buildApiHeaders("npc_chat");
       const res = await fetch(LLM_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
@@ -607,8 +894,117 @@
       const data = await res.json();
       const reply = (data && typeof data.reply === "string" && data.reply.trim()) || "";
       if (!reply) throw new Error("Empty LLM reply");
-      llmAvailable = true;
-      return reply;
+      const model = (data && typeof data.model === "string" && data.model.trim()) || "gemini";
+      return { reply, model };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async function requestLlmNpcReplyStream(npc, userMessage, onChunk) {
+    if (!LLM_STREAM_API_URL) throw new Error("LLM stream API URL is empty");
+
+    const persona = npcPersonas[npc.id] || {
+      age: "20대",
+      gender: "남성",
+      personality: npc.personality || inferPersonalityFromName(npc.name),
+    };
+    const near = nearestNpc(CHAT_NEARBY_DISTANCE);
+    const payload = {
+      npcId: npc.id,
+      npcName: npc.name,
+      persona,
+      userMessage,
+      worldContext: {
+        time: formatTime(),
+        objective: quest.objective,
+        questDone: quest.done,
+        nearby: near ? near.npc.name : "none",
+        relationSummary: {
+          playerToHeo: relations.playerToHeo,
+          playerToKim: relations.playerToKim,
+          playerToChoi: relations.playerToChoi,
+          heoToKim: relations.heoToKim,
+        },
+      },
+      recentMessages: chats.slice(0, 6).reverse(),
+    };
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const headers = await buildApiHeaders("npc_chat_stream");
+      const res = await fetch(LLM_STREAM_API_URL, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      if (!res.ok || !res.body) throw new Error(`LLM stream HTTP ${res.status}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let model = "gemini";
+      let reply = "";
+      let done = false;
+      const findBoundary = (text) => {
+        const a = text.indexOf("\n\n");
+        const b = text.indexOf("\r\n\r\n");
+        if (a === -1) return b;
+        if (b === -1) return a;
+        return Math.min(a, b);
+      };
+
+      const parseSseBlock = (block) => {
+        const lines = String(block || "").split("\n");
+        let event = "message";
+        const dataLines = [];
+        for (const raw of lines) {
+          const line = raw.trimEnd();
+          if (!line || line.startsWith(":")) continue;
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          else if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+        }
+        const dataText = dataLines.join("\n").trim();
+        if (!dataText) return;
+        let data = {};
+        try {
+          data = JSON.parse(dataText);
+        } catch {
+          data = { message: dataText };
+        }
+
+        if (event === "model") {
+          model = data.model || model;
+        } else if (event === "chunk") {
+          const text = data.text || "";
+          if (!text) return;
+          reply += text;
+          if (onChunk) onChunk(text);
+        } else if (event === "error") {
+          throw new Error(data.message || "stream error");
+        } else if (event === "done") {
+          done = true;
+        }
+      };
+
+      while (true) {
+        const { value, done: readerDone } = await reader.read();
+        if (readerDone) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx = findBoundary(buffer);
+        while (idx !== -1) {
+          const block = buffer.slice(0, idx);
+          const sepLen = buffer.startsWith("\r\n\r\n", idx) ? 4 : 2;
+          buffer = buffer.slice(idx + sepLen);
+          parseSseBlock(block);
+          idx = findBoundary(buffer);
+        }
+      }
+      if (buffer.trim()) parseSseBlock(buffer);
+      if (!done && !reply.trim()) throw new Error("empty stream reply");
+      return { reply, model };
     } finally {
       clearTimeout(timeout);
     }
@@ -617,28 +1013,83 @@
   async function sendChatMessage(msg) {
     addChat("You", msg);
 
-    const near = nearestNpc(CHAT_NEARBY_DISTANCE);
-    if (!near) {
+    const target = chatTargetNpc();
+    if (!target) {
       addChat("System", "근처에 대화 가능한 NPC가 없습니다.");
       return;
     }
+    if (!target.near) {
+      moveNearNpcTarget(target.npc);
+      addChat("System", `${target.npc.name}에게 이동 중입니다. 가까이 가면 대화할 수 있습니다.`);
+      return;
+    }
 
-    const npc = near.npc;
+    const npc = target.npc;
+    conversationFocusNpcId = npc.id;
+    setChatSession(npc.id, 90000);
     if (chatSendEl) chatSendEl.disabled = true;
     if (chatInputEl) chatInputEl.disabled = true;
     let reply = "";
+    let streamingDraft = null;
+    let streamedRendered = false;
     try {
-      reply = await requestLlmNpcReply(npc, msg);
+      if (LLM_STREAM_API_URL) {
+        streamedRendered = true;
+        streamingDraft = startStreamingChat(npc.name);
+        const llm = await requestLlmNpcReplyStream(npc, msg, (chunk) => {
+          if (streamingDraft) streamingDraft.append(chunk);
+        });
+        reply = (streamingDraft && streamingDraft.text()) || llm.reply;
+        if (streamingDraft) streamingDraft.done();
+        lastLlmModel = llm.model || "gemini";
+        if (!llmAvailable) addLog("LLM 연결이 복구되었습니다.");
+        llmAvailable = true;
+        lastLlmError = "";
+      } else {
+        const llm = await requestLlmNpcReply(npc, msg);
+        reply = llm.reply;
+        lastLlmModel = llm.model || "gemini";
+        if (!llmAvailable) addLog("LLM 연결이 복구되었습니다.");
+        llmAvailable = true;
+        lastLlmError = "";
+      }
     } catch (err) {
-      if (llmAvailable) addLog("LLM 연결이 불안정해 로컬 응답으로 전환했습니다.");
-      llmAvailable = false;
-      reply = npcReply(npc, msg);
+      const hadStreamText = streamingDraft && !streamingDraft.empty();
+      if (streamingDraft) {
+        if (hadStreamText) streamingDraft.done();
+        else {
+          streamingDraft.remove();
+          streamedRendered = false;
+        }
+      }
+      if (hadStreamText) {
+        llmAvailable = false;
+        lastLlmModel = "local";
+        lastLlmError = err && err.message ? String(err.message) : "unknown";
+        addChat("System", "스트리밍이 중단되어 응답 일부만 도착했습니다.");
+      } else {
+        try {
+          const llm = await requestLlmNpcReply(npc, msg);
+          reply = llm.reply;
+          lastLlmModel = llm.model || "gemini";
+          if (!llmAvailable) addLog("LLM 연결이 복구되었습니다.");
+          llmAvailable = true;
+          lastLlmError = "";
+        } catch (err2) {
+          if (llmAvailable) addLog("LLM 연결이 불안정해 로컬 응답으로 전환했습니다.");
+          llmAvailable = false;
+          lastLlmModel = "local";
+          lastLlmError = (err2 && err2.message ? String(err2.message) : "") || (err && err.message ? String(err.message) : "unknown");
+          reply = npcReply(npc, msg);
+        }
+      }
     } finally {
       if (chatSendEl) chatSendEl.disabled = false;
       if (chatInputEl) chatInputEl.disabled = false;
       if (chatInputEl) chatInputEl.focus();
     }
-    addChat(npc.name, reply);
+    setChatSession(npc.id, 90000);
+    if (reply && !streamedRendered) addChat(npc.name, reply);
   }
 
   async function sendCardChat() {
@@ -698,13 +1149,13 @@
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-    addLog("World state saved.");
+    addLog("월드 상태를 저장했습니다.");
   }
 
   function loadState() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) {
-      addLog("No saved state found.");
+      addLog("저장된 상태가 없습니다.");
       return;
     }
 
@@ -713,7 +1164,7 @@
       if (state.world) {
         world.totalMinutes = state.world.totalMinutes ?? world.totalMinutes;
         world.paused = !!state.world.paused;
-        world.zoom = clamp(Math.max(state.world.zoom ?? 2.25, 2.0), 1.4, 3.2);
+        world.zoom = clamp(Math.max(state.world.zoom ?? 2.6, 2.0), 1.4, 3.2);
         cameraPan.x = clamp((state.world.cameraPan && state.world.cameraPan.x) || 0, -320, 320);
         cameraPan.y = clamp((state.world.cameraPan && state.world.cameraPan.y) || 0, -220, 220);
       }
@@ -739,13 +1190,19 @@
           npc.talkCooldown = Math.max(0, savedNpc.talkCooldown || 0);
         }
       }
-      addLog("World state loaded.");
+      addLog("월드 상태를 불러왔습니다.");
     } catch (err) {
-      addLog("Failed to load saved state.");
+      addLog("저장된 상태를 불러오지 못했습니다.");
     }
   }
 
   function updatePlayer(dt) {
+    if (isTypingInInput()) {
+      keys.clear();
+      player.moveTarget = null;
+      return;
+    }
+
     let keyDx = 0;
     let keyDy = 0;
     if (keys.has("KeyA") || keys.has("ArrowLeft")) keyDx -= 1;
@@ -753,8 +1210,24 @@
     if (keys.has("KeyW") || keys.has("ArrowUp")) keyDy -= 1;
     if (keys.has("KeyS") || keys.has("ArrowDown")) keyDy += 1;
 
-    const dx = keyDx + inputState.joyX;
-    const dy = keyDy + inputState.joyY;
+    const manualDx = keyDx + inputState.joyX;
+    const manualDy = keyDy + inputState.joyY;
+    let dx = manualDx;
+    let dy = manualDy;
+
+    if (manualDx || manualDy) {
+      player.moveTarget = null;
+    } else if (player.moveTarget) {
+      const tx = player.moveTarget.x - player.x;
+      const ty = player.moveTarget.y - player.y;
+      const td = Math.hypot(tx, ty);
+      if (td <= 0.08) {
+        player.moveTarget = null;
+      } else {
+        dx = tx / td;
+        dy = ty / td;
+      }
+    }
 
     const mag = Math.hypot(dx, dy);
     if (!mag) return;
@@ -769,36 +1242,147 @@
 
     player.x = clamp(player.x, 1, world.width - 1);
     player.y = clamp(player.y, 1, world.height - 1);
+
+    if (player.moveTarget) {
+      const td = Math.hypot(player.moveTarget.x - player.x, player.moveTarget.y - player.y);
+      if (td <= 0.12) {
+        const targetNpc = npcById(player.moveTarget.npcId);
+        if (targetNpc) {
+          addChat("System", `${targetNpc.name} 근처에 도착했습니다. 이제 대화할 수 있습니다.`);
+          if (chatInputEl) chatInputEl.focus();
+        }
+        player.moveTarget = null;
+      }
+    }
   }
 
   function updateNpcs(dt) {
+    const typingTarget = isChatTyping() ? chatTargetNpc() : null;
+    const typingNpcId = typingTarget ? typingTarget.npc.id : null;
+    const pinnedNpcId = conversationFocusNpcId;
+
     for (const npc of npcs) {
       if (npc.talkCooldown > 0) npc.talkCooldown -= dt;
 
-      const t = targetFor(npc);
+      if (pinnedNpcId && npc.id === pinnedNpcId) {
+        npc.state = "chatting";
+        npc.roamWait = Math.max(npc.roamWait, 0.35);
+        continue;
+      }
+
+      if (typingNpcId && npc.id === typingNpcId) {
+        npc.state = "chatting";
+        npc.roamWait = Math.max(npc.roamWait, 0.35);
+        continue;
+      }
+
+      if (chatSessionActiveFor(npc.id)) {
+        npc.state = "chatting";
+        npc.roamWait = Math.max(npc.roamWait, 0.35);
+        continue;
+      }
+
+      if (npc.roamWait > 0) {
+        npc.roamWait -= dt;
+        npc.state = "idle";
+        if (npc.roamWait <= 0) pickNpcRoamTarget(npc);
+        continue;
+      }
+
+      if (!npc.roamTarget || Math.random() < 0.003) {
+        pickNpcRoamTarget(npc);
+      }
+
+      const t = npc.roamTarget || targetFor(npc);
       const dx = t.x - npc.x;
       const dy = t.y - npc.y;
       const d = Math.hypot(dx, dy);
 
-      if (d > 0.15) {
+      if (d > 0.12) {
         const nx = npc.x + (dx / d) * npc.speed * dt;
         const ny = npc.y + (dy / d) * npc.speed * dt;
         if (canStand(nx, ny)) {
           npc.x = nx;
           npc.y = ny;
+          npc.state = "moving";
+        } else {
+          npc.roamTarget = null;
+          npc.state = "idle";
         }
-        npc.state = "moving";
       } else {
+        npc.roamWait = 0.6 + Math.random() * 2.2;
         npc.state = "idle";
       }
     }
   }
 
+  function updateNpcSocialEvents() {
+    if (world.totalMinutes < nextSocialAt) return;
+    nextSocialAt = world.totalMinutes + 22 + Math.random() * 34;
+
+    const moving = npcs.filter((n) => !chatSessionActiveFor(n.id));
+    if (moving.length < 2) return;
+
+    const a = moving[Math.floor(Math.random() * moving.length)];
+    let b = null;
+    let best = Infinity;
+    for (const cand of moving) {
+      if (cand.id === a.id) continue;
+      const d = dist(a, cand);
+      if (d < best) {
+        best = d;
+        b = cand;
+      }
+    }
+    if (!b || best > 2.3) return;
+
+    a.roamWait = Math.max(a.roamWait, 1.4 + Math.random() * 1.2);
+    b.roamWait = Math.max(b.roamWait, 1.4 + Math.random() * 1.2);
+    a.state = "chatting";
+    b.state = "chatting";
+    addLog(`${a.name}과 ${b.name}이 잠시 대화합니다.`);
+  }
+
+  function updateConversationCamera() {
+    const npc = activeConversationNpc();
+    if (npc) {
+      if (preConversationZoom === null) preConversationZoom = world.zoom;
+      const desiredZoom = Math.max(preConversationZoom, 3.2);
+      world.zoom += (desiredZoom - world.zoom) * 0.1;
+
+      const dx = npc.x - player.x;
+      const dy = npc.y - player.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const nx = dx / d;
+      const ny = dy / d;
+      const px = -ny;
+      const py = nx;
+
+      const desiredPanX = clamp(-nx * 130 + px * 72, -220, 220);
+      const desiredPanY = clamp(-ny * 94 + py * 40 - 44, -180, 180);
+      convoPan.x += (desiredPanX - convoPan.x) * 0.16;
+      convoPan.y += (desiredPanY - convoPan.y) * 0.16;
+      return;
+    }
+
+    if (preConversationZoom !== null) {
+      world.zoom += (preConversationZoom - world.zoom) * 0.08;
+      if (Math.abs(preConversationZoom - world.zoom) < 0.02) {
+        world.zoom = preConversationZoom;
+        preConversationZoom = null;
+      }
+    }
+    convoPan.x *= 0.84;
+    convoPan.y *= 0.84;
+    if (Math.abs(convoPan.x) < 0.2) convoPan.x = 0;
+    if (Math.abs(convoPan.y) < 0.2) convoPan.y = 0;
+  }
+
   function resetView() {
     cameraPan.x = 0;
     cameraPan.y = 0;
-    world.zoom = 2.25;
-    addLog("View reset.");
+    world.zoom = 2.6;
+    addLog("시점을 초기화했습니다.");
   }
 
   function touchDistance(t1, t2) {
@@ -1163,33 +1747,76 @@
 
   function updateCamera() {
     const p = project(player.x, player.y, 0);
-    const tx = canvas.width * 0.5 - (p.x - world.cameraX) + cameraPan.x;
-    const ty = canvas.height * 0.58 - (p.y - world.cameraY) + cameraPan.y;
+    const tx = canvas.width * 0.5 - (p.x - world.cameraX) + cameraPan.x + convoPan.x;
+    const ty = canvas.height * 0.58 - (p.y - world.cameraY) + cameraPan.y + convoPan.y;
     world.cameraX += (tx - world.cameraX) * 0.08;
     world.cameraY += (ty - world.cameraY) * 0.08;
   }
 
   function updateUI() {
-    uiTime.textContent = `Time: ${formatTime()} ${world.paused ? "(Paused)" : ""}`;
-    uiPlayer.textContent = `Player: (${player.x.toFixed(1)}, ${player.y.toFixed(1)})`;
+    uiTime.textContent = `시간: ${formatTime()} ${world.paused ? "(일시정지)" : ""}`;
+    uiPlayer.textContent = `플레이어: (${player.x.toFixed(1)}, ${player.y.toFixed(1)})`;
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
-    uiNearby.textContent = near ? `Nearby: ${near.npc.name} (${near.npc.state})` : "Nearby: none";
+    uiNearby.textContent = near ? `근처: ${near.npc.name} (${near.npc.state})` : "근처: 없음";
 
-    if (quest.done) uiQuest.textContent = `Quest: ${quest.title} - Completed`;
-    else uiQuest.textContent = `Quest: ${quest.title} - ${quest.objective}`;
+    if (quest.done) uiQuest.textContent = `퀘스트: ${quest.title} - 완료`;
+    else uiQuest.textContent = `퀘스트: ${quest.title} - ${quest.objective}`;
 
-    uiRel.textContent =
-      `Relation: 허승준 ${relations.playerToHeo} / 김민수 ${relations.playerToKim} / 최민영 ${relations.playerToChoi} / 허승준↔김민수 ${relations.heoToKim}`;
+    uiRel.textContent = `관계도: 허승준 ${relations.playerToHeo} / 김민수 ${relations.playerToKim} / 최민영 ${relations.playerToChoi} / 허승준↔김민수 ${relations.heoToKim}`;
 
-    if (chatTargetEl) {
-      const n = nearestNpc(CHAT_NEARBY_DISTANCE);
-      chatTargetEl.textContent = n ? `대상: ${n.npc.name}` : "대상: 없음";
-      if (chatSendEl) chatSendEl.disabled = !n;
+    const target = chatTargetNpc();
+    if (chatTargetEl) chatTargetEl.textContent = target ? `대상: ${target.npc.name}` : "대상: 없음";
+    if (chatSendEl) chatSendEl.disabled = !target || !target.near;
+    if (chatInputEl) chatInputEl.disabled = !target || !target.near;
+    if (chatActiveTargetEl) chatActiveTargetEl.textContent = target ? `대상: ${target.npc.name}` : "대상: 없음";
+    if (chatActiveStateEl) {
+      if (!target) chatActiveStateEl.textContent = "상태: 대화 불가";
+      else if (!target.near) chatActiveStateEl.textContent = "상태: 대상에게 이동 중";
+      else if (conversationFocusNpcId && target.npc.id === conversationFocusNpcId) chatActiveStateEl.textContent = "상태: 대화 고정";
+      else if (chatSessionActiveFor(target.npc.id)) chatActiveStateEl.textContent = "상태: 대화 중";
+      else if (target.focused) chatActiveStateEl.textContent = "상태: 클릭 선택됨";
+      else chatActiveStateEl.textContent = "상태: 근거리 대화 가능";
+    }
+    if (chatModelEl) {
+      if (!LLM_API_URL) chatModelEl.textContent = "모델: 로컬 응답";
+      else if (llmAvailable) chatModelEl.textContent = `모델: ${lastLlmModel}`;
+      else chatModelEl.textContent = `모델: 로컬 응답 (LLM 오류)`;
+      if (!llmAvailable && lastLlmError) chatModelEl.title = lastLlmError;
+      else chatModelEl.removeAttribute("title");
     }
   }
 
+  function canvasPointFromEvent(ev) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = (ev.clientX - rect.left) * (canvas.width / rect.width);
+    const sy = (ev.clientY - rect.top) * (canvas.height / rect.height);
+    return { x: sx, y: sy };
+  }
+
+  function npcAtCanvasPoint(px, py) {
+    let best = null;
+    let bestD = Infinity;
+    const z = clamp(world.zoom, 0.9, 3.2);
+    const r = 17 * z;
+    for (const npc of npcs) {
+      const p = project(npc.x, npc.y, 0);
+      const cx = p.x;
+      const cy = p.y - 10;
+      const d = Math.hypot(px - cx, py - cy);
+      if (d <= r && d < bestD) {
+        best = npc;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
   let last = performance.now();
+  let mouseDown = false;
+  let mouseDragged = false;
+  let mouseDownX = 0;
+  let mouseDownY = 0;
   addLog("월드가 초기화되었습니다. NPC와 상호작용해 보세요.");
   if (LLM_API_URL) addChat("System", "근처 NPC와 한국어 LLM 채팅이 활성화되었습니다.");
   else addChat("System", "LLM 엔드포인트가 없어 로컬 대화 모드로 동작합니다.");
@@ -1204,7 +1831,9 @@
       world.totalMinutes += dt * 14;
       updatePlayer(dt);
       updateNpcs(dt);
+      updateNpcSocialEvents();
       updateAmbientEvents();
+      updateConversationCamera();
       updateCamera();
     }
 
@@ -1216,6 +1845,12 @@
 
   window.addEventListener("keydown", (ev) => {
     const code = ev.code;
+    if (isTypingInInput()) {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", "KeyE", "KeyP"].includes(code)) {
+        ev.preventDefault();
+      }
+      return;
+    }
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(code)) {
       ev.preventDefault();
     }
@@ -1223,30 +1858,66 @@
     if (code === "Space") resetView();
     if (code === "KeyP") {
       world.paused = !world.paused;
-      addLog(world.paused ? "Simulation paused." : "Simulation resumed.");
+      addLog(world.paused ? "시뮬레이션 일시정지" : "시뮬레이션 재개");
     }
     keys.add(code);
   });
 
   window.addEventListener("keyup", (ev) => {
+    if (isTypingInInput()) return;
     keys.delete(ev.code);
   });
 
   canvas.addEventListener("mousedown", (ev) => {
     if (ev.button !== 0) return;
-    dragging = true;
+    mouseDown = true;
+    mouseDragged = false;
+    mouseDownX = ev.clientX;
+    mouseDownY = ev.clientY;
+    dragging = false;
     dragX = ev.clientX;
     dragY = ev.clientY;
-    canvas.classList.add("dragging");
   });
 
-  window.addEventListener("mouseup", () => {
-    if (!dragging) return;
-    dragging = false;
-    canvas.classList.remove("dragging");
+  window.addEventListener("mouseup", (ev) => {
+    if (!mouseDown) return;
+    if (!mouseDragged) {
+      const pt = canvasPointFromEvent(ev);
+      const clickedNpc = npcAtCanvasPoint(pt.x, pt.y);
+      if (clickedNpc) {
+        focusedNpcId = clickedNpc.id;
+        conversationFocusNpcId = clickedNpc.id;
+        const moved = moveNearNpcTarget(clickedNpc);
+        if (moved) {
+          addChat("System", `${clickedNpc.name}에게 이동합니다. 도착하면 대화할 수 있습니다.`);
+        } else {
+          addChat("System", `${clickedNpc.name} 주변으로 이동할 수 없습니다.`);
+        }
+      } else {
+        focusedNpcId = null;
+        conversationFocusNpcId = null;
+        player.moveTarget = null;
+        chatSession.npcId = null;
+        chatSession.expiresAt = 0;
+      }
+    }
+    mouseDown = false;
+    if (dragging) {
+      dragging = false;
+      canvas.classList.remove("dragging");
+    }
   });
 
   window.addEventListener("mousemove", (ev) => {
+    if (!mouseDown) return;
+    if (!mouseDragged) {
+      const moved = Math.hypot(ev.clientX - mouseDownX, ev.clientY - mouseDownY);
+      if (moved > 4) {
+        mouseDragged = true;
+        dragging = true;
+        canvas.classList.add("dragging");
+      }
+    }
     if (!dragging) return;
     const dx = ev.clientX - dragX;
     const dy = ev.clientY - dragY;
@@ -1431,9 +2102,34 @@
   if (uiToggleBtn && stageEl) {
     uiToggleBtn.addEventListener("click", () => {
       const collapsed = stageEl.classList.toggle("pg-ui-collapsed");
-      uiToggleBtn.textContent = collapsed ? "Show UI" : "Hide UI";
+      uiToggleBtn.textContent = collapsed ? "UI 보기" : "UI 숨기기";
       uiToggleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
     });
+  }
+  if (stageEl) {
+    loadPanelState();
+
+    if (leftToggleBtn) {
+      leftToggleBtn.addEventListener("click", () => {
+        panelState.left = !panelState.left;
+        applyPanelState();
+        savePanelState();
+      });
+    }
+    if (rightToggleBtn) {
+      rightToggleBtn.addEventListener("click", () => {
+        panelState.right = !panelState.right;
+        applyPanelState();
+        savePanelState();
+      });
+    }
+    if (chatToggleBtn) {
+      chatToggleBtn.addEventListener("click", () => {
+        panelState.chat = !panelState.chat;
+        applyPanelState();
+        savePanelState();
+      });
+    }
   }
 
   if (mobileMode) resetJoystick();
