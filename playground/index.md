@@ -17,9 +17,6 @@ extra_head: |
     window.PG_TURNSTILE_SITE_KEY = {{ site.playground_turnstile_site_key | jsonify }};
   </script>
   <div class="pg-world-stage">
-    <div class="pg-orientation-hint" role="status" aria-live="polite">
-      Better in landscape: rotate your phone for a wider world view.
-    </div>
     <canvas id="pg-world-canvas" width="960" height="540" aria-label="Local open-world simulation"></canvas>
     <div class="pg-mobile-controls" aria-label="Mobile controls">
       <div class="pg-joystick-wrap">
@@ -29,10 +26,20 @@ extra_head: |
       </div>
       <div class="pg-mobile-actions">
         <button id="pg-mobile-interact" type="button">상호작용</button>
-        <button id="pg-mobile-run" type="button">달리기</button>
         <button id="pg-mobile-chat" type="button">채팅</button>
+        <button id="pg-mobile-run" type="button">달리기</button>
         <button id="pg-mobile-pause" type="button">일시정지</button>
         <button id="pg-mobile-reset" type="button">시점초기화</button>
+        <button id="pg-mobile-utility" type="button" aria-pressed="false">기능</button>
+      </div>
+    </div>
+    <div class="pg-mobile-sheet" aria-label="Mobile panels">
+      <button id="pg-mobile-sheet-toggle" type="button" aria-expanded="false">패널 열기</button>
+      <div class="pg-mobile-sheet-tabs" role="tablist" aria-label="모바일 패널 탭">
+        <button id="pg-mobile-tab-controls" type="button" class="pg-mobile-tab is-active" role="tab" aria-selected="true">조작</button>
+        <button id="pg-mobile-tab-info" type="button" class="pg-mobile-tab" role="tab" aria-selected="false">정보</button>
+        <button id="pg-mobile-tab-log" type="button" class="pg-mobile-tab" role="tab" aria-selected="false">로그</button>
+        <button id="pg-mobile-tab-chat" type="button" class="pg-mobile-tab" role="tab" aria-selected="false">채팅</button>
       </div>
     </div>
     <button id="pg-ui-toggle" class="pg-ui-toggle" type="button" aria-expanded="true">UI 숨기기</button>
@@ -43,24 +50,15 @@ extra_head: |
     </div>
     <div class="pg-world-ui">
       <div class="pg-hud-left">
-        <div class="pg-world-card">
+        <div id="pg-card-controls" class="pg-world-card">
           <h3>조작</h3>
-          <p><strong>이동</strong>: WASD / 방향키</p>
-          <p><strong>달리기</strong>: Shift 누르기</p>
-          <p><strong>카메라</strong>: 마우스 좌클릭 드래그</p>
-          <p><strong>줌</strong>: 마우스 휠</p>
-          <p><strong>모바일</strong>: 조이스틱 + 드래그/핀치</p>
-          <p><strong>시점 초기화</strong>: Space</p>
-          <p><strong>상호작용</strong>: E (NPC 근처)</p>
-          <p><strong>나가기</strong>: 좌측 Exit에서 E</p>
-          <p><strong>일시정지</strong>: P</p>
           <div class="pg-actions">
             <button id="pg-save" type="button">저장</button>
             <button id="pg-load" type="button">불러오기</button>
             <button id="pg-rename" type="button">이름 변경</button>
           </div>
         </div>
-        <div class="pg-world-card">
+        <div id="pg-card-info" class="pg-world-card">
           <h3>캐릭터 생성</h3>
           <div class="pg-create-row">
             <input id="pg-create-name" type="text" maxlength="18" placeholder="이름" />
@@ -71,7 +69,7 @@ extra_head: |
           </div>
           <p id="pg-create-status">모든 사용자가 공유하는 NPC로 추가됩니다.</p>
         </div>
-        <div class="pg-world-card">
+        <div id="pg-card-status" class="pg-world-card">
           <h3>월드 상태</h3>
           <p id="pg-time">시간: --:--</p>
           <p id="pg-player">플레이어: --</p>
@@ -82,14 +80,17 @@ extra_head: |
         </div>
       </div>
       <div class="pg-hud-right">
-        <div class="pg-world-card">
+        <div id="pg-card-log" class="pg-world-card">
           <h3>이벤트 로그</h3>
           <div id="pg-log" class="pg-log"></div>
         </div>
       </div>
     </div>
     <div class="pg-chat-dock">
-      <h3 class="pg-chat-title">NPC Chat</h3>
+      <div class="pg-chat-title-row">
+        <h3 class="pg-chat-title">NPC Chat</h3>
+        <button id="pg-chat-close" type="button" hidden>채팅 종료</button>
+      </div>
       <p id="pg-chat-target" class="pg-chat-target-line">대상: 없음</p>
       <div class="pg-chat-meta">
         <p id="pg-chat-active-target">대상: 없음</p>
