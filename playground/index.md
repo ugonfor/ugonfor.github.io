@@ -48,6 +48,14 @@ extra_head: |
           </div>
         </div>
         <div class="pg-world-card">
+          <h3>Create Character</h3>
+          <div class="pg-create-row">
+            <input id="pg-create-name" type="text" maxlength="18" placeholder="Enter character name" />
+            <button id="pg-create-btn" type="button">Create</button>
+          </div>
+          <p id="pg-create-status">Custom NPCs can be added near your position.</p>
+        </div>
+        <div class="pg-world-card">
           <h3>World State</h3>
           <p id="pg-time">Time: --:--</p>
           <p id="pg-player">Player: --</p>

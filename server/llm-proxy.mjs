@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 
 const PORT = Number(process.env.PORT || 8787);
+const HOST = process.env.HOST || (process.env.K_SERVICE ? "0.0.0.0" : "127.0.0.1");
 const API_KEY = process.env.GOOGLE_API_KEY || "";
 const MODEL_CHAIN = (process.env.MODEL_CHAIN ||
   "gemini-2.5-pro,gemini-2.0-flash,gemma-3-27b-it,gemma-3-12b-it")
@@ -155,7 +156,7 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   // eslint-disable-next-line no-console
-  console.log(`LLM proxy listening on :${PORT}`);
+  console.log(`LLM proxy listening on ${HOST}:${PORT}`);
 });

@@ -17,6 +17,9 @@
   const chatLogEl = document.getElementById("pg-chat-log");
   const chatInputEl = document.getElementById("pg-chat-input");
   const chatSendEl = document.getElementById("pg-chat-send");
+  const createNameEl = document.getElementById("pg-create-name");
+  const createBtnEl = document.getElementById("pg-create-btn");
+  const createStatusEl = document.getElementById("pg-create-status");
 
   const saveBtn = document.getElementById("pg-save");
   const loadBtn = document.getElementById("pg-load");
@@ -74,7 +77,7 @@
     paused: false,
     baseTileW: 40,
     baseTileH: 20,
-    zoom: 1.42,
+    zoom: 2.25,
     cameraX: canvas.width / 2,
     cameraY: 130,
   };
@@ -170,6 +173,31 @@
 
   function clamp(v, min, max) {
     return Math.max(min, Math.min(max, v));
+  }
+
+  function randomPastelColor() {
+    const h = Math.floor(Math.random() * 360);
+    return `hsl(${h} 62% 68%)`;
+  }
+
+  function pickRandomPlace() {
+    const values = Object.values(places);
+    return values[Math.floor(Math.random() * values.length)];
+  }
+
+  function createCustomNpc(nameRaw) {
+    const name = String(nameRaw || "").trim();
+    if (!name) return { ok: false, reason: "Please enter a name." };
+    if (npcs.some((n) => n.name === name)) return { ok: false, reason: "Name already exists." };
+    if (npcs.length >= 48) return { ok: false, reason: "Too many NPCs in world." };
+
+    const id = `custom_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e5).toString(36)}`;
+    const home = { x: clamp(player.x + (Math.random() * 2 - 1) * 1.5, 2, world.width - 2), y: clamp(player.y + (Math.random() * 2 - 1) * 1.5, 2, world.height - 2) };
+    const npc = makeNpc(id, name, randomPastelColor(), home, pickRandomPlace(), pickRandomPlace());
+    npc.x = home.x;
+    npc.y = home.y;
+    npcs.push(npc);
+    return { ok: true, npc };
   }
 
   function resizeCanvasToDisplaySize() {
@@ -580,7 +608,7 @@
       if (state.world) {
         world.totalMinutes = state.world.totalMinutes ?? world.totalMinutes;
         world.paused = !!state.world.paused;
-        world.zoom = clamp(state.world.zoom ?? 1.42, 0.65, 1.8);
+        world.zoom = clamp(Math.max(state.world.zoom ?? 2.25, 2.0), 1.4, 3.2);
         cameraPan.x = clamp((state.world.cameraPan && state.world.cameraPan.x) || 0, -320, 320);
         cameraPan.y = clamp((state.world.cameraPan && state.world.cameraPan.y) || 0, -220, 220);
       }
@@ -664,7 +692,7 @@
   function resetView() {
     cameraPan.x = 0;
     cameraPan.y = 0;
-    world.zoom = 1.42;
+    world.zoom = 2.25;
     addLog("View reset.");
   }
 
@@ -827,10 +855,12 @@
     ctx.stroke();
 
     // Name tag
-    const tagW = Math.max(34, label.length * 7.1);
-    const tagH = 13;
+    const fontSize = Math.max(16, Math.min(28, radius * 1.1));
+    const charW = fontSize * 0.68;
+    const tagW = Math.max(34, label.length * charW + 10);
+    const tagH = Math.max(13, fontSize + 3);
     const tx = p.x - tagW * 0.5;
-    const ty = p.y - 31;
+    const ty = p.y - (18 + radius * 1.2);
     ctx.fillStyle = "rgba(255,255,255,0.72)";
     ctx.strokeStyle = palette.outline;
     ctx.lineWidth = 1;
@@ -839,8 +869,8 @@
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = "#1f1c1c";
-    ctx.font = "700 10px sans-serif";
-    ctx.fillText(label, tx + 5, ty + 9.6);
+    ctx.font = `700 ${fontSize}px sans-serif`;
+    ctx.fillText(label, tx + 5, ty + tagH - 3);
   }
 
   function drawGround() {
@@ -910,7 +940,8 @@
     }
 
     const actors = [...npcs, player].sort((a, b) => a.x + a.y - (b.x + b.y));
-    for (const actor of actors) drawEntity(actor, actor === player ? 11 : 10, actor.name);
+    const zoomScale = clamp(world.zoom, 0.9, 3.2);
+    for (const actor of actors) drawEntity(actor, (actor === player ? 12 : 11) * zoomScale, actor.name);
   }
 
   function drawMinimap() {
@@ -1061,8 +1092,8 @@
     "wheel",
     (ev) => {
       ev.preventDefault();
-      const delta = ev.deltaY > 0 ? -0.06 : 0.06;
-      world.zoom = clamp(world.zoom + delta, 0.65, 1.8);
+      const delta = ev.deltaY > 0 ? -0.1 : 0.1;
+      world.zoom = clamp(world.zoom + delta, 1.4, 3.2);
     },
     { passive: false }
   );
@@ -1103,7 +1134,7 @@
         const distNow = touchDistance(ev.touches[0], ev.touches[1]);
         if (inputState.pinchDist > 0) {
           const delta = (distNow - inputState.pinchDist) * 0.0025;
-          world.zoom = clamp(world.zoom + delta, 0.65, 1.8);
+          world.zoom = clamp(world.zoom + delta, 1.4, 3.2);
         }
         inputState.pinchDist = distNow;
       }
@@ -1151,12 +1182,12 @@
   }
   if (mobileZoomInBtn) {
     mobileZoomInBtn.addEventListener("click", () => {
-      world.zoom = clamp(world.zoom + 0.08, 0.65, 1.8);
+      world.zoom = clamp(world.zoom + 0.12, 1.4, 3.2);
     });
   }
   if (mobileZoomOutBtn) {
     mobileZoomOutBtn.addEventListener("click", () => {
-      world.zoom = clamp(world.zoom - 0.08, 0.65, 1.8);
+      world.zoom = clamp(world.zoom - 0.12, 1.4, 3.2);
     });
   }
   if (mobileRunBtn) {
@@ -1187,6 +1218,26 @@
 
   if (saveBtn) saveBtn.addEventListener("click", saveState);
   if (loadBtn) loadBtn.addEventListener("click", loadState);
+  if (createBtnEl) {
+    createBtnEl.addEventListener("click", () => {
+      const result = createCustomNpc(createNameEl ? createNameEl.value : "");
+      if (!result.ok) {
+        if (createStatusEl) createStatusEl.textContent = result.reason;
+        return;
+      }
+      if (createNameEl) createNameEl.value = "";
+      if (createStatusEl) createStatusEl.textContent = `Created: ${result.npc.name}`;
+      addLog(`New character joined: ${result.npc.name}`);
+    });
+  }
+  if (createNameEl) {
+    createNameEl.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        if (createBtnEl) createBtnEl.click();
+      }
+    });
+  }
   if (uiToggleBtn && stageEl) {
     uiToggleBtn.addEventListener("click", () => {
       const collapsed = stageEl.classList.toggle("pg-ui-collapsed");
