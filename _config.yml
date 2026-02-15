@@ -51,4 +51,8 @@ future: true
 
 # Playground LLM API endpoint (deployed backend URL)
 # Example: https://your-service-xxxx.a.run.app/api/npc-chat
-playground_llm_api: ""
+playground_llm_api: "https://playground-llm-proxy-733855937288.asia-northeast3.run.app/api/npc-chat"
+
+# Optional Cloudflare Turnstile site key (public key)
+# If empty, browser-side human verification is disabled.
+playground_turnstile_site_key: ""
