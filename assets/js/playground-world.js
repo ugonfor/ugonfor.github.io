@@ -17,6 +17,7 @@
   const chatLogEl = document.getElementById("pg-chat-log");
   const chatInputEl = document.getElementById("pg-chat-input");
   const chatSendEl = document.getElementById("pg-chat-send");
+  const chatCloseBtn = document.getElementById("pg-chat-close");
   const chatActiveTargetEl = document.getElementById("pg-chat-active-target");
   const chatActiveStateEl = document.getElementById("pg-chat-active-state");
   const chatModelEl = document.getElementById("pg-chat-model");
@@ -38,11 +39,18 @@
   const mobileChatBtn = document.getElementById("pg-mobile-chat");
   const mobilePauseBtn = document.getElementById("pg-mobile-pause");
   const mobileResetBtn = document.getElementById("pg-mobile-reset");
+  const mobileUtilityBtn = document.getElementById("pg-mobile-utility");
+  const mobileSheetToggleBtn = document.getElementById("pg-mobile-sheet-toggle");
+  const mobileTabControlsBtn = document.getElementById("pg-mobile-tab-controls");
+  const mobileTabInfoBtn = document.getElementById("pg-mobile-tab-info");
+  const mobileTabLogBtn = document.getElementById("pg-mobile-tab-log");
+  const mobileTabChatBtn = document.getElementById("pg-mobile-tab-chat");
   const joystickBase = document.getElementById("pg-joystick-base");
   const joystickKnob = document.getElementById("pg-joystick-knob");
 
   const SAVE_KEY = "playground_world_state_v2";
   const UI_PREF_KEY = "playground_ui_pref_v1";
+  const MOBILE_SHEET_KEY = "playground_mobile_sheet_v1";
   const PLAYER_NAME_KEY = "playground_player_name_v1";
   const LLM_API_URL = String(window.PG_LLM_API_URL || "").trim();
   const LLM_STREAM_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/npc-chat-stream") : "";
@@ -64,6 +72,10 @@
   let lastLlmModel = "local";
   let lastLlmError = "";
   let nextSocialAt = 0;
+  let mobileSheetOpen = false;
+  let mobileSheetTab = "controls";
+  let mobileChatOpen = false;
+  let mobileUtilityOpen = false;
   const chatSession = {
     npcId: null,
     expiresAt: 0,
@@ -303,6 +315,42 @@
     addLog(`플레이어 이름이 '${player.name}'(으)로 변경되었습니다.`);
   }
 
+  function toggleMobileChatMode() {
+    const target = chatTargetNpc();
+    if (!target) {
+      addChat("System", "근처 NPC가 없습니다. 먼저 NPC 옆으로 이동해 주세요.");
+      return;
+    }
+    if (!target.near) {
+      addChat("System", `${target.npc.name}에게 조금 더 가까이 가면 채팅할 수 있습니다.`);
+      return;
+    }
+
+    conversationFocusNpcId = target.npc.id;
+    setChatSession(target.npc.id, 18_000);
+    if (isMobileViewport()) {
+      mobileChatOpen = true;
+      mobileUtilityOpen = false;
+    }
+    else if (!panelState.chat) panelState.chat = true;
+    if (chatInputEl) chatInputEl.focus();
+    applyPanelState();
+  }
+
+  function closeMobileChat() {
+    if (!isMobileViewport()) return;
+    mobileChatOpen = false;
+    inputState.runHold = false;
+    keys.clear();
+    resetJoystick();
+    player.moveTarget = null;
+    conversationFocusNpcId = null;
+    chatSession.npcId = null;
+    chatSession.expiresAt = 0;
+    if (chatInputEl) chatInputEl.blur();
+    applyPanelState();
+  }
+
   function ensureTurnstileWidget() {
     if (!TURNSTILE_SITE_KEY) return null;
     if (!window.turnstile || typeof window.turnstile.render !== "function") {
@@ -443,12 +491,47 @@
 
   function applyPanelState() {
     if (!stageEl) return;
-    stageEl.classList.toggle("pg-hide-left", !panelState.left);
-    stageEl.classList.toggle("pg-hide-right", !panelState.right);
-    stageEl.classList.toggle("pg-hide-chat", !panelState.chat);
+    const mobile = isMobileViewport();
+    if (mobile) {
+      panelState.left = true;
+      panelState.right = true;
+    }
+    stageEl.classList.toggle("pg-hide-left", mobile ? false : !panelState.left);
+    stageEl.classList.toggle("pg-hide-right", mobile ? false : !panelState.right);
+    stageEl.classList.toggle("pg-hide-chat", mobile ? !mobileChatOpen : !panelState.chat);
+    stageEl.classList.toggle("pg-mobile-sheet-open", mobileSheetOpen);
+    stageEl.classList.toggle("pg-mobile-tab-controls", mobileSheetTab === "controls");
+    stageEl.classList.toggle("pg-mobile-tab-info", mobileSheetTab === "info");
+    stageEl.classList.toggle("pg-mobile-tab-log", mobileSheetTab === "log");
+    stageEl.classList.toggle("pg-mobile-tab-chat", mobileSheetTab === "chat");
+    stageEl.classList.toggle("pg-mobile-chat-active", mobile && mobileChatOpen);
+    stageEl.classList.toggle("pg-mobile-utility-open", mobile && mobileUtilityOpen);
+    if (mobileSheetToggleBtn) {
+      mobileSheetToggleBtn.textContent = mobileSheetOpen ? "패널 닫기" : "패널 열기";
+      mobileSheetToggleBtn.setAttribute("aria-expanded", mobileSheetOpen ? "true" : "false");
+    }
+    if (chatCloseBtn) {
+      chatCloseBtn.hidden = !(mobile && mobileChatOpen);
+    }
+    if (mobileUtilityBtn) {
+      mobileUtilityBtn.classList.toggle("pg-pressed", mobile && mobileUtilityOpen);
+      mobileUtilityBtn.setAttribute("aria-pressed", mobile && mobileUtilityOpen ? "true" : "false");
+    }
+    const tabs = [
+      [mobileTabControlsBtn, "controls"],
+      [mobileTabInfoBtn, "info"],
+      [mobileTabLogBtn, "log"],
+      [mobileTabChatBtn, "chat"],
+    ];
+    for (const [btn, key] of tabs) {
+      if (!btn) continue;
+      const active = mobileSheetTab === key;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    }
     setPanelToggle(leftToggleBtn, panelState.left);
     setPanelToggle(rightToggleBtn, panelState.right);
-    setPanelToggle(chatToggleBtn, panelState.chat);
+    setPanelToggle(chatToggleBtn, mobile ? true : panelState.chat);
   }
 
   function savePanelState() {
@@ -459,9 +542,57 @@
 
   function defaultPanelStateByViewport() {
     const w = window.innerWidth || 1280;
+    if (w < 900) return { left: true, right: true, chat: true };
     if (w < 1120) return { left: true, right: false, chat: true };
     if (w < 1360) return { left: true, right: false, chat: true };
     return { left: true, right: true, chat: true };
+  }
+
+  function isMobileViewport() {
+    return (window.innerWidth || 1280) <= 900;
+  }
+
+  function togglePanel(key) {
+    if (!(key in panelState)) return;
+    panelState[key] = !panelState[key];
+    applyPanelState();
+    savePanelState();
+  }
+
+  function saveMobileSheetState() {
+    try {
+      localStorage.setItem(
+        MOBILE_SHEET_KEY,
+        JSON.stringify({ open: mobileSheetOpen, tab: mobileSheetTab })
+      );
+    } catch (_) {}
+  }
+
+  function loadMobileSheetState() {
+    let loaded = null;
+    try {
+      const raw = localStorage.getItem(MOBILE_SHEET_KEY);
+      if (raw) loaded = JSON.parse(raw);
+    } catch (_) {}
+    mobileSheetOpen = !!loaded?.open;
+    mobileSheetTab =
+      loaded?.tab === "controls" || loaded?.tab === "info" || loaded?.tab === "log" || loaded?.tab === "chat"
+        ? loaded.tab
+        : "controls";
+  }
+
+  function setMobileSheetTab(tab, open = true) {
+    mobileSheetTab = tab;
+    if (open) mobileSheetOpen = true;
+    applyPanelState();
+    saveMobileSheetState();
+  }
+
+  function toggleMobileSheet() {
+    if (!isMobileViewport()) return;
+    mobileSheetOpen = !mobileSheetOpen;
+    applyPanelState();
+    saveMobileSheetState();
   }
 
   function loadPanelState() {
@@ -474,6 +605,7 @@
     panelState.left = typeof next.left === "boolean" ? next.left : true;
     panelState.right = typeof next.right === "boolean" ? next.right : false;
     panelState.chat = typeof next.chat === "boolean" ? next.chat : true;
+    loadMobileSheetState();
     applyPanelState();
   }
 
@@ -1257,6 +1389,14 @@
   }
 
   function updatePlayer(dt) {
+    if (isMobileViewport() && mobileChatOpen) {
+      keys.clear();
+      player.moveTarget = null;
+      inputState.runHold = false;
+      resetJoystick();
+      return;
+    }
+
     if (isTypingInInput()) {
       keys.clear();
       player.moveTarget = null;
@@ -1906,6 +2046,12 @@
 
   window.addEventListener("keydown", (ev) => {
     const code = ev.code;
+    if (isMobileViewport() && mobileChatOpen) {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", "KeyE", "KeyP"].includes(code)) {
+        ev.preventDefault();
+      }
+      return;
+    }
     if (isTypingInInput()) {
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", "KeyE", "KeyP"].includes(code)) {
         ev.preventDefault();
@@ -1925,6 +2071,7 @@
   });
 
   window.addEventListener("keyup", (ev) => {
+    if (isMobileViewport() && mobileChatOpen) return;
     if (isTypingInInput()) return;
     keys.delete(ev.code);
   });
@@ -2002,6 +2149,7 @@
     "touchstart",
     (ev) => {
       if (!mobileMode) return;
+      if (isMobileViewport() && mobileChatOpen) return;
       if (ev.touches.length === 1) {
         const t = ev.touches[0];
         inputState.touchPanActive = true;
@@ -2020,6 +2168,10 @@
     "touchmove",
     (ev) => {
       if (!mobileMode) return;
+      if (isMobileViewport() && mobileChatOpen) {
+        ev.preventDefault();
+        return;
+      }
       ev.preventDefault();
 
       if (ev.touches.length === 1 && inputState.touchPanActive) {
@@ -2049,6 +2201,7 @@
 
   if (joystickBase) {
     joystickBase.addEventListener("pointerdown", (ev) => {
+      if (isMobileViewport() && mobileChatOpen) return;
       ev.preventDefault();
       inputState.joystickPointerId = ev.pointerId;
       joystickBase.setPointerCapture(ev.pointerId);
@@ -2059,6 +2212,7 @@
     });
 
     joystickBase.addEventListener("pointermove", (ev) => {
+      if (isMobileViewport() && mobileChatOpen) return;
       if (inputState.joystickPointerId !== ev.pointerId) return;
       const rect = joystickBase.getBoundingClientRect();
       const x = (ev.clientX - rect.left - rect.width / 2) / (rect.width / 2);
@@ -2075,20 +2229,31 @@
   }
 
   if (mobileInteractBtn) {
-    mobileInteractBtn.addEventListener("click", () => interact());
-  }
-  if (mobileChatBtn && stageEl) {
-    mobileChatBtn.addEventListener("click", () => {
-      const open = stageEl.classList.toggle("pg-mobile-chat-open");
-      mobileChatBtn.textContent = open ? "채팅닫기" : "채팅";
-      if (open && chatInputEl) chatInputEl.focus();
+    mobileInteractBtn.addEventListener("click", () => {
+      if (isMobileViewport() && mobileChatOpen) return;
+      interact();
     });
   }
+  if (mobileChatBtn) {
+    mobileChatBtn.addEventListener("click", () => toggleMobileChatMode());
+  }
   if (mobileResetBtn) {
-    mobileResetBtn.addEventListener("click", () => resetView());
+    mobileResetBtn.addEventListener("click", () => {
+      if (isMobileViewport() && mobileChatOpen) return;
+      resetView();
+    });
+  }
+  if (mobileUtilityBtn) {
+    mobileUtilityBtn.addEventListener("click", () => {
+      if (!isMobileViewport()) return;
+      if (mobileChatOpen) return;
+      mobileUtilityOpen = !mobileUtilityOpen;
+      applyPanelState();
+    });
   }
   if (mobileRunBtn) {
     const runDown = (ev) => {
+      if (isMobileViewport() && mobileChatOpen) return;
       ev.preventDefault();
       inputState.runHold = true;
       mobileRunBtn.classList.add("pg-pressed");
@@ -2104,17 +2269,39 @@
   }
   if (mobilePauseBtn) {
     mobilePauseBtn.addEventListener("click", () => {
+      if (isMobileViewport() && mobileChatOpen) return;
       world.paused = !world.paused;
       addLog(world.paused ? "시뮬레이션 일시정지" : "시뮬레이션 재개");
     });
   }
+  if (mobileSheetToggleBtn) {
+    mobileSheetToggleBtn.addEventListener("click", () => toggleMobileSheet());
+  }
+  if (mobileTabControlsBtn) {
+    mobileTabControlsBtn.addEventListener("click", () => setMobileSheetTab("controls", true));
+  }
+  if (mobileTabInfoBtn) {
+    mobileTabInfoBtn.addEventListener("click", () => setMobileSheetTab("info", true));
+  }
+  if (mobileTabLogBtn) {
+    mobileTabLogBtn.addEventListener("click", () => setMobileSheetTab("log", true));
+  }
+  if (mobileTabChatBtn) {
+    mobileTabChatBtn.addEventListener("click", () => setMobileSheetTab("chat", true));
+  }
 
   if (chatSendEl) chatSendEl.addEventListener("click", sendCardChat);
+  if (chatCloseBtn) {
+    chatCloseBtn.addEventListener("click", () => closeMobileChat());
+  }
   if (chatInputEl) {
     chatInputEl.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
         ev.preventDefault();
         sendCardChat();
+      } else if (ev.key === "Escape") {
+        ev.preventDefault();
+        closeMobileChat();
       }
     });
   }
@@ -2176,23 +2363,17 @@
 
     if (leftToggleBtn) {
       leftToggleBtn.addEventListener("click", () => {
-        panelState.left = !panelState.left;
-        applyPanelState();
-        savePanelState();
+        togglePanel("left");
       });
     }
     if (rightToggleBtn) {
       rightToggleBtn.addEventListener("click", () => {
-        panelState.right = !panelState.right;
-        applyPanelState();
-        savePanelState();
+        togglePanel("right");
       });
     }
     if (chatToggleBtn) {
       chatToggleBtn.addEventListener("click", () => {
-        panelState.chat = !panelState.chat;
-        applyPanelState();
-        savePanelState();
+        togglePanel("chat");
       });
     }
   }
@@ -2203,7 +2384,14 @@
     window.setInterval(syncSharedNpcs, 18000);
   }
   resizeCanvasToDisplaySize();
-  window.addEventListener("resize", resizeCanvasToDisplaySize);
+  window.addEventListener("resize", () => {
+    if (!isMobileViewport()) {
+      mobileChatOpen = false;
+      mobileUtilityOpen = false;
+    }
+    resizeCanvasToDisplaySize();
+    applyPanelState();
+  });
 
   requestAnimationFrame(frame);
 })();
