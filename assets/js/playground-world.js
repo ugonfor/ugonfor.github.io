@@ -1178,7 +1178,8 @@
 
     if (chatTargetEl) {
       const n = nearestNpc(1.8);
-      chatTargetEl.textContent = n ? `Target: ${n.npc.name}` : "Target: none";
+      chatTargetEl.textContent = n ? `대상: ${n.npc.name}` : "대상: 없음";
+      if (chatSendEl) chatSendEl.disabled = !n;
     }
   }
 
