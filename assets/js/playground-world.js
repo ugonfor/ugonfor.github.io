@@ -717,15 +717,13 @@
     return cv;
   }
 
-  function bubbleText(text, maxLen = 28) {
-    const v = String(text || "").trim();
-    if (v.length <= maxLen) return v;
-    return `${v.slice(0, maxLen - 1)}…`;
+  function bubbleText(text) {
+    return String(text || "").trim();
   }
 
   function upsertSpeechBubble(id, text, ttlMs = 3600) {
     const now = nowMs();
-    const value = bubbleText(text, 30);
+    const value = bubbleText(text);
     for (let i = 0; i < speechBubbles.length; i += 1) {
       if (speechBubbles[i].id === id) {
         speechBubbles[i].text = value;
@@ -1005,13 +1003,13 @@
     const contextNpc = nearNpc ? `${nearNpc.name} 근처` : "혼자 산책";
     const prompt = `현재 시각 ${formatTime()}, ${contextNpc}. 플레이어가 말풍선으로 짧게 말할 한 문장만 한국어로 답해줘. 16자 내외, 따뜻한 톤.`;
     const reply = await llmReplyOrEmpty(proxy, prompt);
-    return bubbleText(reply || playerFallbackLine(), 18);
+    return bubbleText(reply || playerFallbackLine());
   }
 
   async function requestLlmNpcAutoReply(npc, playerLine) {
     const prompt = `플레이어(${player.name})가 "${playerLine}" 라고 말했다. ${npc.name}이(가) 친근하게 짧게 답하는 한 문장만 한국어로 답해줘. 18자 내외.`;
     const reply = await llmReplyOrEmpty(npc, prompt);
-    return bubbleText(reply || npcAmbientLine(npc), 18);
+    return bubbleText(reply || npcAmbientLine(npc));
   }
 
   function maybeRunAutoConversation(now) {
@@ -2755,7 +2753,7 @@
       const alpha = remain > 0.45 ? 1 : clamp(remain / 0.45, 0, 1);
       const fontSize = Math.max(16, Math.min(20, world.zoom * 3.6));
       ctx.font = `700 ${fontSize}px sans-serif`;
-      const text = bubbleText(bubble.text, 30);
+      const text = bubbleText(bubble.text);
       const width = Math.max(44, ctx.measureText(text).width + 16);
       const height = fontSize + 8;
       const x = p.x - width * 0.5;
