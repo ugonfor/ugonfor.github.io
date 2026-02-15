@@ -47,6 +47,10 @@
   const WORLD_NPC_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/world-npcs") : "";
   const TURNSTILE_SITE_KEY = String(window.PG_TURNSTILE_SITE_KEY || "").trim();
   const CHAT_NEARBY_DISTANCE = 4.6;
+  const ZOOM_MIN = 1.4;
+  const ZOOM_MAX = 6.0;
+  const DEFAULT_ZOOM = 3.2;
+  const CONVERSATION_MIN_ZOOM = 3.6;
   let turnstileWidgetId = null;
 
   const keys = new Set();
@@ -101,7 +105,7 @@
     paused: false,
     baseTileW: 40,
     baseTileH: 20,
-    zoom: 2.6,
+    zoom: DEFAULT_ZOOM,
     cameraX: canvas.width / 2,
     cameraY: 130,
   };
@@ -1164,7 +1168,7 @@
       if (state.world) {
         world.totalMinutes = state.world.totalMinutes ?? world.totalMinutes;
         world.paused = !!state.world.paused;
-        world.zoom = clamp(Math.max(state.world.zoom ?? 2.6, 2.0), 1.4, 3.2);
+        world.zoom = clamp(Math.max(state.world.zoom ?? DEFAULT_ZOOM, 2.0), ZOOM_MIN, ZOOM_MAX);
         cameraPan.x = clamp((state.world.cameraPan && state.world.cameraPan.x) || 0, -320, 320);
         cameraPan.y = clamp((state.world.cameraPan && state.world.cameraPan.y) || 0, -220, 220);
       }
@@ -1347,7 +1351,7 @@
     const npc = activeConversationNpc();
     if (npc) {
       if (preConversationZoom === null) preConversationZoom = world.zoom;
-      const desiredZoom = Math.max(preConversationZoom, 3.2);
+      const desiredZoom = Math.max(preConversationZoom, CONVERSATION_MIN_ZOOM);
       world.zoom += (desiredZoom - world.zoom) * 0.1;
 
       const dx = npc.x - player.x;
@@ -1381,7 +1385,7 @@
   function resetView() {
     cameraPan.x = 0;
     cameraPan.y = 0;
-    world.zoom = 2.6;
+    world.zoom = DEFAULT_ZOOM;
     addLog("시점을 초기화했습니다.");
   }
 
@@ -1564,7 +1568,7 @@
 
   function drawProp(prop) {
     const p = project(prop.x, prop.y, 0);
-    const z = clamp(world.zoom, 1.2, 3.2);
+    const z = clamp(world.zoom, 1.2, ZOOM_MAX);
 
     if (prop.type === "tree") {
       const trunkW = 6 * z;
@@ -1668,7 +1672,7 @@
       ctx.stroke();
 
       if (isExit) {
-        const exitScale = clamp(world.zoom, 1.2, 3.2);
+        const exitScale = clamp(world.zoom, 1.2, ZOOM_MAX);
         const labelW = 56 * exitScale;
         const labelH = 22 * exitScale;
         const tx = p.x - labelW * 0.5;
@@ -1688,7 +1692,7 @@
     }
 
     const sceneItems = [...props, ...npcs, player].sort((a, b) => a.x + a.y - (b.x + b.y));
-    const zoomScale = clamp(world.zoom, 0.9, 3.2);
+    const zoomScale = clamp(world.zoom, 0.9, ZOOM_MAX);
     for (const item of sceneItems) {
       if ("type" in item) drawProp(item);
       else drawEntity(item, (item === player ? 12 : 11) * zoomScale, item.name);
@@ -1797,7 +1801,7 @@
   function npcAtCanvasPoint(px, py) {
     let best = null;
     let bestD = Infinity;
-    const z = clamp(world.zoom, 0.9, 3.2);
+    const z = clamp(world.zoom, 0.9, ZOOM_MAX);
     const r = 17 * z;
     for (const npc of npcs) {
       const p = project(npc.x, npc.y, 0);
@@ -1932,7 +1936,7 @@
     (ev) => {
       ev.preventDefault();
       const delta = ev.deltaY > 0 ? -0.1 : 0.1;
-      world.zoom = clamp(world.zoom + delta, 1.4, 3.2);
+      world.zoom = clamp(world.zoom + delta, ZOOM_MIN, ZOOM_MAX);
     },
     { passive: false }
   );
@@ -1973,7 +1977,7 @@
         const distNow = touchDistance(ev.touches[0], ev.touches[1]);
         if (inputState.pinchDist > 0) {
           const delta = (distNow - inputState.pinchDist) * 0.0025;
-          world.zoom = clamp(world.zoom + delta, 1.4, 3.2);
+          world.zoom = clamp(world.zoom + delta, ZOOM_MIN, ZOOM_MAX);
         }
         inputState.pinchDist = distNow;
       }
@@ -2021,12 +2025,12 @@
   }
   if (mobileZoomInBtn) {
     mobileZoomInBtn.addEventListener("click", () => {
-      world.zoom = clamp(world.zoom + 0.12, 1.4, 3.2);
+      world.zoom = clamp(world.zoom + 0.12, ZOOM_MIN, ZOOM_MAX);
     });
   }
   if (mobileZoomOutBtn) {
     mobileZoomOutBtn.addEventListener("click", () => {
-      world.zoom = clamp(world.zoom - 0.12, 1.4, 3.2);
+      world.zoom = clamp(world.zoom - 0.12, ZOOM_MIN, ZOOM_MAX);
     });
   }
   if (mobileRunBtn) {
