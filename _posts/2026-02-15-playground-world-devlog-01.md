@@ -1,27 +1,27 @@
 ---
 layout: post
-title: "Playground Devlog #1 - Local World Prototype"
+title: "Playground Devlog #1 - 로컬 월드 프로토타입"
 date: 2026-02-15 20:00:00 +0900
 ---
 
-This is the first development log for my Playground world simulation.
+Playground 월드 시뮬레이션의 첫 구현 로그입니다.
 
-## What I implemented
+## 구현한 내용
 
-- Added a playable local world directly in the Playground page.
-- Implemented player movement with `WASD` / arrow keys.
-- Added in-world time progression and a simple day-night visual shift.
-- Added lightweight NPC simulation with schedule-based movement.
-- Added interaction (`E`) and an event log panel.
-- Added pause/resume (`Space`) for quick debugging.
+- Playground 페이지에 바로 플레이 가능한 로컬 월드 추가
+- `WASD` / 방향키 이동 구현
+- 월드 시간 진행과 간단한 낮/밤 시각 변화 추가
+- 스케줄 기반 경량 NPC 시뮬레이션 추가
+- `E` 상호작용과 이벤트 로그 패널 추가
+- 빠른 디버깅을 위한 일시정지/재개(`Space`) 추가
 
-## Why this version
+## 이번 버전 목표
 
-The goal is to keep everything local and lightweight while still feeling game-like.
-I am prioritizing simple, robust simulation loops over heavy model-based systems.
+핵심 목표는 로컬에서 가볍게 돌아가면서도 게임 같은 느낌을 주는 것.
+무거운 모델/엔진보다 단순하고 견고한 시뮬레이션 루프를 우선했습니다.
 
-## Next
+## 다음
 
-- Add obstacle/collision logic for better movement constraints.
-- Add a tiny quest/event chain tied to NPC relationships.
-- Add save/load snapshot for simulation state.
+- 장애물/충돌 로직 강화
+- NPC 관계 기반 간단 퀘스트 체인 추가
+- 시뮬레이션 상태 저장/불러오기 추가

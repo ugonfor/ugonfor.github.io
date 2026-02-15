@@ -1,29 +1,27 @@
 ---
 layout: post
-title: "Playground Devlog #3 - Controls, Minimap, Chat, and Quest Expansion"
+title: "Playground Devlog #3 - 조작계, 미니맵, 채팅, 퀘스트 확장"
 date: 2026-02-15 22:00:00 +0900
 ---
 
-This update focuses on making the world more playable and trackable.
+이번 업데이트는 월드의 플레이성과 추적성을 높이는 데 집중했습니다.
 
-## What changed
+## 변경 사항
 
-- Updated controls:
-  - `WASD / Arrow Keys` for movement
-  - `Shift` for run
-  - `Left Drag` for camera pan
-  - `Mouse Wheel` for zoom
-  - `Space` for view reset
-  - `P` for pause
-- Added minimap in the world state panel.
-- Added Save/Load buttons using `localStorage`.
-- Expanded quest flow into multi-step progression.
-- Added world interactions via hotspots (cafe door, market board, park monument).
-- Added nearby NPC chat panel with lightweight response logic and memory tags.
+- 조작 체계 정리:
+  - 이동: `WASD` / 방향키
+  - 달리기: `Shift`
+  - 카메라: 좌클릭 드래그
+  - 줌: 마우스 휠
+  - 시점 초기화: `Space`
+  - 일시정지: `P`
+- 월드 상태 패널에 미니맵 추가
+- `localStorage` 기반 저장/불러오기 버튼 추가
+- 퀘스트를 다단계 흐름으로 확장
+- 핫스팟 상호작용 추가(카페 문, 마켓 게시판, 공원 기념비)
+- 근처 NPC 채팅 패널 추가(경량 로컬 응답 + 간단 기억 태그)
 
-## NPC roster update
-
-Current NPC names are:
+## 현재 NPC 명단
 
 - 허승준
 - 김민수
@@ -34,8 +32,8 @@ Current NPC names are:
 - 박지호
 - 장동우
 
-## Next
+## 다음
 
-- Refine NPC dialogue diversity (more context-aware responses).
-- Add branching quest outcomes based on relationship values.
-- Add visual indicators for interactable hotspots.
+- NPC 대사 다양성 개선(컨텍스트 반영 강화)
+- 관계도 기반 분기 퀘스트 추가
+- 상호작용 가능한 오브젝트 시각 표시 강화
