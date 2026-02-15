@@ -110,6 +110,7 @@ html.playground-page section {
   box-shadow: 0 4px 10px rgba(20, 33, 46, 0.12);
 }
 
+
 .pg-world-stage.pg-ui-collapsed .pg-world-ui {
   opacity: 0;
   pointer-events: none;
@@ -152,7 +153,7 @@ html.playground-page section {
   width: min(720px, 72vw);
   min-width: 360px;
   max-width: calc(100% - 24px);
-  height: 280px;
+  height: 250px;
   z-index: 8;
   pointer-events: auto;
 }
@@ -273,32 +274,25 @@ html.playground-page section {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
-  margin-top: auto;
-  flex: 0 0 auto;
+  margin-top: 0;
 }
 
 .pg-chat-card {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  row-gap: 6px;
   height: 100%;
   overflow: hidden;
-  padding-bottom: 8px;
+  padding-bottom: 0;
 }
 
 .pg-chat-card .pg-chat-log {
-  min-height: 110px;
-  flex: 1 1 auto;
-  margin-bottom: 0;
+  min-height: 0;
   height: auto;
-}
-
-.pg-chat-card .pg-chat-row {
-  position: static;
-  margin-top: 0;
-  grid-template-columns: minmax(0, 1fr) 64px;
-  flex: 0 0 auto;
+  max-height: none;
+  margin-bottom: 0;
+  overflow: auto;
 }
 
 .pg-chat-row input {
@@ -307,6 +301,38 @@ html.playground-page section {
   padding: 6px 8px;
   font-size: 12px;
   min-width: 0;
+}
+
+.pg-chat-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  width: min(760px, calc(100% - 26px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 8px;
+  z-index: 12;
+  pointer-events: auto;
+}
+
+.pg-chat-dock input {
+  border: 2px solid rgba(35, 55, 79, 0.24);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.95);
+  min-width: 0;
+}
+
+.pg-chat-dock button {
+  border: 1px solid #b8c8d5;
+  border-radius: 10px;
+  background: #f4f8fc;
+  color: #1d3954;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .pg-log {
@@ -423,6 +449,11 @@ button.pg-pressed,
   .pg-ui-toggle {
     display: none;
   }
+
+  .pg-chat-dock {
+    display: none;
+  }
+
 }
 
 @media screen and (max-width: 900px) and (orientation: portrait) {
