@@ -1,0 +1,147 @@
+html.playground-page header,
+html.playground-page footer {
+  display: none;
+}
+
+html.playground-page .wrapper {
+  width: min(1280px, calc(100vw - 24px));
+  padding-top: 72px;
+}
+
+html.playground-page section {
+  margin: 0;
+}
+
+.pg-world-shell {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 10px;
+}
+
+#pg-world-canvas {
+  width: 100%;
+  height: auto;
+  border: 1px solid #b9c4d0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #cedbec, #b8cadf);
+  box-shadow: 0 14px 24px rgba(35, 52, 69, 0.18);
+  cursor: grab;
+}
+
+#pg-world-canvas.dragging {
+  cursor: grabbing;
+}
+
+.pg-world-ui {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.pg-world-card {
+  border: 1px solid #d2d9cc;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f9fbf6;
+  box-shadow: 0 6px 12px rgba(32, 42, 59, 0.08);
+}
+
+.pg-world-card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: #23374f;
+}
+
+.pg-world-card p {
+  margin: 0 0 5px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.pg-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.pg-actions button,
+.pg-chat-row button {
+  border: 1px solid #b8c8d5;
+  border-radius: 7px;
+  background: #f4f8fc;
+  color: #1d3954;
+  font-size: 12px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.pg-actions button:hover,
+.pg-chat-row button:hover {
+  background: #e8f1fa;
+}
+
+#pg-minimap {
+  width: 100%;
+  height: auto;
+  margin-top: 6px;
+  border: 1px solid #c8d1c0;
+  border-radius: 8px;
+  background: #eef4e9;
+  display: block;
+}
+
+.pg-chat-log {
+  max-height: 135px;
+  overflow: auto;
+  border: 1px solid #d5ddcf;
+  border-radius: 7px;
+  background: #f8fbf4;
+  padding: 6px;
+  font-size: 12px;
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+
+.pg-chat-log div {
+  margin-bottom: 4px;
+}
+
+.pg-chat-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.pg-chat-row input {
+  border: 1px solid #c8d2dc;
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.pg-log {
+  max-height: 180px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.pg-log div {
+  margin-bottom: 5px;
+  padding-bottom: 5px;
+  border-bottom: 1px dotted #d8ddd0;
+}
+
+@media print, screen and (max-width: 900px) {
+  html.playground-page .wrapper {
+    width: calc(100vw - 16px);
+    padding-top: 66px;
+  }
+
+  .pg-world-shell {
+    grid-template-columns: 1fr;
+  }
+}
