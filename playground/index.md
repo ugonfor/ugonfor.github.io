@@ -3,12 +3,13 @@ layout: default
 title: Playground
 extra_head: |
   <script>document.documentElement.classList.add('playground-page');</script>
-  {% if site.playground_turnstile_site_key and site.playground_turnstile_site_key != "" %}
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
-  {% endif %}
   <link rel="stylesheet" href="/assets/css/playground.css">
   <script defer src="/assets/js/playground-world.js"></script>
 ---
+
+{% if site.playground_turnstile_site_key and site.playground_turnstile_site_key != "" %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
+{% endif %}
 
 <div class="pg-world-shell">
   <script>
