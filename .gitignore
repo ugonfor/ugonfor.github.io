@@ -12,3 +12,5 @@ git-update.sh
 .github
 .env
 .env.*
+!.env.example
+!server/.env.example

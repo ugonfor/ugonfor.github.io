@@ -151,15 +151,14 @@ html.playground-page section {
   transform: none;
   width: auto;
   min-width: 0;
-  height: 250px;
+  height: 300px;
+  z-index: 8;
 }
 
 .pg-hud-bottom .pg-world-card {
   height: 100%;
   max-height: none;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
 .pg-world-card {
@@ -192,6 +191,31 @@ html.playground-page section {
 
 .pg-actions button,
 .pg-chat-row button {
+  border: 1px solid #b8c8d5;
+  border-radius: 7px;
+  background: #f4f8fc;
+  color: #1d3954;
+  font-size: 12px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.pg-create-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.pg-create-row input {
+  border: 1px solid #c8d2dc;
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.pg-create-row button {
   border: 1px solid #b8c8d5;
   border-radius: 7px;
   background: #f4f8fc;
@@ -243,21 +267,27 @@ html.playground-page section {
 }
 
 .pg-chat-card {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: 4px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   height: 100%;
   overflow: hidden;
+  padding-bottom: 8px;
 }
 
 .pg-chat-card .pg-chat-log {
-  min-height: 0;
+  min-height: 110px;
+  flex: 1 1 auto;
   margin-bottom: 0;
+  height: auto;
 }
 
 .pg-chat-card .pg-chat-row {
+  position: static;
   margin-top: 0;
   grid-template-columns: minmax(0, 1fr) 64px;
+  flex: 0 0 auto;
 }
 
 .pg-chat-row input {
