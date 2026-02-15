@@ -25,6 +25,13 @@ I am deeply interested in enhancing the **efficiency of deep learning models**, 
 {% include_relative _includes/publications.md %}
 
 ## Work Experiences
+- **Krafton AI** (2025.03-Present)
+  - Research Engineer, Simulation AI Team
+  - Project: InZOI SmartZoi and character simulation systems
+  - Ongoing: Simulation development for InZOI characters
+  - Built coding-agent workflows; achieved 74% on Terminal-Bench
+  - Result: Rank #2 Global, Rank #1 with Opus 4.6
+
 - **Naver Corp.** (2022.01-2022.02)
   - Software Engineer Internship, Dept. of Multimodal Applications
   - Project: Extracting Trivia Sentence from Unstructured Text Data and Search Engine Improvement.
@@ -34,4 +41,3 @@ I am deeply interested in enhancing the **efficiency of deep learning models**, 
   - Project: Energy Backdoor Attacks on Deep Learning Models
 
 {% include_relative _includes/services.md %}
-
