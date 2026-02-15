@@ -28,11 +28,11 @@ extra_head: |
         </div>
       </div>
       <div class="pg-mobile-actions">
-        <button id="pg-mobile-interact" type="button">E</button>
-        <button id="pg-mobile-run" type="button">Run</button>
-        <button id="pg-mobile-reset" type="button">Reset</button>
-        <button id="pg-mobile-zoom-in" type="button">+</button>
-        <button id="pg-mobile-zoom-out" type="button">-</button>
+        <button id="pg-mobile-interact" type="button">상호작용</button>
+        <button id="pg-mobile-run" type="button">달리기</button>
+        <button id="pg-mobile-chat" type="button">채팅</button>
+        <button id="pg-mobile-pause" type="button">일시정지</button>
+        <button id="pg-mobile-reset" type="button">시점초기화</button>
       </div>
     </div>
     <button id="pg-ui-toggle" class="pg-ui-toggle" type="button" aria-expanded="true">UI 숨기기</button>
@@ -57,6 +57,7 @@ extra_head: |
           <div class="pg-actions">
             <button id="pg-save" type="button">저장</button>
             <button id="pg-load" type="button">불러오기</button>
+            <button id="pg-rename" type="button">이름 변경</button>
           </div>
         </div>
         <div class="pg-world-card">

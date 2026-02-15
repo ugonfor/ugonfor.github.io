@@ -27,6 +27,7 @@
 
   const saveBtn = document.getElementById("pg-save");
   const loadBtn = document.getElementById("pg-load");
+  const renameBtn = document.getElementById("pg-rename");
   const uiToggleBtn = document.getElementById("pg-ui-toggle");
   const leftToggleBtn = document.getElementById("pg-toggle-left");
   const rightToggleBtn = document.getElementById("pg-toggle-right");
@@ -34,14 +35,15 @@
   const stageEl = document.querySelector(".pg-world-stage");
   const mobileInteractBtn = document.getElementById("pg-mobile-interact");
   const mobileRunBtn = document.getElementById("pg-mobile-run");
+  const mobileChatBtn = document.getElementById("pg-mobile-chat");
+  const mobilePauseBtn = document.getElementById("pg-mobile-pause");
   const mobileResetBtn = document.getElementById("pg-mobile-reset");
-  const mobileZoomInBtn = document.getElementById("pg-mobile-zoom-in");
-  const mobileZoomOutBtn = document.getElementById("pg-mobile-zoom-out");
   const joystickBase = document.getElementById("pg-joystick-base");
   const joystickKnob = document.getElementById("pg-joystick-knob");
 
   const SAVE_KEY = "playground_world_state_v2";
   const UI_PREF_KEY = "playground_ui_pref_v1";
+  const PLAYER_NAME_KEY = "playground_player_name_v1";
   const LLM_API_URL = String(window.PG_LLM_API_URL || "").trim();
   const LLM_STREAM_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/npc-chat-stream") : "";
   const WORLD_NPC_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/world-npcs") : "";
@@ -76,6 +78,7 @@
     lee: { age: "20대", gender: "남성", personality: "온화하고 협업을 잘하는 성격" },
     park: { age: "20대", gender: "남성", personality: "경쟁심 있고 자신감 있는 성격" },
     jang: { age: "20대", gender: "남성", personality: "신중하고 인내심이 강한 성격" },
+    yoo: { age: "20대", gender: "남성", personality: "침착하고 집요한 탐구형 성격" },
   };
 
   const cameraPan = { x: 0, y: 0 };
@@ -127,7 +130,7 @@
   };
 
   const player = {
-    name: "You",
+    name: "플레이어",
     x: 12,
     y: 18,
     speed: 3.7,
@@ -206,6 +209,7 @@
     makeNpc("lee", "이진원", "#6fc7ba", places.homeC, places.market, places.plaza),
     makeNpc("park", "박지호", "#d88972", places.homeA, places.office, places.park),
     makeNpc("jang", "장동우", "#8e9be3", places.homeB, places.cafe, places.market),
+    makeNpc("yoo", "유효곤", "#5e88dd", places.homeC, places.office, places.plaza),
   ];
 
   const relations = {
@@ -252,6 +256,51 @@
     let sum = 0;
     for (const ch of name) sum += ch.charCodeAt(0);
     return tones[sum % tones.length];
+  }
+
+  function normalizePlayerName(value) {
+    const cleaned = String(value || "")
+      .replace(/[\u0000-\u001f\u007f]/g, " ")
+      .replace(/[<>]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 18);
+    return cleaned || "플레이어";
+  }
+
+  function initPlayerName() {
+    let stored = "";
+    try {
+      stored = normalizePlayerName(localStorage.getItem(PLAYER_NAME_KEY) || "");
+    } catch {
+      stored = "";
+    }
+
+    if (!stored) {
+      const answer = window.prompt("당신의 이름은 무엇입니까?", player.name);
+      stored = normalizePlayerName(answer);
+      try {
+        localStorage.setItem(PLAYER_NAME_KEY, stored);
+      } catch {
+        // ignore localStorage errors
+      }
+    }
+
+    player.name = stored;
+  }
+
+  function changePlayerName() {
+    const answer = window.prompt("당신의 이름은 무엇입니까?", player.name);
+    if (answer === null) return;
+    const next = normalizePlayerName(answer);
+    if (next === player.name) return;
+    player.name = next;
+    try {
+      localStorage.setItem(PLAYER_NAME_KEY, player.name);
+    } catch {
+      // ignore localStorage errors
+    }
+    addLog(`플레이어 이름이 '${player.name}'(으)로 변경되었습니다.`);
   }
 
   function ensureTurnstileWidget() {
@@ -1142,6 +1191,7 @@
         cameraPan,
       },
       player: {
+        name: player.name,
         x: player.x,
         y: player.y,
       },
@@ -1173,6 +1223,12 @@
         cameraPan.y = clamp((state.world.cameraPan && state.world.cameraPan.y) || 0, -220, 220);
       }
       if (state.player) {
+        player.name = normalizePlayerName(state.player.name ?? player.name);
+        try {
+          localStorage.setItem(PLAYER_NAME_KEY, player.name);
+        } catch {
+          // ignore localStorage errors
+        }
         player.x = clamp(state.player.x ?? player.x, 1, world.width - 1);
         player.y = clamp(state.player.y ?? player.y, 1, world.height - 1);
       }
@@ -1759,7 +1815,7 @@
 
   function updateUI() {
     uiTime.textContent = `시간: ${formatTime()} ${world.paused ? "(일시정지)" : ""}`;
-    uiPlayer.textContent = `플레이어: (${player.x.toFixed(1)}, ${player.y.toFixed(1)})`;
+    uiPlayer.textContent = `플레이어: ${player.name} (${player.x.toFixed(1)}, ${player.y.toFixed(1)})`;
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     uiNearby.textContent = near ? `근처: ${near.npc.name} (${near.npc.state})` : "근처: 없음";
@@ -1821,6 +1877,7 @@
   let mouseDragged = false;
   let mouseDownX = 0;
   let mouseDownY = 0;
+  initPlayerName();
   addLog("월드가 초기화되었습니다. NPC와 상호작용해 보세요.");
   if (LLM_API_URL) addChat("System", "근처 NPC와 한국어 LLM 채팅이 활성화되었습니다.");
   else addChat("System", "LLM 엔드포인트가 없어 로컬 대화 모드로 동작합니다.");
@@ -2020,18 +2077,15 @@
   if (mobileInteractBtn) {
     mobileInteractBtn.addEventListener("click", () => interact());
   }
+  if (mobileChatBtn && stageEl) {
+    mobileChatBtn.addEventListener("click", () => {
+      const open = stageEl.classList.toggle("pg-mobile-chat-open");
+      mobileChatBtn.textContent = open ? "채팅닫기" : "채팅";
+      if (open && chatInputEl) chatInputEl.focus();
+    });
+  }
   if (mobileResetBtn) {
     mobileResetBtn.addEventListener("click", () => resetView());
-  }
-  if (mobileZoomInBtn) {
-    mobileZoomInBtn.addEventListener("click", () => {
-      world.zoom = clamp(world.zoom + 0.12, ZOOM_MIN, ZOOM_MAX);
-    });
-  }
-  if (mobileZoomOutBtn) {
-    mobileZoomOutBtn.addEventListener("click", () => {
-      world.zoom = clamp(world.zoom - 0.12, ZOOM_MIN, ZOOM_MAX);
-    });
   }
   if (mobileRunBtn) {
     const runDown = (ev) => {
@@ -2048,6 +2102,12 @@
     mobileRunBtn.addEventListener("pointercancel", runUp);
     mobileRunBtn.addEventListener("pointerleave", runUp);
   }
+  if (mobilePauseBtn) {
+    mobilePauseBtn.addEventListener("click", () => {
+      world.paused = !world.paused;
+      addLog(world.paused ? "시뮬레이션 일시정지" : "시뮬레이션 재개");
+    });
+  }
 
   if (chatSendEl) chatSendEl.addEventListener("click", sendCardChat);
   if (chatInputEl) {
@@ -2061,6 +2121,7 @@
 
   if (saveBtn) saveBtn.addEventListener("click", saveState);
   if (loadBtn) loadBtn.addEventListener("click", loadState);
+  if (renameBtn) renameBtn.addEventListener("click", changePlayerName);
   if (createBtnEl) {
     createBtnEl.addEventListener("click", async () => {
       const name = createNameEl ? createNameEl.value : "";
