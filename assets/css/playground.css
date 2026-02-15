@@ -181,6 +181,30 @@ html.playground-page section {
   color: #23374f;
 }
 
+.pg-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.pg-card-header h3 {
+  margin: 0;
+}
+
+#pg-status-toggle,
+#pg-log-toggle {
+  display: none;
+  border: 1px solid rgba(168, 188, 206, 0.9);
+  border-radius: 8px;
+  background: rgba(248, 252, 255, 0.7);
+  color: #1d3954;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+}
+
 .pg-world-card p {
   margin: 0 0 5px;
   font-size: 11px;
@@ -583,7 +607,7 @@ button.pg-pressed,
     left: 8px;
     right: 8px;
     top: auto;
-    bottom: calc(var(--pg-mobile-controls-h) + 12px + var(--pg-safe-bottom));
+    bottom: calc(var(--pg-safe-bottom) + 2px);
     width: auto;
     height: min(46dvh, 360px);
     z-index: 38;
@@ -607,6 +631,18 @@ button.pg-pressed,
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+
+  #pg-status-toggle,
+  #pg-log-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pg-world-stage.pg-mobile-status-collapsed #pg-status-body,
+  .pg-world-stage.pg-mobile-log-collapsed #pg-log-body {
+    display: none;
   }
 
   .pg-log {

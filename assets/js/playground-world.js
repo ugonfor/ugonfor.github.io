@@ -18,6 +18,8 @@
   const chatInputEl = document.getElementById("pg-chat-input");
   const chatSendEl = document.getElementById("pg-chat-send");
   const chatCloseBtn = document.getElementById("pg-chat-close");
+  const statusToggleBtn = document.getElementById("pg-status-toggle");
+  const logToggleBtn = document.getElementById("pg-log-toggle");
   const chatActiveTargetEl = document.getElementById("pg-chat-active-target");
   const chatActiveStateEl = document.getElementById("pg-chat-active-state");
   const chatModelEl = document.getElementById("pg-chat-model");
@@ -76,6 +78,8 @@
   let mobileSheetTab = "controls";
   let mobileChatOpen = false;
   let mobileUtilityOpen = false;
+  let mobileStatusCollapsed = false;
+  let mobileLogCollapsed = false;
   const chatSession = {
     npcId: null,
     expiresAt: 0,
@@ -506,6 +510,8 @@
     stageEl.classList.toggle("pg-mobile-tab-chat", mobileSheetTab === "chat");
     stageEl.classList.toggle("pg-mobile-chat-active", mobile && mobileChatOpen);
     stageEl.classList.toggle("pg-mobile-utility-open", mobile && mobileUtilityOpen);
+    stageEl.classList.toggle("pg-mobile-status-collapsed", mobile && mobileStatusCollapsed);
+    stageEl.classList.toggle("pg-mobile-log-collapsed", mobile && mobileLogCollapsed);
     if (mobileSheetToggleBtn) {
       mobileSheetToggleBtn.textContent = mobileSheetOpen ? "패널 닫기" : "패널 열기";
       mobileSheetToggleBtn.setAttribute("aria-expanded", mobileSheetOpen ? "true" : "false");
@@ -516,6 +522,16 @@
     if (mobileUtilityBtn) {
       mobileUtilityBtn.classList.toggle("pg-pressed", mobile && mobileUtilityOpen);
       mobileUtilityBtn.setAttribute("aria-pressed", mobile && mobileUtilityOpen ? "true" : "false");
+    }
+    if (statusToggleBtn) {
+      statusToggleBtn.hidden = !mobile;
+      statusToggleBtn.textContent = mobileStatusCollapsed ? "펼치기" : "접기";
+      statusToggleBtn.setAttribute("aria-expanded", mobileStatusCollapsed ? "false" : "true");
+    }
+    if (logToggleBtn) {
+      logToggleBtn.hidden = !mobile;
+      logToggleBtn.textContent = mobileLogCollapsed ? "펼치기" : "접기";
+      logToggleBtn.setAttribute("aria-expanded", mobileLogCollapsed ? "false" : "true");
     }
     const tabs = [
       [mobileTabControlsBtn, "controls"],
@@ -2257,6 +2273,20 @@
       if (!isMobileViewport()) return;
       if (mobileChatOpen) return;
       mobileUtilityOpen = !mobileUtilityOpen;
+      applyPanelState();
+    });
+  }
+  if (statusToggleBtn) {
+    statusToggleBtn.addEventListener("click", () => {
+      if (!isMobileViewport()) return;
+      mobileStatusCollapsed = !mobileStatusCollapsed;
+      applyPanelState();
+    });
+  }
+  if (logToggleBtn) {
+    logToggleBtn.addEventListener("click", () => {
+      if (!isMobileViewport()) return;
+      mobileLogCollapsed = !mobileLogCollapsed;
       applyPanelState();
     });
   }

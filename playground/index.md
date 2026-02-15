@@ -70,19 +70,29 @@ extra_head: |
           <p id="pg-create-status">모든 사용자가 공유하는 NPC로 추가됩니다.</p>
         </div>
         <div id="pg-card-status" class="pg-world-card">
-          <h3>월드 상태</h3>
-          <p id="pg-time">시간: --:--</p>
-          <p id="pg-player">플레이어: --</p>
-          <p id="pg-nearby">근처: --</p>
-          <p id="pg-quest">퀘스트: --</p>
-          <p id="pg-rel">관계도: --</p>
-          <canvas id="pg-minimap" width="240" height="190" aria-label="World minimap"></canvas>
+          <div class="pg-card-header">
+            <h3>월드 상태</h3>
+            <button id="pg-status-toggle" type="button" aria-expanded="true">접기</button>
+          </div>
+          <div id="pg-status-body">
+            <p id="pg-time">시간: --:--</p>
+            <p id="pg-player">플레이어: --</p>
+            <p id="pg-nearby">근처: --</p>
+            <p id="pg-quest">퀘스트: --</p>
+            <p id="pg-rel">관계도: --</p>
+            <canvas id="pg-minimap" width="240" height="190" aria-label="World minimap"></canvas>
+          </div>
         </div>
       </div>
       <div class="pg-hud-right">
         <div id="pg-card-log" class="pg-world-card">
-          <h3>이벤트 로그</h3>
-          <div id="pg-log" class="pg-log"></div>
+          <div class="pg-card-header">
+            <h3>이벤트 로그</h3>
+            <button id="pg-log-toggle" type="button" aria-expanded="true">접기</button>
+          </div>
+          <div id="pg-log-body">
+            <div id="pg-log" class="pg-log"></div>
+          </div>
         </div>
       </div>
     </div>
