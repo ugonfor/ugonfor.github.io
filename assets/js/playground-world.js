@@ -18,6 +18,7 @@
   const chatInputEl = document.getElementById("pg-chat-input");
   const chatSendEl = document.getElementById("pg-chat-send");
   const createNameEl = document.getElementById("pg-create-name");
+  const createPersonalityEl = document.getElementById("pg-create-personality");
   const createBtnEl = document.getElementById("pg-create-btn");
   const createStatusEl = document.getElementById("pg-create-status");
 
@@ -35,21 +36,23 @@
 
   const SAVE_KEY = "playground_world_state_v2";
   const LLM_API_URL = String(window.PG_LLM_API_URL || "").trim();
+  const WORLD_NPC_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/world-npcs") : "";
 
   const keys = new Set();
   const logs = [];
   const chats = [];
   let llmAvailable = true;
+  const knownSharedNpcIds = new Set();
 
   const npcPersonas = {
-    heo: { age: "20s", gender: "male", personality: "calm, responsible, protective leader" },
-    kim: { age: "20s", gender: "male", personality: "friendly, curious, practical thinker" },
-    choi: { age: "20s", gender: "male", personality: "observant, detail-focused, quiet" },
-    jung: { age: "20s", gender: "male", personality: "energetic, spontaneous, social" },
-    seo: { age: "20s", gender: "male", personality: "analytical, dry humor, direct" },
-    lee: { age: "20s", gender: "male", personality: "warm, diplomatic, cooperative" },
-    park: { age: "20s", gender: "male", personality: "competitive, confident, playful" },
-    jang: { age: "20s", gender: "male", personality: "steady, patient, supportive" },
+    heo: { age: "20대", gender: "남성", personality: "차분하고 책임감이 강한 리더형" },
+    kim: { age: "20대", gender: "남성", personality: "친절하고 현실적인 문제 해결형" },
+    choi: { age: "20대", gender: "남성", personality: "관찰력이 높고 디테일에 강함" },
+    jung: { age: "20대", gender: "남성", personality: "에너지 넘치고 사교적인 성격" },
+    seo: { age: "20대", gender: "남성", personality: "분석적이고 직설적인 성격" },
+    lee: { age: "20대", gender: "남성", personality: "온화하고 협업을 잘하는 성격" },
+    park: { age: "20대", gender: "남성", personality: "경쟁심 있고 자신감 있는 성격" },
+    jang: { age: "20대", gender: "남성", personality: "신중하고 인내심이 강한 성격" },
   };
 
   const cameraPan = { x: 0, y: 0 };
@@ -124,7 +127,7 @@
     { id: "parkMonument", x: 8.6, y: 8.2, label: "Park Monument" },
   ];
 
-  function makeNpc(id, name, color, home, work, hobby) {
+  function makeNpc(id, name, color, home, work, hobby, personality = "") {
     return {
       id,
       name,
@@ -138,6 +141,7 @@
       state: "idle",
       talkCooldown: 0,
       memory: [],
+      personality,
     };
   }
 
@@ -185,19 +189,96 @@
     return values[Math.floor(Math.random() * values.length)];
   }
 
-  function createCustomNpc(nameRaw) {
-    const name = String(nameRaw || "").trim();
-    if (!name) return { ok: false, reason: "Please enter a name." };
-    if (npcs.some((n) => n.name === name)) return { ok: false, reason: "Name already exists." };
-    if (npcs.length >= 48) return { ok: false, reason: "Too many NPCs in world." };
+  function inferPersonalityFromName(name) {
+    const tones = [
+      "침착하고 배려심이 많은 성격",
+      "유쾌하고 추진력 있는 성격",
+      "논리적이고 집중력이 높은 성격",
+      "친화적이고 대화가 부드러운 성격",
+      "도전적이고 호기심이 많은 성격",
+    ];
+    let sum = 0;
+    for (const ch of name) sum += ch.charCodeAt(0);
+    return tones[sum % tones.length];
+  }
 
-    const id = `custom_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e5).toString(36)}`;
-    const home = { x: clamp(player.x + (Math.random() * 2 - 1) * 1.5, 2, world.width - 2), y: clamp(player.y + (Math.random() * 2 - 1) * 1.5, 2, world.height - 2) };
-    const npc = makeNpc(id, name, randomPastelColor(), home, pickRandomPlace(), pickRandomPlace());
+  function spawnNpcFromSharedRecord(record) {
+    if (!record || !record.id || !record.name) return null;
+    if (npcs.some((n) => n.id === record.id)) return null;
+    const home = pickRandomPlace();
+    const work = pickRandomPlace();
+    const hobby = pickRandomPlace();
+    const npc = makeNpc(
+      record.id,
+      record.name,
+      randomPastelColor(),
+      { x: home.x, y: home.y },
+      work,
+      hobby,
+      record.personality || inferPersonalityFromName(record.name)
+    );
     npc.x = home.x;
     npc.y = home.y;
     npcs.push(npc);
+    knownSharedNpcIds.add(record.id);
+    return npc;
+  }
+
+  function createCustomNpc(nameRaw, personalityRaw) {
+    const name = String(nameRaw || "").trim();
+    const personality = String(personalityRaw || "").trim() || inferPersonalityFromName(name);
+    if (!name) return { ok: false, reason: "이름을 입력해 주세요." };
+    if (npcs.some((n) => n.name === name)) return { ok: false, reason: "이미 있는 이름입니다." };
+    if (npcs.length >= 48) return { ok: false, reason: "월드 내 NPC가 너무 많습니다." };
+
+    const id = `custom_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e5).toString(36)}`;
+    const home = { x: clamp(player.x + (Math.random() * 2 - 1) * 1.5, 2, world.width - 2), y: clamp(player.y + (Math.random() * 2 - 1) * 1.5, 2, world.height - 2) };
+    const npc = makeNpc(id, name, randomPastelColor(), home, pickRandomPlace(), pickRandomPlace(), personality);
+    npc.x = home.x;
+    npc.y = home.y;
+    npcs.push(npc);
+    npcPersonas[id] = { age: "20대", gender: "남성", personality };
     return { ok: true, npc };
+  }
+
+  async function fetchSharedNpcs() {
+    if (!WORLD_NPC_API_URL) return [];
+    const res = await fetch(WORLD_NPC_API_URL, { method: "GET" });
+    if (!res.ok) throw new Error(`Shared NPC API ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data.customNpcs) ? data.customNpcs : [];
+  }
+
+  async function createSharedNpc(name, personality) {
+    if (!WORLD_NPC_API_URL) throw new Error("Shared NPC endpoint is empty");
+    const res = await fetch(WORLD_NPC_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, personality }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Shared NPC API ${res.status}`);
+    }
+    const data = await res.json();
+    return data.npc;
+  }
+
+  async function syncSharedNpcs() {
+    if (!WORLD_NPC_API_URL) return;
+    try {
+      const items = await fetchSharedNpcs();
+      let added = 0;
+      for (const item of items) {
+        if (spawnNpcFromSharedRecord(item)) {
+          npcPersonas[item.id] = { age: "20대", gender: "남성", personality: item.personality || inferPersonalityFromName(item.name) };
+          added += 1;
+        }
+      }
+      if (added > 0) addLog(`공유 NPC ${added}명이 월드에 반영되었습니다.`);
+    } catch (err) {
+      addLog("공유 NPC 동기화에 실패했습니다.");
+    }
   }
 
   function resizeCanvasToDisplaySize() {
@@ -433,10 +514,10 @@
 
   function detectTopic(text) {
     const t = text.toLowerCase();
-    if (/(quest|help|task|mission)/.test(t)) return "quest";
+    if (/(quest|help|task|mission|퀘스트|도움|임무|미션)/.test(t)) return "quest";
     if (/(허승준|김민수|최민영|정욱진|서창근|이진원|박지호|장동우)/.test(t)) return "people";
-    if (/(world|town|city|simulation|ai)/.test(t)) return "world";
-    if (/(thanks|thank you|great|good)/.test(t)) return "positive";
+    if (/(world|town|city|simulation|ai|월드|도시|시뮬|시뮬레이션)/.test(t)) return "world";
+    if (/(thanks|thank you|great|good|고마워|감사|좋아)/.test(t)) return "positive";
     return "general";
   }
 
@@ -448,20 +529,20 @@
     if (topic === "positive") {
       if (npc.id === "heo") adjustRelation("playerToHeo", 2);
       if (npc.id === "kim") adjustRelation("playerToKim", 2);
-      return "Thanks. Your actions are shifting the town's mood positively.";
+      return "고마워요. 당신의 행동이 이 동네 분위기를 조금씩 바꾸고 있어요.";
     }
 
     if (topic === "quest") {
-      if (quest.done) return "You already helped connect everyone. Nice job.";
-      return `Current objective: ${quest.objective}`;
+      if (quest.done) return "이미 모두를 연결해줬어요. 훌륭했어요.";
+      return `현재 목표는 '${quest.objective}' 입니다.`;
     }
 
     if (topic === "world") {
-      return "This world runs on routines, relationships, and small events. Keep observing.";
+      return "이 세계는 루틴, 관계, 작은 이벤트로 움직여요. 계속 관찰해 보세요.";
     }
 
     if (topic === "people") {
-      return "People here adapt over time. Talk to us at different hours.";
+      return "여기 사람들은 시간에 따라 달라져요. 시간대를 바꿔서 다시 말 걸어보세요.";
     }
 
     return npcSmallTalk(npc).replace(`${npc.name}: `, "");
@@ -470,7 +551,11 @@
   async function requestLlmNpcReply(npc, userMessage) {
     if (!LLM_API_URL) throw new Error("LLM API URL is empty");
 
-    const persona = npcPersonas[npc.id] || { age: "20s", gender: "male", personality: "natural and balanced" };
+    const persona = npcPersonas[npc.id] || {
+      age: "20대",
+      gender: "남성",
+      personality: npc.personality || inferPersonalityFromName(npc.name),
+    };
     const near = nearestNpc(2.2);
     const payload = {
       npcId: npc.id,
@@ -524,7 +609,7 @@
 
     const near = nearestNpc(1.8);
     if (!near) {
-      addChat("System", "No nearby NPC to chat with.");
+      addChat("System", "근처에 대화 가능한 NPC가 없습니다.");
       return;
     }
 
@@ -535,7 +620,7 @@
     try {
       reply = await requestLlmNpcReply(npc, msg);
     } catch (err) {
-      if (llmAvailable) addLog("LLM unavailable. Switched to local NPC response.");
+      if (llmAvailable) addLog("LLM 연결이 불안정해 로컬 응답으로 전환했습니다.");
       llmAvailable = false;
       reply = npcReply(npc, msg);
     } finally {
@@ -589,7 +674,9 @@
       },
       relations,
       quest,
-      npcs: npcs.map((n) => ({ id: n.id, x: n.x, y: n.y, talkCooldown: n.talkCooldown })),
+      npcs: npcs
+        .filter((n) => !n.id.startsWith("shared_") && !n.id.startsWith("custom_"))
+        .map((n) => ({ id: n.id, x: n.x, y: n.y, talkCooldown: n.talkCooldown })),
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
@@ -1022,9 +1109,9 @@
   }
 
   let last = performance.now();
-  addLog("World initialized. Explore and interact with NPCs.");
-  if (LLM_API_URL) addChat("System", "LLM chat is enabled for nearby NPCs.");
-  else addChat("System", "LLM endpoint is not configured. Using local NPC chat.");
+  addLog("월드가 초기화되었습니다. NPC와 상호작용해 보세요.");
+  if (LLM_API_URL) addChat("System", "근처 NPC와 한국어 LLM 채팅이 활성화되었습니다.");
+  else addChat("System", "LLM 엔드포인트가 없어 로컬 대화 모드로 동작합니다.");
 
   function frame(now) {
     resizeCanvasToDisplaySize();
@@ -1219,15 +1306,38 @@
   if (saveBtn) saveBtn.addEventListener("click", saveState);
   if (loadBtn) loadBtn.addEventListener("click", loadState);
   if (createBtnEl) {
-    createBtnEl.addEventListener("click", () => {
-      const result = createCustomNpc(createNameEl ? createNameEl.value : "");
+    createBtnEl.addEventListener("click", async () => {
+      const name = createNameEl ? createNameEl.value : "";
+      const personality = createPersonalityEl ? createPersonalityEl.value : "";
+      const result = createCustomNpc(name, personality);
       if (!result.ok) {
         if (createStatusEl) createStatusEl.textContent = result.reason;
         return;
       }
+      if (createBtnEl) createBtnEl.disabled = true;
+      if (createStatusEl) createStatusEl.textContent = "생성 중...";
+      try {
+        if (WORLD_NPC_API_URL) {
+          const sharedNpc = await createSharedNpc(result.npc.name, result.npc.personality || "");
+          if (sharedNpc && sharedNpc.id) {
+            result.npc.id = sharedNpc.id;
+            knownSharedNpcIds.add(sharedNpc.id);
+            npcPersonas[sharedNpc.id] = {
+              age: "20대",
+              gender: "남성",
+              personality: sharedNpc.personality || result.npc.personality || inferPersonalityFromName(result.npc.name),
+            };
+          }
+        }
+      } catch (err) {
+        addLog(`공유 NPC 생성 실패: ${err.message || err}`);
+      } finally {
+        if (createBtnEl) createBtnEl.disabled = false;
+      }
       if (createNameEl) createNameEl.value = "";
-      if (createStatusEl) createStatusEl.textContent = `Created: ${result.npc.name}`;
-      addLog(`New character joined: ${result.npc.name}`);
+      if (createPersonalityEl) createPersonalityEl.value = "";
+      if (createStatusEl) createStatusEl.textContent = `생성됨: ${result.npc.name}`;
+      addLog(`새 캐릭터가 합류했습니다: ${result.npc.name}`);
     });
   }
   if (createNameEl) {
@@ -1247,6 +1357,10 @@
   }
 
   if (mobileMode) resetJoystick();
+  syncSharedNpcs();
+  if (WORLD_NPC_API_URL) {
+    window.setInterval(syncSharedNpcs, 18000);
+  }
   resizeCanvasToDisplaySize();
   window.addEventListener("resize", resizeCanvasToDisplaySize);
 
