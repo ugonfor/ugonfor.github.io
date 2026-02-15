@@ -50,10 +50,13 @@ extra_head: |
         <div class="pg-world-card">
           <h3>Create Character</h3>
           <div class="pg-create-row">
-            <input id="pg-create-name" type="text" maxlength="18" placeholder="Enter character name" />
-            <button id="pg-create-btn" type="button">Create</button>
+            <input id="pg-create-name" type="text" maxlength="18" placeholder="이름" />
+            <button id="pg-create-btn" type="button">생성</button>
           </div>
-          <p id="pg-create-status">Custom NPCs can be added near your position.</p>
+          <div class="pg-create-row pg-create-row-single">
+            <input id="pg-create-personality" type="text" maxlength="60" placeholder="성격 (선택)" />
+          </div>
+          <p id="pg-create-status">모든 사용자가 공유하는 NPC로 추가됩니다.</p>
         </div>
         <div class="pg-world-card">
           <h3>World State</h3>
@@ -77,8 +80,8 @@ extra_head: |
           <p id="pg-chat-target">Target: none</p>
           <div id="pg-chat-log" class="pg-chat-log"></div>
           <div class="pg-chat-row">
-            <input id="pg-chat-input" type="text" placeholder="Say something to nearby NPC..." />
-            <button id="pg-chat-send" type="button">Send</button>
+            <input id="pg-chat-input" type="text" placeholder="근처 NPC에게 말 걸기..." />
+            <button id="pg-chat-send" type="button">전송</button>
           </div>
         </div>
       </div>

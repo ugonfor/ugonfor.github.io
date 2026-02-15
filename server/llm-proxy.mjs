@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || (process.env.K_SERVICE ? "0.0.0.0" : "127.0.0.1");
@@ -8,12 +9,44 @@ const MODEL_CHAIN = (process.env.MODEL_CHAIN ||
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
+const SHARED_STATE_FILE = process.env.SHARED_STATE_FILE || "/tmp/playground-shared-state.json";
+
+const sharedState = {
+  revision: 0,
+  customNpcs: [],
+};
+
+function loadSharedState() {
+  try {
+    if (!existsSync(SHARED_STATE_FILE)) return;
+    const raw = readFileSync(SHARED_STATE_FILE, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.customNpcs)) return;
+    sharedState.revision = Number(parsed.revision || 0);
+    sharedState.customNpcs = parsed.customNpcs.slice(0, 200).map((npc) => ({
+      id: String(npc.id || ""),
+      name: String(npc.name || "").slice(0, 18),
+      personality: String(npc.personality || "").slice(0, 120),
+      createdAt: String(npc.createdAt || ""),
+    }));
+  } catch {
+    // ignore corrupted cache file
+  }
+}
+
+function persistSharedState() {
+  try {
+    writeFileSync(SHARED_STATE_FILE, JSON.stringify(sharedState), "utf-8");
+  } catch {
+    // ignore persist errors
+  }
+}
 
 function writeJson(res, status, data) {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   });
   res.end(JSON.stringify(data));
@@ -49,27 +82,28 @@ function buildPrompt(payload) {
     .join("\n");
 
   return [
-    "You are roleplaying as an NPC in an open-world simulation game.",
-    `NPC name: ${npcName}`,
-    `Profile: male in his ${persona.age || "20s"}, personality: ${persona.personality || "balanced"}.`,
-    "Style rules:",
-    "- Stay in character.",
-    "- Keep responses concise (1-3 sentences).",
-    "- Avoid mentioning being an AI model.",
-    "- If user asks about goals, refer to world routines, relationships, and quest hints naturally.",
+    "당신은 오픈월드 시뮬레이션 게임의 NPC입니다.",
+    `NPC 이름: ${npcName}`,
+    `프로필: ${persona.gender || "남성"}, ${persona.age || "20대"}, 성격: ${persona.personality || "균형 잡힘"}.`,
+    "응답 규칙:",
+    "- 반드시 한국어로만 답변하세요.",
+    "- 캐릭터를 유지하세요.",
+    "- 답변은 1~3문장으로 간결하게.",
+    "- AI 모델임을 언급하지 마세요.",
+    "- 목표를 물어보면 월드 루틴/관계/퀘스트 힌트를 자연스럽게 설명하세요.",
     "",
-    "World context:",
-    `- Time: ${worldContext.time || "unknown"}`,
-    `- Current objective: ${worldContext.objective || "none"}`,
-    `- Quest completed: ${worldContext.questDone ? "yes" : "no"}`,
-    `- Nearby actor: ${worldContext.nearby || "none"}`,
-    `- Relation summary: ${JSON.stringify(worldContext.relationSummary || {})}`,
+    "월드 컨텍스트:",
+    `- 시간: ${worldContext.time || "unknown"}`,
+    `- 현재 목표: ${worldContext.objective || "none"}`,
+    `- 퀘스트 완료 여부: ${worldContext.questDone ? "완료" : "진행중"}`,
+    `- 근처 인물: ${worldContext.nearby || "none"}`,
+    `- 관계 요약: ${JSON.stringify(worldContext.relationSummary || {})}`,
     "",
-    "Recent messages:",
+    "최근 대화:",
     historyText || "(none)",
     "",
-    `User message: ${payload.userMessage || ""}`,
-    "NPC reply:",
+    `유저 메시지: ${payload.userMessage || ""}`,
+    "NPC 답변:",
   ].join("\n");
 }
 
@@ -130,6 +164,29 @@ async function callGemini(prompt) {
   throw new Error(`All models failed: ${errors.join(" | ").slice(0, 700)}`);
 }
 
+function cleanText(value, maxLen) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLen);
+}
+
+function createSharedNpc(body) {
+  const name = cleanText(body.name, 18);
+  const personality = cleanText(body.personality, 120) || "차분하고 협력적인 성격";
+  if (!name) return { error: "name is required" };
+  if (sharedState.customNpcs.some((n) => n.name === name)) return { error: "name already exists" };
+  if (sharedState.customNpcs.length >= 200) return { error: "too many custom npcs" };
+
+  const npc = {
+    id: `shared_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`,
+    name,
+    personality,
+    createdAt: new Date().toISOString(),
+  };
+  sharedState.customNpcs.push(npc);
+  sharedState.revision += 1;
+  persistSharedState();
+  return { npc };
+}
+
 const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
     return writeJson(res, 200, { ok: true });
@@ -137,6 +194,27 @@ const server = createServer(async (req, res) => {
 
   if (req.method === "GET" && req.url === "/healthz") {
     return writeJson(res, 200, { ok: true, models: MODEL_CHAIN });
+  }
+
+  if (req.url === "/api/world-npcs" && req.method === "GET") {
+    return writeJson(res, 200, {
+      revision: sharedState.revision,
+      customNpcs: sharedState.customNpcs,
+    });
+  }
+
+  if (req.url === "/api/world-npcs" && req.method === "POST") {
+    try {
+      const body = await parseJsonBody(req);
+      const { npc, error } = createSharedNpc(body || {});
+      if (error) return writeJson(res, 400, { error });
+      return writeJson(res, 201, {
+        revision: sharedState.revision,
+        npc,
+      });
+    } catch (err) {
+      return writeJson(res, 500, { error: err.message || "world npc api error" });
+    }
   }
 
   if (req.method !== "POST" || req.url !== "/api/npc-chat") {
@@ -155,6 +233,8 @@ const server = createServer(async (req, res) => {
     return writeJson(res, 500, { error: err.message || "LLM proxy error" });
   }
 });
+
+loadSharedState();
 
 server.listen(PORT, HOST, () => {
   // eslint-disable-next-line no-console

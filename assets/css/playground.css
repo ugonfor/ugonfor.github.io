@@ -207,6 +207,10 @@ html.playground-page section {
   margin-bottom: 6px;
 }
 
+.pg-create-row-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .pg-create-row input {
   border: 1px solid #c8d2dc;
   border-radius: 7px;
