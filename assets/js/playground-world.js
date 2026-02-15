@@ -127,6 +127,22 @@
     { id: "parkMonument", x: 8.6, y: 8.2, label: "Park Monument" },
   ];
 
+  const props = [
+    { type: "tree", x: 5.5, y: 10.2 },
+    { type: "tree", x: 8.2, y: 11.3 },
+    { type: "tree", x: 11.1, y: 8.9 },
+    { type: "tree", x: 18.8, y: 6.4 },
+    { type: "tree", x: 26.2, y: 6.8 },
+    { type: "tree", x: 30.2, y: 12.4 },
+    { type: "tree", x: 7.4, y: 27.2 },
+    { type: "tree", x: 14.2, y: 28.3 },
+    { type: "tree", x: 29.1, y: 28.1 },
+    { type: "lamp", x: 13.2, y: 13.8 },
+    { type: "lamp", x: 13.3, y: 20.2 },
+    { type: "lamp", x: 20.2, y: 17.1 },
+    { type: "lamp", x: 23.6, y: 17.1 },
+  ];
+
   function makeNpc(id, name, color, home, work, hobby, personality = "") {
     return {
       id,
@@ -960,6 +976,61 @@
     ctx.fillText(label, tx + 5, ty + tagH - 3);
   }
 
+  function drawProp(prop) {
+    const p = project(prop.x, prop.y, 0);
+    const z = clamp(world.zoom, 1.2, 3.2);
+
+    if (prop.type === "tree") {
+      const trunkW = 6 * z;
+      const trunkH = 12 * z;
+      ctx.fillStyle = "#8f6a46";
+      ctx.strokeStyle = palette.outline;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.roundRect(p.x - trunkW * 0.5, p.y - trunkH - 6 * z, trunkW, trunkH, 2);
+      ctx.fill();
+      ctx.stroke();
+
+      const crownR = 9 * z;
+      ctx.fillStyle = "#73be64";
+      ctx.beginPath();
+      ctx.arc(p.x - 7 * z, p.y - trunkH - 9 * z, crownR, 0, Math.PI * 2);
+      ctx.arc(p.x + 2 * z, p.y - trunkH - 13 * z, crownR * 1.05, 0, Math.PI * 2);
+      ctx.arc(p.x + 10 * z, p.y - trunkH - 9 * z, crownR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(58,58,58,0.55)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      return;
+    }
+
+    if (prop.type === "lamp") {
+      const h = 20 * z;
+      ctx.strokeStyle = "#4f5962";
+      ctx.lineWidth = Math.max(1.4, 1.1 * z);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - 6 * z);
+      ctx.lineTo(p.x, p.y - h);
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffe08f";
+      ctx.strokeStyle = palette.outline;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(p.x - 4 * z, p.y - h - 7 * z, 8 * z, 7 * z, 2);
+      ctx.fill();
+      ctx.stroke();
+
+      const glow = ctx.createRadialGradient(p.x, p.y - h - 3 * z, 1, p.x, p.y - h - 3 * z, 16 * z);
+      glow.addColorStop(0, "rgba(255,225,130,0.35)");
+      glow.addColorStop(1, "rgba(255,225,130,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - h - 3 * z, 16 * z, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   function drawGround() {
     const h = hourOfDay();
     const dayFactor = Math.sin(((h - 6) / 24) * Math.PI * 2) * 0.5 + 0.5;
@@ -1026,9 +1097,12 @@
       }
     }
 
-    const actors = [...npcs, player].sort((a, b) => a.x + a.y - (b.x + b.y));
+    const sceneItems = [...props, ...npcs, player].sort((a, b) => a.x + a.y - (b.x + b.y));
     const zoomScale = clamp(world.zoom, 0.9, 3.2);
-    for (const actor of actors) drawEntity(actor, (actor === player ? 12 : 11) * zoomScale, actor.name);
+    for (const item of sceneItems) {
+      if ("type" in item) drawProp(item);
+      else drawEntity(item, (item === player ? 12 : 11) * zoomScale, item.name);
+    }
   }
 
   function drawMinimap() {
