@@ -540,6 +540,14 @@ button.pg-pressed,
     display: none;
   }
 
+  #pg-minimap {
+    display: none !important;
+  }
+
+  .pg-world-stage.pg-mobile-utility-open #pg-minimap {
+    display: block !important;
+  }
+
   .pg-world-card {
     background: rgba(242, 248, 250, 0.32);
     border-color: rgba(150, 171, 188, 0.56);
@@ -700,5 +708,54 @@ button.pg-pressed,
 
   .pg-panel-toggle {
     padding: 4px 8px;
+  }
+}
+
+.pg-quest-banner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 32;
+  background: rgba(20, 36, 56, 0.72);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(120, 160, 200, 0.4);
+  border-radius: 0 0 8px 8px;
+  padding: 4px 14px 5px;
+  text-align: center;
+  pointer-events: none;
+  max-width: min(400px, 75vw);
+}
+
+.pg-quest-banner-title {
+  margin: 0 0 1px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e8f0ff;
+  line-height: 1.2;
+}
+
+.pg-quest-banner-objective {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: #b8d4f0;
+  line-height: 1.2;
+}
+
+@media print, screen and (max-width: 900px) {
+  .pg-quest-banner {
+    top: 0;
+    bottom: auto;
+    max-width: min(320px, 85vw);
+    padding: 3px 10px 4px;
+  }
+
+  .pg-quest-banner-title {
+    font-size: 11px;
+  }
+
+  .pg-quest-banner-objective {
+    font-size: 10px;
   }
 }

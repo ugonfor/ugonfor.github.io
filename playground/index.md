@@ -18,6 +18,10 @@ extra_head: |
   </script>
   <div class="pg-world-stage">
     <canvas id="pg-world-canvas" width="960" height="540" aria-label="Local open-world simulation"></canvas>
+    <div id="pg-quest-banner" class="pg-quest-banner" hidden>
+      <p id="pg-quest-banner-title" class="pg-quest-banner-title"></p>
+      <p id="pg-quest-banner-objective" class="pg-quest-banner-objective"></p>
+    </div>
     <div class="pg-mobile-controls" aria-label="Mobile controls">
       <div class="pg-joystick-wrap">
         <div id="pg-joystick-base" class="pg-joystick-base">
@@ -25,12 +29,11 @@ extra_head: |
         </div>
       </div>
       <div class="pg-mobile-actions">
-        <button id="pg-mobile-interact" type="button">상호작용</button>
-        <button id="pg-mobile-chat" type="button">채팅</button>
+        <button id="pg-mobile-interact" type="button">대화</button>
         <button id="pg-mobile-run" type="button">달리기</button>
         <button id="pg-mobile-pause" type="button">일시정지</button>
         <button id="pg-mobile-reset" type="button">시점초기화</button>
-        <button id="pg-mobile-utility" type="button" aria-pressed="false">기능</button>
+        <button id="pg-mobile-utility" type="button" aria-pressed="false">추가기능</button>
       </div>
     </div>
     <div class="pg-mobile-sheet" aria-label="Mobile panels">
@@ -98,7 +101,7 @@ extra_head: |
     </div>
     <div class="pg-chat-dock">
       <div class="pg-chat-title-row">
-        <h3 class="pg-chat-title">NPC Chat</h3>
+        <h3 class="pg-chat-title">NPC 대화</h3>
         <button id="pg-chat-close" type="button" hidden>채팅 종료</button>
       </div>
       <p id="pg-chat-target" class="pg-chat-target-line">대상: 없음</p>

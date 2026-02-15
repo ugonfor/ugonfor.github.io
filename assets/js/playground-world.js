@@ -28,6 +28,10 @@
   const createBtnEl = document.getElementById("pg-create-btn");
   const createStatusEl = document.getElementById("pg-create-status");
 
+  const questBannerEl = document.getElementById("pg-quest-banner");
+  const questBannerTitleEl = document.getElementById("pg-quest-banner-title");
+  const questBannerObjectiveEl = document.getElementById("pg-quest-banner-objective");
+
   const saveBtn = document.getElementById("pg-save");
   const loadBtn = document.getElementById("pg-load");
   const renameBtn = document.getElementById("pg-rename");
@@ -39,7 +43,7 @@
   const stageEl = document.querySelector(".pg-world-stage");
   const mobileInteractBtn = document.getElementById("pg-mobile-interact");
   const mobileRunBtn = document.getElementById("pg-mobile-run");
-  const mobileChatBtn = document.getElementById("pg-mobile-chat");
+  // pg-mobile-chat removed: interaction and chat merged into single "대화" button
   const mobilePauseBtn = document.getElementById("pg-mobile-pause");
   const mobileResetBtn = document.getElementById("pg-mobile-reset");
   const mobileUtilityBtn = document.getElementById("pg-mobile-utility");
@@ -190,16 +194,16 @@
   };
 
   const buildings = [
-    { id: "cafe", x: 22, y: 7, w: 3, h: 2, z: 2.3, color: "#f7b6b5", roof: "#e68a84", label: "Cafe" },
-    { id: "office", x: 25, y: 9, w: 4, h: 2, z: 2.9, color: "#f8d28d", roof: "#d79956", label: "Office" },
-    { id: "market", x: 19, y: 23, w: 4, h: 3, z: 2.5, color: "#9ecbf0", roof: "#6ea2d4", label: "Market" },
+    { id: "cafe", x: 22, y: 7, w: 3, h: 2, z: 2.3, color: "#f7b6b5", roof: "#e68a84", label: "카페" },
+    { id: "office", x: 25, y: 9, w: 4, h: 2, z: 2.9, color: "#f8d28d", roof: "#d79956", label: "사무실" },
+    { id: "market", x: 19, y: 23, w: 4, h: 3, z: 2.5, color: "#9ecbf0", roof: "#6ea2d4", label: "시장" },
   ];
 
   const hotspots = [
-    { id: "exitGate", x: 1.2, y: 17.2, label: "Exit" },
-    { id: "cafeDoor", x: 23, y: 9, label: "Cafe Door" },
-    { id: "marketBoard", x: 20.5, y: 26, label: "Market Board" },
-    { id: "parkMonument", x: 8.6, y: 8.2, label: "Park Monument" },
+    { id: "exitGate", x: 13, y: 32.5, label: "출구" },
+    { id: "cafeDoor", x: 23, y: 9, label: "카페 입구" },
+    { id: "marketBoard", x: 20.5, y: 26, label: "시장 게시판" },
+    { id: "parkMonument", x: 8.6, y: 8.2, label: "공원 기념비" },
   ];
 
   const props = [
@@ -282,9 +286,9 @@
   };
 
   const quest = {
-    title: "Neighborhood Threads",
+    title: "이웃의 실타래",
     stage: 0,
-    objective: "Talk to 허승준 in the plaza.",
+    objective: "광장에서 허승준에게 말을 걸어보세요.",
     done: false,
   };
 
@@ -713,7 +717,7 @@
     return cv;
   }
 
-  function bubbleText(text, maxLen = 16) {
+  function bubbleText(text, maxLen = 28) {
     const v = String(text || "").trim();
     if (v.length <= maxLen) return v;
     return `${v.slice(0, maxLen - 1)}…`;
@@ -721,7 +725,7 @@
 
   function upsertSpeechBubble(id, text, ttlMs = 3600) {
     const now = nowMs();
-    const value = bubbleText(text, 18);
+    const value = bubbleText(text, 30);
     for (let i = 0; i < speechBubbles.length; i += 1) {
       if (speechBubbles[i].id === id) {
         speechBubbles[i].text = value;
@@ -1185,38 +1189,161 @@
   }
 
   function handleQuestNpcTalk(npc) {
+    if (quest.done && quest.dynamic) return handleDynamicQuestProgress(npc);
     if (quest.done) return false;
 
     if (quest.stage === 0 && npc.id === "heo") {
-      setQuestStage(1, "Deliver 허승준's message to 김민수 at the market.");
+      setQuestStage(1, "시장에서 김민수에게 허승준의 메시지를 전달하세요.");
       adjustRelation("playerToHeo", 6);
-      addLog("Quest updated: deliver 허승준's message to 김민수.");
       addChat("허승준", "김민수에게 이 메시지를 전해줄 수 있을까?");
       return true;
     }
 
     if (quest.stage === 1 && npc.id === "kim") {
-      setQuestStage(2, "Meet 최민영 at the cafe for context.");
+      setQuestStage(2, "카페에서 최민영을 만나 자세한 이야기를 들으세요.");
       adjustRelation("playerToKim", 8);
       adjustRelation("heoToKim", 10);
-      addLog("Quest updated: meet 최민영 at the cafe.");
       addChat("김민수", "고마워. 최민영이 더 자세히 알고 있어.");
       return true;
     }
 
     if (quest.stage === 2 && npc.id === "choi") {
-      setQuestStage(3, "Inspect the Park Monument after 20:00.");
+      setQuestStage(3, "20시 이후에 공원 기념비를 조사하세요.");
       adjustRelation("playerToChoi", 6);
-      addLog("Quest updated: inspect the Park Monument tonight.");
       addChat("최민영", "밤에 공원 기념비를 확인해봐.");
       return true;
     }
 
     if (quest.stage === 4 && npc.id === "heo") {
-      setQuestStage(5, "Completed");
+      setQuestStage(5, "완료");
       adjustRelation("playerToHeo", 10);
-      addLog("Quest complete: Neighborhood Threads.");
       addChat("허승준", "잘했어. 이제 이 동네가 더 연결된 느낌이야.");
+      generateDynamicQuest();
+      return true;
+    }
+
+    return false;
+  }
+
+  const questTemplates = [
+    {
+      type: "deliver",
+      make(fromNpc, toNpc) {
+        return {
+          title: `${fromNpc.name}의 전달 임무`,
+          stages: [
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 임무를 받으세요.`, dialogue: `${toNpc.name}에게 이 이야기를 전해줄래?` },
+            { npcId: toNpc.id, objective: `${toNpc.name}에게 메시지를 전달하세요.`, dialogue: `아, 그 이야기구나. 전해줘서 고마워.` },
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 결과를 보고하세요.`, dialogue: `잘 전해줬구나, 고마워!` },
+          ],
+        };
+      },
+    },
+    {
+      type: "explore",
+      make(npc, _unused, place, placeLabel) {
+        return {
+          title: `${placeLabel} 탐험`,
+          stages: [
+            { npcId: npc.id, objective: `${npc.name}에게 탐험 임무를 받으세요.`, dialogue: `${placeLabel} 근처를 한번 살펴봐줄래? 궁금한 게 있어.` },
+            { visit: place, radius: 2.5, objective: `${placeLabel}을(를) 방문하세요.`, autoText: `${placeLabel}에 도착했습니다. 주변을 둘러봤습니다.` },
+            { npcId: npc.id, objective: `${npc.name}에게 보고하세요.`, dialogue: `오, 잘 다녀왔구나! 덕분에 도움이 됐어.` },
+          ],
+        };
+      },
+    },
+    {
+      type: "social",
+      make(npc) {
+        return {
+          title: `${npc.name}과(와) 친해지기`,
+          stages: [
+            { npcId: npc.id, objective: `${npc.name}과(와) 대화하세요.`, dialogue: `반가워, 같이 이야기 좀 하자.` },
+            { npcId: npc.id, objective: `${npc.name}과(와) 한 번 더 대화하세요.`, dialogue: `다시 왔구나! 우리 좀 더 가까워진 것 같아.` },
+            { npcId: npc.id, objective: `${npc.name}에게 마무리 인사를 하세요.`, dialogue: `정말 즐거웠어. 다음에 또 이야기하자!` },
+          ],
+        };
+      },
+    },
+    {
+      type: "observe",
+      make(npc, _unused, place, placeLabel) {
+        const targetHour = 20 + Math.floor(Math.random() * 4);
+        const displayHour = targetHour >= 24 ? targetHour - 24 : targetHour;
+        return {
+          title: `${placeLabel} 야간 관찰`,
+          stages: [
+            { npcId: npc.id, objective: `${npc.name}에게 관찰 임무를 받으세요.`, dialogue: `밤 ${displayHour}시 이후에 ${placeLabel}에 가보면 뭔가 있을 거야.` },
+            { visit: place, radius: 2.5, afterHour: displayHour, objective: `${displayHour}시 이후 ${placeLabel}을(를) 방문하세요.`, autoText: `밤의 ${placeLabel}에서 특별한 분위기를 느꼈습니다.` },
+            { npcId: npc.id, objective: `${npc.name}에게 보고하세요.`, dialogue: `역시 뭔가 있었구나! 좋은 발견이야.` },
+          ],
+        };
+      },
+    },
+  ];
+
+  function generateDynamicQuest() {
+    const placeNames = { plaza: "광장", cafe: "카페", office: "사무실", park: "공원", market: "시장", homeA: "주택가A", homeB: "주택가B", homeC: "주택가C" };
+    const placeKeys = Object.keys(places);
+    const template = questTemplates[Math.floor(Math.random() * questTemplates.length)];
+    const shuffled = npcs.slice().sort(() => Math.random() - 0.5);
+    const fromNpc = shuffled[0];
+    const toNpc = shuffled.length > 1 ? shuffled[1] : shuffled[0];
+    const placeKey = placeKeys[Math.floor(Math.random() * placeKeys.length)];
+    const place = places[placeKey];
+    const placeLabel = placeNames[placeKey] || placeKey;
+
+    const q = template.make(fromNpc, toNpc, place, placeLabel);
+    quest.title = q.title;
+    quest.stage = 0;
+    quest.objective = q.stages[0].objective;
+    quest.done = false;
+    quest.dynamic = true;
+    quest.dynamicStages = q.stages;
+    addChat("System", `새 퀘스트: ${q.title}`);
+  }
+
+  function handleDynamicQuestProgress(npc) {
+    if (!quest.dynamic || !quest.dynamicStages) return false;
+    const stage = quest.dynamicStages[quest.stage];
+    if (!stage) return false;
+
+    if (stage.visit) {
+      const d = dist(player, stage.visit);
+      if (d > (stage.radius || 2.5)) return false;
+      if (stage.afterHour != null) {
+        const h = hourOfDay();
+        if (h < stage.afterHour && h >= 5) return false;
+      }
+      addChat("System", stage.autoText || "목적지에 도착했습니다.");
+      quest.stage += 1;
+      if (quest.stage >= quest.dynamicStages.length) {
+        quest.objective = "완료";
+        quest.done = true;
+        quest.dynamic = false;
+        quest.dynamicStages = null;
+        addChat("System", `퀘스트 '${quest.title}' 완료!`);
+        generateDynamicQuest();
+      } else {
+        quest.objective = quest.dynamicStages[quest.stage].objective;
+      }
+      return true;
+    }
+
+    if (stage.npcId && stage.npcId === npc.id) {
+      addChat(npc.name, stage.dialogue);
+      adjustRelation("playerToHeo", 2);
+      quest.stage += 1;
+      if (quest.stage >= quest.dynamicStages.length) {
+        quest.objective = "완료";
+        quest.done = true;
+        quest.dynamic = false;
+        quest.dynamicStages = null;
+        addChat("System", `퀘스트 '${quest.title}' 완료!`);
+        generateDynamicQuest();
+      } else {
+        quest.objective = quest.dynamicStages[quest.stage].objective;
+      }
       return true;
     }
 
@@ -1228,7 +1355,7 @@
     if (!hs) return false;
 
     if (hs.id === "exitGate") {
-      addLog("Leaving playground... returning to About Me.");
+      addLog("플레이그라운드를 떠나는 중... 소개 페이지로 돌아갑니다.");
       setTimeout(() => {
         window.location.href = "/";
       }, 120);
@@ -1238,26 +1365,26 @@
     if (hs.id === "parkMonument") {
       if (quest.stage === 3) {
         if (hourOfDay() >= 20 || hourOfDay() < 5) {
-          setQuestStage(4, "Report what you found back to 허승준.");
-          addLog("Quest updated: return to 허승준 with the monument clue.");
-          addLog("You found a coded message hidden in the monument.");
+          setQuestStage(4, "발견한 단서를 허승준에게 보고하세요.");
+          addLog("퀘스트 갱신: 기념비 단서를 허승준에게 전달하세요.");
+          addLog("기념비에 숨겨진 암호 메시지를 발견했습니다.");
         } else {
-          addLog("The clue appears only at night (after 20:00).");
+          addLog("단서는 밤(20시 이후)에만 나타납니다.");
         }
       } else {
-        addLog("The monument has faint engraved patterns.");
+        addLog("기념비에 희미한 무늬가 새겨져 있습니다.");
       }
       return true;
     }
 
     if (hs.id === "cafeDoor") {
-      addLog("You check the cafe. NPC routines seem to synchronize here.");
+      addLog("카페를 확인했습니다. NPC들의 루틴이 여기서 동기화되는 것 같습니다.");
       adjustRelation("playerToChoi", 1);
       return true;
     }
 
     if (hs.id === "marketBoard") {
-      addLog("Town board: 'Night market starts at 20:00 near the plaza.'");
+      addLog("게시판: '야시장은 20시에 광장 근처에서 시작됩니다.'");
       return true;
     }
 
@@ -1275,25 +1402,36 @@
   }
 
   function interact() {
-    const near = nearestNpc(1.6);
-    if (near && near.npc.talkCooldown <= 0) {
-      near.npc.talkCooldown = 3.5;
-      if (!handleQuestNpcTalk(near.npc)) {
-        addLog(npcSmallTalk(near.npc));
-        if (near.npc.id === "heo") adjustRelation("playerToHeo", 1);
-        if (near.npc.id === "kim") adjustRelation("playerToKim", 1);
-      }
-      return;
-    }
-
     if (handleHotspotInteraction()) return;
 
-    if (near && near.npc.talkCooldown > 0) {
-      addLog(`${near.npc.name} is busy right now.`);
+    const near = nearestNpc(CHAT_NEARBY_DISTANCE);
+    if (near) {
+      conversationFocusNpcId = near.npc.id;
+      setChatSession(near.npc.id, 18_000);
+      if (isMobileViewport()) {
+        mobileChatOpen = true;
+        mobileUtilityOpen = false;
+      } else if (!panelState.chat) {
+        panelState.chat = true;
+      }
+      applyPanelState();
+
+      if (near.npc.talkCooldown <= 0) {
+        near.npc.talkCooldown = 3.5;
+        if (!handleQuestNpcTalk(near.npc)) {
+          const greeting = npcSmallTalk(near.npc).replace(`${near.npc.name}: `, "");
+          addChat(near.npc.name, greeting);
+          if (near.npc.id === "heo") adjustRelation("playerToHeo", 1);
+          if (near.npc.id === "kim") adjustRelation("playerToKim", 1);
+        }
+      } else {
+        addChat("System", `${near.npc.name}은(는) 잠시 바쁩니다.`);
+      }
+      if (chatInputEl) chatInputEl.focus();
       return;
     }
 
-    addLog("Nothing to interact with nearby.");
+    addChat("System", "근처에 대화 가능한 NPC가 없습니다.");
   }
 
   function detectTopic(text) {
@@ -1588,7 +1726,7 @@
     if (worldEvents.day !== day) {
       worldEvents.day = day;
       worldEvents.once = {};
-      addLog("A new day begins in the simulation.");
+      addLog("시뮬레이션에서 새로운 하루가 시작됩니다.");
     }
 
     const h = hourOfDay();
@@ -1596,19 +1734,26 @@
     const cafeKey = dayFlag("cafe-open");
     if (h >= 9 && !worldEvents.once[cafeKey]) {
       worldEvents.once[cafeKey] = true;
-      addLog("Cafe opens and morning routines start.");
+      addLog("카페가 열리고 아침 루틴이 시작됩니다.");
     }
 
     const marketKey = dayFlag("night-market");
     if (h >= 20 && !worldEvents.once[marketKey]) {
       worldEvents.once[marketKey] = true;
-      addLog("Night market is now active near the plaza.");
+      addLog("광장 근처에서 야시장이 열렸습니다.");
     }
 
     const parkKey = dayFlag("park-aura");
     if ((h >= 20 || h < 5) && !worldEvents.once[parkKey] && dist(player, places.park) < 2.5) {
       worldEvents.once[parkKey] = true;
-      addLog("You feel a strange signal near the park monument.");
+      addLog("공원 기념비 근처에서 이상한 기운이 느껴집니다.");
+    }
+
+    if (quest.dynamic && quest.dynamicStages) {
+      const stage = quest.dynamicStages[quest.stage];
+      if (stage && stage.visit) {
+        handleDynamicQuestProgress({ id: "__visit__" });
+      }
     }
   }
 
@@ -1670,6 +1815,8 @@
         quest.objective = state.quest.objective || quest.objective;
         quest.title = state.quest.title || quest.title;
         quest.done = !!state.quest.done;
+        quest.dynamic = !!state.quest.dynamic;
+        quest.dynamicStages = state.quest.dynamicStages || null;
       }
       if (Array.isArray(state.npcs)) {
         for (const savedNpc of state.npcs) {
@@ -2035,7 +2182,7 @@
 
     const roofColor = b.roof || shade(b.color, -16);
     const signColor = b.id === "cafe" ? "#ffefc7" : (b.id === "office" ? "#e4efff" : "#ffe6bd");
-    const signText = b.id === "cafe" ? "CAFE" : (b.id === "office" ? "OFFICE" : "MARKET");
+    const signText = b.label;
 
     ctx.fillStyle = shade(b.color, -8);
     ctx.beginPath();
@@ -2131,8 +2278,8 @@
 
     const signCx = (pA.x + pB.x + pC.x + pD.x) * 0.25;
     const signCy = (pA.y + pB.y + pC.y + pD.y) * 0.25 + world.zoom * 1.2;
-    const signW = Math.max(42, signText.length * world.zoom * 5.3);
-    const signH = 13 * world.zoom;
+    const signW = Math.max(48, signText.length * world.zoom * 6.2);
+    const signH = 15 * world.zoom;
     ctx.fillStyle = signColor;
     ctx.strokeStyle = "rgba(80, 61, 41, 0.6)";
     ctx.lineWidth = 1;
@@ -2177,7 +2324,7 @@
     }
 
     ctx.fillStyle = "rgba(70, 52, 34, 0.92)";
-    ctx.font = `700 ${Math.max(9, Math.round(world.zoom * 4.1))}px sans-serif`;
+    ctx.font = `700 ${Math.max(14, Math.round(world.zoom * 5.2))}px sans-serif`;
     ctx.fillText(signText, signCx - signW * 0.16, signCy + world.zoom * 1.35);
 
     const cx = (pA.x + pC.x) * 0.5;
@@ -2580,7 +2727,7 @@
         ctx.fillStyle = "#4f3a25";
         const exitFont = Math.max(18, Math.round(16 * exitScale));
         ctx.font = `800 ${exitFont}px sans-serif`;
-        ctx.fillText("EXIT", tx + 10 * exitScale, ty + labelH - 6 * exitScale);
+        ctx.fillText("출구", tx + 10 * exitScale, ty + labelH - 6 * exitScale);
       }
     }
 
@@ -2606,9 +2753,9 @@
       const p = project(speaker.x, speaker.y, 0);
       const remain = (bubble.until - now) / 1000;
       const alpha = remain > 0.45 ? 1 : clamp(remain / 0.45, 0, 1);
-      const fontSize = Math.max(11, Math.min(15, world.zoom * 3.3));
+      const fontSize = Math.max(16, Math.min(20, world.zoom * 3.6));
       ctx.font = `700 ${fontSize}px sans-serif`;
-      const text = bubbleText(bubble.text, 18);
+      const text = bubbleText(bubble.text, 30);
       const width = Math.max(44, ctx.measureText(text).width + 16);
       const height = fontSize + 8;
       const x = p.x - width * 0.5;
@@ -2715,10 +2862,35 @@
     uiPlayer.textContent = `플레이어: ${player.name} (${player.x.toFixed(1)}, ${player.y.toFixed(1)})`;
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
-    uiNearby.textContent = near ? `근처: ${near.npc.name} (${near.npc.state})` : "근처: 없음";
+    const stateKo = { idle: "대기", moving: "이동 중", chatting: "대화 중" };
+    uiNearby.textContent = near ? `근처: ${near.npc.name} (${stateKo[near.npc.state] || near.npc.state})` : "근처: 없음";
 
-    if (quest.done) uiQuest.textContent = `퀘스트: ${quest.title} - 완료`;
+    if (quest.done && !quest.dynamic) uiQuest.textContent = `퀘스트: ${quest.title} - 완료`;
     else uiQuest.textContent = `퀘스트: ${quest.title} - ${quest.objective}`;
+
+    if (mobileInteractBtn) {
+      const hs = nearestHotspot(1.6);
+      const nearNpc = nearestNpc(CHAT_NEARBY_DISTANCE);
+      if (hs) {
+        const hsLabels = {
+          exitGate: "나가기",
+          cafeDoor: "문 열기",
+          marketBoard: "게시판 보기",
+          parkMonument: "조사하기",
+        };
+        mobileInteractBtn.textContent = hsLabels[hs.id] || "상호작용";
+      } else if (nearNpc) {
+        mobileInteractBtn.textContent = "대화";
+      } else {
+        mobileInteractBtn.textContent = "대화";
+      }
+    }
+
+    if (questBannerEl) {
+      questBannerEl.hidden = false;
+      if (questBannerTitleEl) questBannerTitleEl.textContent = quest.title;
+      if (questBannerObjectiveEl) questBannerObjectiveEl.textContent = (quest.done && !quest.dynamic) ? "완료!" : quest.objective;
+    }
 
     uiRel.textContent = `관계도: 허승준 ${relations.playerToHeo} / 김민수 ${relations.playerToKim} / 최민영 ${relations.playerToChoi} / 허승준↔김민수 ${relations.heoToKim}`;
 
@@ -3031,9 +3203,6 @@
       if (isMobileViewport() && mobileChatOpen) return;
       interact();
     });
-  }
-  if (mobileChatBtn) {
-    mobileChatBtn.addEventListener("click", () => toggleMobileChatMode());
   }
   if (mobileResetBtn) {
     mobileResetBtn.addEventListener("click", () => {
