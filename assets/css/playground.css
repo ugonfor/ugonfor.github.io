@@ -745,8 +745,10 @@ button.pg-pressed,
 
 @media print, screen and (max-width: 900px) {
   .pg-quest-banner {
+    position: fixed;
     top: 0;
     bottom: auto;
+    z-index: 40;
     max-width: min(320px, 85vw);
     padding: 3px 10px 4px;
   }
