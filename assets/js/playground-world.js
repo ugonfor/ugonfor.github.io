@@ -2754,8 +2754,19 @@
       const fontSize = Math.max(16, Math.min(20, world.zoom * 3.6));
       ctx.font = `700 ${fontSize}px sans-serif`;
       const text = bubbleText(bubble.text);
-      const width = Math.max(44, ctx.measureText(text).width + 16);
-      const height = fontSize + 8;
+      const maxLineChars = 14;
+      const lines = [];
+      for (let ci = 0; ci < text.length; ci += maxLineChars) {
+        lines.push(text.slice(ci, ci + maxLineChars));
+      }
+      const lineH = fontSize + 4;
+      let maxW = 0;
+      for (const ln of lines) {
+        const w = ctx.measureText(ln).width;
+        if (w > maxW) maxW = w;
+      }
+      const width = Math.max(44, maxW + 16);
+      const height = lineH * lines.length + 8;
       const x = p.x - width * 0.5;
       const y = p.y - world.zoom * 34 - height;
 
@@ -2773,7 +2784,9 @@
       ctx.closePath();
       ctx.fill();
       ctx.fillStyle = "rgba(66, 52, 35, 0.92)";
-      ctx.fillText(text, x + 8, y + height - 5);
+      for (let li = 0; li < lines.length; li++) {
+        ctx.fillText(lines[li], x + 8, y + lineH * (li + 1));
+      }
       ctx.restore();
     }
   }
