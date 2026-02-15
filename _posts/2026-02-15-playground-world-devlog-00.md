@@ -1,47 +1,47 @@
 ---
 layout: post
-title: "Playground Devlog #0 - Requirements"
+title: "Playground Devlog #0 - 요구사항 정리"
 date: 2026-02-15 19:30:00 +0900
 ---
 
-This is the baseline requirements document for the Playground world simulation.
+Playground 월드 시뮬레이션의 초기 요구사항 문서입니다.
 
-## Product Direction
+## 제품 방향
 
-- The Playground should be a personal, local-first open-world simulation.
-- The page should prioritize the world itself, not long document-style text.
-- The view should be slanted (near-isometric), not pure top-down.
-- It must run smoothly in a local browser environment without heavy infrastructure.
+- Playground는 개인용, 로컬 우선 오픈월드 시뮬레이션이어야 함.
+- 문서형 텍스트보다 월드 자체가 메인으로 보여야 함.
+- 완전 탑뷰가 아니라 비스듬한(준-아이소메트릭) 시점을 사용.
+- 무거운 인프라 없이 로컬 브라우저에서 부드럽게 동작해야 함.
 
-## Core Controls
+## 기본 조작
 
-- Move: `WASD` / Arrow Keys
-- Run: `Shift` (hold)
-- Interact: `E`
-- Pause: `P`
-- Reset View: `Space`
-- Mouse Drag: camera pan
-- Mouse Wheel: zoom in/out
+- 이동: `WASD` / 방향키
+- 달리기: `Shift` (홀드)
+- 상호작용: `E`
+- 일시정지: `P`
+- 시점 초기화: `Space`
+- 마우스 드래그: 카메라 이동
+- 마우스 휠: 줌 인/아웃
 
-## Core Systems
+## 핵심 시스템
 
-- NPC schedule-based movement and behavior updates
-- Relationship system with value changes from interaction
-- Multi-step quest flow with completion state
-- Time/place-based hotspot events
-- Minimap (world, buildings, NPCs, player, camera frame)
-- Save/Load world state using `localStorage`
+- 스케줄 기반 NPC 이동/행동 갱신
+- 상호작용에 따른 관계도 값 변화
+- 다단계 퀘스트와 완료 상태
+- 시간/장소 기반 핫스팟 이벤트
+- 미니맵(월드/건물/NPC/플레이어/카메라 프레임)
+- `localStorage` 기반 저장/불러오기
 
-## NPC Chat Requirement
+## NPC 채팅 요구사항
 
-- Provide nearby-NPC chat UI:
-  - target indicator
-  - chat log
-  - input + send button
-- If no nearby NPC exists, show system message.
-- Use lightweight local response logic with simple memory tags.
+- 근처 NPC 채팅 UI 제공:
+  - 대상 표시
+  - 채팅 로그
+  - 입력창 + 전송 버튼
+- 근처 NPC가 없으면 시스템 메시지 출력
+- 초기에는 가벼운 로컬 응답 로직(기억 태그 포함) 사용
 
-## NPC Roster (Fixed)
+## 고정 NPC 명단
 
 - 허승준
 - 김민수
@@ -52,6 +52,6 @@ This is the baseline requirements document for the Playground world simulation.
 - 박지호
 - 장동우
 
-## Development Policy
+## 개발 원칙
 
-- Track all Playground progress continuously through Posts as devlogs.
+- Playground 진행사항은 Posts에 devlog 형태로 계속 기록

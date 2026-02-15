@@ -1,25 +1,20 @@
 ---
 layout: post
-title: "Playground Devlog #2 - Isometric View, Mouse Move, Quest & Relations"
+title: "Playground Devlog #2 - 비스듬한 시점, 마우스 조작, 퀘스트/관계도"
 date: 2026-02-15 21:00:00 +0900
 ---
 
-Second update for the local world simulation.
+로컬 월드 시뮬레이션 2차 업데이트입니다.
 
-## Added in this update
+## 추가된 내용
 
-- Switched from pure top-down to a slanted isometric-style rendering.
-- Added left-click movement (`Mouse`) in addition to keyboard control.
-- Added basic collision constraints for blocked building areas.
-- Added a simple quest flow:
-  - Talk to Mina to start
-  - Deliver message to Joon to complete
-- Added lightweight relationship values shown in UI:
-  - Player-Mina
-  - Player-Joon
-  - Mina-Joon
+- 완전 탑뷰에서 비스듬한 아이소메트릭 느낌 렌더링으로 전환
+- 키보드 이동 외에 마우스 클릭 기반 이동 추가
+- 건물 영역 충돌 제약 추가
+- 간단한 퀘스트 흐름 추가
+- UI에 관계도 값 표시
 
-## Notes
+## 메모
 
-The goal is still local-first and lightweight.  
-No heavy assets or infrastructure are required.
+방향성은 계속 로컬 우선/경량화입니다.
+무거운 에셋이나 별도 인프라 없이 실행되도록 유지합니다.
