@@ -13,6 +13,7 @@ body {
 /* 마크다운 콘텐츠 영역 */
 .markdown-body {
   box-sizing: border-box;
+  width: min(800px, calc(100% - 32px));
   max-width: 800px;
   margin: 2rem auto;
   padding: 40px;
@@ -92,4 +93,25 @@ body {
 }
 .markdown-body th {
   background-color: #f6f8fa;
+}
+
+.markdown-body img,
+.markdown-body video,
+.markdown-body iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+@media screen and (max-width: 760px) {
+  .markdown-body {
+    margin: 1.1rem auto;
+    padding: 20px 14px;
+    width: min(800px, calc(100% - 20px));
+  }
+
+  .markdown-body table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
 }

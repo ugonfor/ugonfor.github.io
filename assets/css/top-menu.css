@@ -1,3 +1,7 @@
+:root {
+  --top-menu-offset: 68px;
+}
+
 /* Top Menu Bar */
 .top-menu {
     position: fixed;
@@ -15,13 +19,15 @@
   }
   
   /* Menu List Styling */
-  .top-menu ul {
+.top-menu ul {
     list-style: none;
     margin: 0;
-    padding: 0;
+    padding: 0 12px;
     display: flex;
     justify-content: center;
+    flex-wrap: wrap;
     gap: 20px;
+    row-gap: 7px;
   }
   
   /* Menu Item Styling */
@@ -30,7 +36,7 @@
   }
   
   /* Menu Link Styling */
-  .top-menu ul li a {
+.top-menu ul li a {
     color: #f6f8f4;
     text-decoration: none;
     font-size: 0.98rem;
@@ -39,6 +45,8 @@
     text-transform: uppercase;
     padding: 7px 13px;
     border-radius: 999px;
+    display: block;
+    white-space: nowrap;
     transition: background-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
   }
   
@@ -49,18 +57,38 @@
     transform: translateY(-1px);
   }
   
-  /* Add Padding to Avoid Overlapping */
-  .wrapper {
-    padding-top: 60px;
+@media print, screen and (max-width: 480px) {
+  :root {
+    --top-menu-offset: 94px;
   }
 
-@media print, screen and (max-width: 480px) {
   .top-menu ul {
     gap: 8px;
+    row-gap: 6px;
   }
 
   .top-menu ul li a {
     font-size: 0.82rem;
     padding: 6px 9px;
+  }
+}
+
+@media print, screen and (max-width: 680px) {
+  :root {
+    --top-menu-offset: 84px;
+  }
+
+  .top-menu {
+    padding: 8px 0 9px;
+  }
+
+  .top-menu ul {
+    gap: 9px;
+  }
+
+  .top-menu ul li a {
+    font-size: 0.82rem;
+    text-transform: none;
+    letter-spacing: 0.01em;
   }
 }
