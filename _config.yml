@@ -48,3 +48,7 @@ exclude:
   - minimal-light.gemspec
 
 future: true
+
+# Playground LLM API endpoint (deployed backend URL)
+# Example: https://your-service-xxxx.a.run.app/api/npc-chat
+playground_llm_api: ""
