@@ -4,8 +4,11 @@
     top: 0;
     left: 0;
     width: 100%;
-    background: #333;
-    padding: 10px 0;
+    background: linear-gradient(90deg, rgba(18, 45, 62, 0.95), rgba(36, 88, 116, 0.92));
+    border-bottom: 1px solid rgba(222, 226, 216, 0.55);
+    box-shadow: 0 8px 24px rgba(22, 34, 49, 0.24);
+    backdrop-filter: blur(8px);
+    padding: 10px 0 11px;
     text-align: center;
     z-index: 1000; /* Ensures it's on top */
     transition: transform 0.3s ease;
@@ -28,20 +31,36 @@
   
   /* Menu Link Styling */
   .top-menu ul li a {
-    color: white;
+    color: #f6f8f4;
     text-decoration: none;
-    font-size: 1.2rem;
-    padding: 8px 15px;
-    border-radius: 5px;
-    transition: background 0.3s ease-in-out;
+    font-size: 0.98rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 7px 13px;
+    border-radius: 999px;
+    transition: background-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
   }
   
   /* Hover Effect */
   .top-menu ul li a:hover {
-    background: #555;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    transform: translateY(-1px);
   }
   
   /* Add Padding to Avoid Overlapping */
   .wrapper {
     padding-top: 60px;
   }
+
+@media print, screen and (max-width: 480px) {
+  .top-menu ul {
+    gap: 8px;
+  }
+
+  .top-menu ul li a {
+    font-size: 0.82rem;
+    padding: 6px 9px;
+  }
+}
