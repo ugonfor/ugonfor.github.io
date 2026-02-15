@@ -37,12 +37,12 @@
   const SAVE_KEY = "playground_world_state_v2";
   const LLM_API_URL = String(window.PG_LLM_API_URL || "").trim();
   const WORLD_NPC_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/world-npcs") : "";
+  const CHAT_NEARBY_DISTANCE = 4.6;
 
   const keys = new Set();
   const logs = [];
   const chats = [];
   let llmAvailable = true;
-  const knownSharedNpcIds = new Set();
 
   const npcPersonas = {
     heo: { age: "20대", gender: "남성", personality: "차분하고 책임감이 강한 리더형" },
@@ -236,7 +236,6 @@
     npc.x = home.x;
     npc.y = home.y;
     npcs.push(npc);
-    knownSharedNpcIds.add(record.id);
     return npc;
   }
 
@@ -498,10 +497,10 @@
 
   function npcSmallTalk(npc) {
     const lines = [
-      `${npc.name}: The town feels different at ${formatTime()}.`,
-      `${npc.name}: I need to keep my routine stable today.`,
-      `${npc.name}: Meet me in the plaza later.`,
-      `${npc.name}: Social events keep shifting my plans.`,
+      `${npc.name}: ${formatTime()}의 분위기는 조금 다르게 느껴져.`,
+      `${npc.name}: 오늘은 루틴을 최대한 지키려고 해.`,
+      `${npc.name}: 나중에 광장에서 다시 보자.`,
+      `${npc.name}: 작은 이벤트가 계획을 계속 바꾸네.`,
     ];
     return lines[(hourOfDay() + npc.name.length) % lines.length];
   }
@@ -572,7 +571,7 @@
       gender: "남성",
       personality: npc.personality || inferPersonalityFromName(npc.name),
     };
-    const near = nearestNpc(2.2);
+    const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     const payload = {
       npcId: npc.id,
       npcName: npc.name,
@@ -615,15 +614,10 @@
     }
   }
 
-  async function sendChat() {
-    if (!chatInputEl) return;
-    const msg = chatInputEl.value.trim();
-    if (!msg) return;
-
+  async function sendChatMessage(msg) {
     addChat("You", msg);
-    chatInputEl.value = "";
 
-    const near = nearestNpc(1.8);
+    const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     if (!near) {
       addChat("System", "근처에 대화 가능한 NPC가 없습니다.");
       return;
@@ -645,6 +639,14 @@
       if (chatInputEl) chatInputEl.focus();
     }
     addChat(npc.name, reply);
+  }
+
+  async function sendCardChat() {
+    if (!chatInputEl) return;
+    const msg = chatInputEl.value.trim();
+    if (!msg) return;
+    chatInputEl.value = "";
+    await sendChatMessage(msg);
   }
 
   function updateAmbientEvents() {
@@ -1082,18 +1084,22 @@
       ctx.stroke();
 
       if (isExit) {
-        const tx = p.x - 19;
-        const ty = p.y - 28;
+        const exitScale = clamp(world.zoom, 1.2, 3.2);
+        const labelW = 56 * exitScale;
+        const labelH = 22 * exitScale;
+        const tx = p.x - labelW * 0.5;
+        const ty = p.y - 44 * exitScale;
         ctx.fillStyle = "rgba(255,255,255,0.78)";
         ctx.strokeStyle = palette.outline;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = Math.max(1, 1.2 * exitScale);
         ctx.beginPath();
-        ctx.roundRect(tx, ty, 38, 14, 5);
+        ctx.roundRect(tx, ty, labelW, labelH, 8 * exitScale);
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = "#1f1c1c";
-        ctx.font = "700 10px sans-serif";
-        ctx.fillText("EXIT", tx + 8, ty + 10);
+        const exitFont = Math.max(18, Math.round(16 * exitScale));
+        ctx.font = `800 ${exitFont}px sans-serif`;
+        ctx.fillText("EXIT", tx + 10 * exitScale, ty + labelH - 6 * exitScale);
       }
     }
 
@@ -1167,7 +1173,7 @@
     uiTime.textContent = `Time: ${formatTime()} ${world.paused ? "(Paused)" : ""}`;
     uiPlayer.textContent = `Player: (${player.x.toFixed(1)}, ${player.y.toFixed(1)})`;
 
-    const near = nearestNpc(2.2);
+    const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     uiNearby.textContent = near ? `Nearby: ${near.npc.name} (${near.npc.state})` : "Nearby: none";
 
     if (quest.done) uiQuest.textContent = `Quest: ${quest.title} - Completed`;
@@ -1177,7 +1183,7 @@
       `Relation: 허승준 ${relations.playerToHeo} / 김민수 ${relations.playerToKim} / 최민영 ${relations.playerToChoi} / 허승준↔김민수 ${relations.heoToKim}`;
 
     if (chatTargetEl) {
-      const n = nearestNpc(1.8);
+      const n = nearestNpc(CHAT_NEARBY_DISTANCE);
       chatTargetEl.textContent = n ? `대상: ${n.npc.name}` : "대상: 없음";
       if (chatSendEl) chatSendEl.disabled = !n;
     }
@@ -1368,12 +1374,12 @@
     mobileRunBtn.addEventListener("pointerleave", runUp);
   }
 
-  if (chatSendEl) chatSendEl.addEventListener("click", sendChat);
+  if (chatSendEl) chatSendEl.addEventListener("click", sendCardChat);
   if (chatInputEl) {
     chatInputEl.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
         ev.preventDefault();
-        sendChat();
+        sendCardChat();
       }
     });
   }
@@ -1396,7 +1402,6 @@
           const sharedNpc = await createSharedNpc(result.npc.name, result.npc.personality || "");
           if (sharedNpc && sharedNpc.id) {
             result.npc.id = sharedNpc.id;
-            knownSharedNpcIds.add(sharedNpc.id);
             npcPersonas[sharedNpc.id] = {
               age: "20대",
               gender: "남성",

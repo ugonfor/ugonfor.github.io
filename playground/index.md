@@ -79,12 +79,12 @@ extra_head: |
           <h3>NPC Chat</h3>
           <p id="pg-chat-target">대상: 없음</p>
           <div id="pg-chat-log" class="pg-chat-log"></div>
-          <div class="pg-chat-row">
-            <input id="pg-chat-input" type="text" placeholder="근처 NPC에게 말 걸기..." />
-            <button id="pg-chat-send" type="button">전송</button>
-          </div>
         </div>
       </div>
+    </div>
+    <div class="pg-chat-dock">
+      <input id="pg-chat-input" type="text" placeholder="NPC에게 말 걸기..." />
+      <button id="pg-chat-send" type="button">전송</button>
     </div>
   </div>
 </div>
