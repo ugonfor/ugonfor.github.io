@@ -1,5 +1,7 @@
 import { createServer } from "node:http";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { gzipSync } from "node:zlib";
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || (process.env.K_SERVICE ? "0.0.0.0" : "127.0.0.1");
@@ -24,6 +26,13 @@ const TURNSTILE_EXPECTED_HOSTNAMES = new Set(
     .map((s) => s.trim())
     .filter(Boolean)
 );
+const GCP_PROJECT_ID = String(process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || "").trim();
+const AUDIT_LOG_BUCKET = String(process.env.AUDIT_LOG_BUCKET || "").trim();
+const AUDIT_LOG_PREFIX = String(process.env.AUDIT_LOG_PREFIX || "llm-audit").trim().replace(/^\/+|\/+$/g, "");
+const AUDIT_LOG_MAX_TEXT_CHARS = Math.max(1_000, Number(process.env.AUDIT_LOG_MAX_TEXT_CHARS || 40_000));
+const AUDIT_LOG_TIMEOUT_MS = Math.max(500, Number(process.env.AUDIT_LOG_TIMEOUT_MS || 2_500));
+const AUDIT_LOG_STRICT_MODE = String(process.env.AUDIT_LOG_STRICT_MODE || "").toLowerCase() === "true";
+const AUDIT_LOG_GZIP = String(process.env.AUDIT_LOG_GZIP || "true").toLowerCase() !== "false";
 
 const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:4000",
@@ -39,6 +48,8 @@ const ALLOWED_ORIGINS = new Set(
 );
 const rateLimitStore = new Map();
 const turnstileVerifiedCache = new Map();
+let gcpAccessToken = "";
+let gcpAccessTokenExpiresAt = 0;
 
 const sharedState = {
   revision: 0,
@@ -217,6 +228,91 @@ function parseJsonBody(req) {
   });
 }
 
+function truncateText(value, maxLen = AUDIT_LOG_MAX_TEXT_CHARS) {
+  const text = String(value || "");
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, maxLen)}...[truncated ${text.length - maxLen} chars]`;
+}
+
+function parseTraceId(req) {
+  const raw = String(req.headers["x-cloud-trace-context"] || "");
+  return raw.split("/")[0] || "";
+}
+
+function buildTraceResource(traceId) {
+  if (!traceId || !GCP_PROJECT_ID) return "";
+  return `projects/${GCP_PROJECT_ID}/traces/${traceId}`;
+}
+
+function buildAuditObjectName(now, requestId) {
+  const yyyy = now.getUTCFullYear();
+  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(now.getUTCDate()).padStart(2, "0");
+  const hh = String(now.getUTCHours()).padStart(2, "0");
+  const stamp = now.toISOString().replace(/[:.]/g, "-");
+  const ext = AUDIT_LOG_GZIP ? "json.gz" : "json";
+  if (AUDIT_LOG_PREFIX) {
+    return `${AUDIT_LOG_PREFIX}/${yyyy}/${mm}/${dd}/${hh}/${stamp}_${requestId}.${ext}`;
+  }
+  return `${yyyy}/${mm}/${dd}/${hh}/${stamp}_${requestId}.${ext}`;
+}
+
+async function getGoogleAccessToken() {
+  const now = Date.now();
+  if (gcpAccessToken && gcpAccessTokenExpiresAt - 60_000 > now) return gcpAccessToken;
+
+  const response = await fetch(
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+    {
+      headers: { "Metadata-Flavor": "Google" },
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`metadata token fetch failed (${response.status})`);
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!data?.access_token) throw new Error("metadata token missing access_token");
+  gcpAccessToken = String(data.access_token);
+  gcpAccessTokenExpiresAt = now + Math.max(60, Number(data.expires_in || 300)) * 1_000;
+  return gcpAccessToken;
+}
+
+async function uploadAuditRecord(record) {
+  if (!AUDIT_LOG_BUCKET) return { ok: false, skipped: true };
+
+  const now = new Date();
+  const objectName = buildAuditObjectName(now, record.requestId || randomUUID());
+  const token = await getGoogleAccessToken();
+  const bodyString = `${JSON.stringify(record)}\n`;
+  const body = AUDIT_LOG_GZIP ? gzipSync(bodyString) : bodyString;
+  const url =
+    `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(AUDIT_LOG_BUCKET)}/o` +
+    `?uploadType=media&name=${encodeURIComponent(objectName)}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": AUDIT_LOG_GZIP ? "application/gzip" : "application/json; charset=utf-8",
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const errBody = truncateText(await response.text().catch(() => ""), 600);
+    throw new Error(`gcs upload failed (${response.status}): ${errBody}`);
+  }
+
+  return { ok: true, objectName };
+}
+
+async function writeAuditRecord(record) {
+  if (!AUDIT_LOG_BUCKET) return { ok: false, skipped: true };
+  const timeout = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(`audit upload timeout (${AUDIT_LOG_TIMEOUT_MS}ms)`)), AUDIT_LOG_TIMEOUT_MS);
+  });
+  return Promise.race([uploadAuditRecord(record), timeout]);
+}
+
 function buildPrompt(payload) {
   const npcName = payload.npcName || "NPC";
   const persona = payload.persona || {};
@@ -250,6 +346,33 @@ function buildPrompt(payload) {
     `유저 메시지: ${payload.userMessage || ""}`,
     "NPC 답변:",
   ].join("\n");
+}
+
+function buildAuditBase(req, endpoint, requestId, payload, prompt, startedAtMs) {
+  const traceId = parseTraceId(req);
+  return {
+    event: "llm_inference_audit",
+    requestId,
+    timestamp: new Date(startedAtMs).toISOString(),
+    endpoint,
+    method: req.method,
+    trace: buildTraceResource(traceId),
+    client: {
+      ip: getClientIp(req),
+      origin: getOrigin(req),
+      userAgent: truncateText(String(req.headers["user-agent"] || ""), 800),
+    },
+    actor: {
+      userId: truncateText(payload?.userId || payload?.user_id || "", 200),
+      sessionId: truncateText(payload?.sessionId || payload?.session_id || "", 200),
+    },
+    request: {
+      npcName: truncateText(payload?.npcName || "", 120),
+      userMessage: truncateText(payload?.userMessage || ""),
+      payload,
+      prompt: truncateText(prompt || ""),
+    },
+  };
 }
 
 async function callGemini(prompt) {
@@ -443,16 +566,45 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.url === "/api/npc-chat-stream" && req.method === "POST") {
+    const startedAtMs = Date.now();
+    const requestId = randomUUID();
+    let payload = null;
+    let prompt = "";
+    let resolvedModel = "";
+    let streamFallbackUsed = false;
+    let replyText = "";
     try {
-      const payload = await parseJsonBody(req);
+      payload = await parseJsonBody(req);
       if (!payload.userMessage || !payload.npcName) {
+        const auditRecord = {
+          ...buildAuditBase(req, "/api/npc-chat-stream", requestId, payload, prompt, startedAtMs),
+          response: {
+            httpStatus: 400,
+            status: "error",
+            model: resolvedModel,
+            streamFallbackUsed,
+            reply: "",
+            errorMessage: "userMessage and npcName are required",
+          },
+          timing: {
+            latencyMs: Date.now() - startedAtMs,
+          },
+        };
+        try {
+          await writeAuditRecord(auditRecord);
+        } catch (auditErr) {
+          // eslint-disable-next-line no-console
+          console.error(`[audit] requestId=${requestId} validation upload failed: ${auditErr.message}`);
+        }
         return writeJson(res, 400, { error: "userMessage and npcName are required" }, origin);
       }
-      const prompt = buildPrompt(payload);
+      prompt = buildPrompt(payload);
       const { stream, model } = await callGeminiStream(prompt);
+      resolvedModel = model;
 
       writeSseHead(res, origin);
-      sendSse(res, "model", { model });
+      sendSse(res, "meta", { requestId });
+      sendSse(res, "model", { model, requestId });
 
       const reader = stream.getReader();
       const decoder = new TextDecoder();
@@ -478,6 +630,7 @@ const server = createServer(async (req, res) => {
         const text = parseGeminiTextFromPayload(data);
         if (!text) return;
         sendSse(res, "chunk", { text });
+        replyText += text;
         sentAny = true;
       };
 
@@ -507,26 +660,83 @@ const server = createServer(async (req, res) => {
       if (!sentAny) {
         try {
           const fallback = await callGemini(prompt);
-          sendSse(res, "model", { model: fallback.model, fallback: true });
+          resolvedModel = fallback.model;
+          streamFallbackUsed = true;
+          replyText += fallback.reply;
+          sendSse(res, "model", { model: fallback.model, fallback: true, requestId });
           sendSse(res, "chunk", { text: fallback.reply });
           sentAny = true;
         } catch (fallbackErr) {
-          sendSse(res, "error", { message: fallbackErr.message || "empty stream reply" });
+          sendSse(res, "error", { message: fallbackErr.message || "empty stream reply", requestId });
         }
       }
-      sendSse(res, "done", { ok: sentAny });
+
+      const auditRecord = {
+        ...buildAuditBase(req, "/api/npc-chat-stream", requestId, payload, prompt, startedAtMs),
+        response: {
+          httpStatus: sentAny ? 200 : 500,
+          status: sentAny ? "ok" : "error",
+          model: resolvedModel,
+          streamFallbackUsed,
+          reply: truncateText(replyText),
+        },
+        timing: {
+          latencyMs: Date.now() - startedAtMs,
+        },
+      };
+
+      try {
+        await writeAuditRecord(auditRecord);
+      } catch (auditErr) {
+        // eslint-disable-next-line no-console
+        console.error(`[audit] requestId=${requestId} stream upload failed: ${auditErr.message}`);
+        if (AUDIT_LOG_STRICT_MODE) {
+          sendSse(res, "error", { message: "audit logging unavailable", requestId });
+          sendSse(res, "done", { ok: false, requestId });
+          res.end();
+          return;
+        }
+      }
+      sendSse(res, "done", { ok: sentAny, requestId });
       res.end();
       return;
     } catch (err) {
+      const status = Number(err?.statusCode || 500);
+      const message = status >= 500 ? "stream error" : (err?.message || "invalid request");
       try {
         writeSseHead(res, origin);
-        const status = Number(err?.statusCode || 500);
-        const message = status >= 500 ? "stream error" : (err?.message || "invalid request");
-        sendSse(res, "error", { message });
-        sendSse(res, "done", { ok: false });
+        sendSse(res, "meta", { requestId });
+        sendSse(res, "error", { message, requestId });
+        sendSse(res, "done", { ok: false, requestId });
         res.end();
       } catch {
         // ignore write errors
+      }
+
+      const auditRecord = {
+        ...buildAuditBase(req, "/api/npc-chat-stream", requestId, payload, prompt, startedAtMs),
+        response: {
+          httpStatus: status,
+          status: "error",
+          model: resolvedModel,
+          streamFallbackUsed,
+          reply: truncateText(replyText),
+          errorMessage: truncateText(err?.message || "stream error", 800),
+        },
+        timing: {
+          latencyMs: Date.now() - startedAtMs,
+        },
+      };
+
+      try {
+        await writeAuditRecord(auditRecord);
+      } catch (auditErr) {
+        // eslint-disable-next-line no-console
+        console.error(`[audit] requestId=${requestId} stream error upload failed: ${auditErr.message}`);
+        if (AUDIT_LOG_STRICT_MODE) {
+          // eslint-disable-next-line no-console
+          console.error(`[audit] strict mode enabled for requestId=${requestId}`);
+        }
       }
       return;
     }
@@ -536,18 +746,88 @@ const server = createServer(async (req, res) => {
     return writeJson(res, 404, { error: "Not found" }, origin);
   }
 
+  const startedAtMs = Date.now();
+  const requestId = randomUUID();
+  let payload = null;
+  let prompt = "";
+  let model = "";
+  let reply = "";
   try {
-    const payload = await parseJsonBody(req);
+    payload = await parseJsonBody(req);
     if (!payload.userMessage || !payload.npcName) {
+      const auditRecord = {
+        ...buildAuditBase(req, "/api/npc-chat", requestId, payload, prompt, startedAtMs),
+        response: {
+          httpStatus: 400,
+          status: "error",
+          model,
+          reply: "",
+          errorMessage: "userMessage and npcName are required",
+        },
+        timing: {
+          latencyMs: Date.now() - startedAtMs,
+        },
+      };
+      try {
+        await writeAuditRecord(auditRecord);
+      } catch (auditErr) {
+        // eslint-disable-next-line no-console
+        console.error(`[audit] requestId=${requestId} validation upload failed: ${auditErr.message}`);
+      }
       return writeJson(res, 400, { error: "userMessage and npcName are required" }, origin);
     }
-    const prompt = buildPrompt(payload);
-    const { reply, model } = await callGemini(prompt);
-    return writeJson(res, 200, { reply, model }, origin);
+    prompt = buildPrompt(payload);
+    const result = await callGemini(prompt);
+    reply = result.reply;
+    model = result.model;
+    const auditRecord = {
+      ...buildAuditBase(req, "/api/npc-chat", requestId, payload, prompt, startedAtMs),
+      response: {
+        httpStatus: 200,
+        status: "ok",
+        model,
+        reply: truncateText(reply),
+      },
+      timing: {
+        latencyMs: Date.now() - startedAtMs,
+      },
+    };
+    try {
+      await writeAuditRecord(auditRecord);
+    } catch (auditErr) {
+      // eslint-disable-next-line no-console
+      console.error(`[audit] requestId=${requestId} upload failed: ${auditErr.message}`);
+      if (AUDIT_LOG_STRICT_MODE) {
+        return writeJson(res, 503, { error: "audit logging unavailable", requestId }, origin);
+      }
+    }
+    return writeJson(res, 200, { reply, model, requestId }, origin);
   } catch (err) {
     const status = Number(err?.statusCode || 500);
     const message = status >= 500 ? "LLM proxy error" : (err?.message || "invalid request");
-    return writeJson(res, status, { error: message }, origin);
+    const auditRecord = {
+      ...buildAuditBase(req, "/api/npc-chat", requestId, payload, prompt, startedAtMs),
+      response: {
+        httpStatus: status,
+        status: "error",
+        model,
+        reply: truncateText(reply),
+        errorMessage: truncateText(err?.message || "LLM proxy error", 800),
+      },
+      timing: {
+        latencyMs: Date.now() - startedAtMs,
+      },
+    };
+    try {
+      await writeAuditRecord(auditRecord);
+    } catch (auditErr) {
+      // eslint-disable-next-line no-console
+      console.error(`[audit] requestId=${requestId} error upload failed: ${auditErr.message}`);
+      if (AUDIT_LOG_STRICT_MODE) {
+        return writeJson(res, 503, { error: "audit logging unavailable", requestId }, origin);
+      }
+    }
+    return writeJson(res, status, { error: message, requestId }, origin);
   }
 });
 

@@ -12,7 +12,7 @@ gcloud run deploy playground-llm-proxy \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY,MODEL_CHAIN=gemini-2.0-flash,gemini-2.5-pro,gemma-3-27b-it,gemma-3-12b-it,ALLOWED_ORIGINS=https://ugonfor.kr,https://www.ugonfor.kr
+  --set-env-vars GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY,MODEL_CHAIN=gemini-2.0-flash,gemini-2.5-pro,gemma-3-27b-it,gemma-3-12b-it,ALLOWED_ORIGINS=https://ugonfor.kr,https://www.ugonfor.kr,AUDIT_LOG_BUCKET=YOUR_AUDIT_BUCKET
 ```
 
 Cloud Run URL will look like:
@@ -47,6 +47,66 @@ The proxy tries models in `MODEL_CHAIN` order and falls back to the next model w
 - `PROXY_AUTH_TOKEN` (optional): if set, API requests must include `X-Proxy-Token`.
 - `TURNSTILE_SECRET_KEY` (optional): if set, POST API requests must include a valid `X-Turnstile-Token`.
 - `TURNSTILE_EXPECTED_HOSTNAMES` (optional): restrict accepted Turnstile tokens to hostnames.
+- `AUDIT_LOG_BUCKET` (optional): if set, writes full LLM request/response audit records to GCS.
+- `AUDIT_LOG_PREFIX` (optional): GCS object prefix (default: `llm-audit`).
+- `AUDIT_LOG_GZIP` (optional): gzip audit JSON before upload (default: `true`).
+- `AUDIT_LOG_TIMEOUT_MS` (optional): upload timeout in ms (default: `2500`).
+- `AUDIT_LOG_MAX_TEXT_CHARS` (optional): truncation limit for long text fields (default: `40000`).
+- `AUDIT_LOG_STRICT_MODE` (optional): when `true`, `/api/npc-chat` returns `503` if audit upload fails.
+
+## Full request/response audit logging (Cloud Run + GCS)
+
+`/api/npc-chat` and `/api/npc-chat-stream` now emit one audit JSON per inference request into:
+
+`gs://<AUDIT_LOG_BUCKET>/<AUDIT_LOG_PREFIX>/YYYY/MM/DD/HH/...json.gz`
+
+Each record includes:
+- `requestId`, request timestamp, Cloud Trace id (if available), client IP/origin/user-agent
+- incoming payload + built prompt + user message
+- final response text, model, endpoint, status, latency, and error message (if failed)
+
+### Minimal setup
+
+1) Create bucket (example region: us-central1):
+
+```bash
+gcloud storage buckets create gs://YOUR_AUDIT_BUCKET --location=us-central1
+```
+
+2) Grant object write to the Cloud Run runtime service account:
+
+```bash
+gcloud storage buckets add-iam-policy-binding gs://YOUR_AUDIT_BUCKET \
+  --member=serviceAccount:YOUR_CLOUD_RUN_SA@YOUR_GCP_PROJECT.iam.gserviceaccount.com \
+  --role=roles/storage.objectCreator
+```
+
+3) Redeploy with audit env vars:
+
+```bash
+gcloud run deploy playground-llm-proxy \
+  --image gcr.io/YOUR_GCP_PROJECT/playground-llm-proxy \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY,AUDIT_LOG_BUCKET=YOUR_AUDIT_BUCKET,AUDIT_LOG_PREFIX=llm-audit
+```
+
+4) Optional retention cost control:
+
+```bash
+gcloud storage buckets update gs://YOUR_AUDIT_BUCKET --lifecycle-file=<(cat <<'JSON'
+{
+  "rule": [
+    {
+      "action": { "type": "Delete" },
+      "condition": { "age": 30 }
+    }
+  ]
+}
+JSON
+)
+```
 
 For production, avoid broad public exposure. If possible, put this service behind Cloud Run IAM / API Gateway in addition to the app-level controls above.
 
