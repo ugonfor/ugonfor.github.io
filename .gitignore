@@ -10,3 +10,5 @@ vendor
 git-update.sh
 .devcontainer
 .github
+.env
+.env.*

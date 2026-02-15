@@ -20,17 +20,52 @@
 
   const saveBtn = document.getElementById("pg-save");
   const loadBtn = document.getElementById("pg-load");
+  const uiToggleBtn = document.getElementById("pg-ui-toggle");
+  const stageEl = document.querySelector(".pg-world-stage");
+  const mobileInteractBtn = document.getElementById("pg-mobile-interact");
+  const mobileRunBtn = document.getElementById("pg-mobile-run");
+  const mobileResetBtn = document.getElementById("pg-mobile-reset");
+  const mobileZoomInBtn = document.getElementById("pg-mobile-zoom-in");
+  const mobileZoomOutBtn = document.getElementById("pg-mobile-zoom-out");
+  const joystickBase = document.getElementById("pg-joystick-base");
+  const joystickKnob = document.getElementById("pg-joystick-knob");
 
   const SAVE_KEY = "playground_world_state_v2";
+  const LLM_API_URL = String(window.PG_LLM_API_URL || "").trim();
 
   const keys = new Set();
   const logs = [];
   const chats = [];
+  let llmAvailable = true;
+
+  const npcPersonas = {
+    heo: { age: "20s", gender: "male", personality: "calm, responsible, protective leader" },
+    kim: { age: "20s", gender: "male", personality: "friendly, curious, practical thinker" },
+    choi: { age: "20s", gender: "male", personality: "observant, detail-focused, quiet" },
+    jung: { age: "20s", gender: "male", personality: "energetic, spontaneous, social" },
+    seo: { age: "20s", gender: "male", personality: "analytical, dry humor, direct" },
+    lee: { age: "20s", gender: "male", personality: "warm, diplomatic, cooperative" },
+    park: { age: "20s", gender: "male", personality: "competitive, confident, playful" },
+    jang: { age: "20s", gender: "male", personality: "steady, patient, supportive" },
+  };
 
   const cameraPan = { x: 0, y: 0 };
   let dragging = false;
   let dragX = 0;
   let dragY = 0;
+  let frameCount = 0;
+  const isCoarsePointer = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  const mobileMode = isCoarsePointer || window.innerWidth <= 900;
+  const inputState = {
+    joyX: 0,
+    joyY: 0,
+    runHold: false,
+    touchPanActive: false,
+    touchPanX: 0,
+    touchPanY: 0,
+    pinchDist: 0,
+    joystickPointerId: null,
+  };
 
   const world = {
     width: 34,
@@ -39,9 +74,19 @@
     paused: false,
     baseTileW: 40,
     baseTileH: 20,
-    zoom: 1,
+    zoom: 1.42,
     cameraX: canvas.width / 2,
     cameraY: 130,
+  };
+
+  const palette = {
+    outline: "#3a3a3a",
+    grassA: "#8fcb84",
+    grassB: "#84c07a",
+    roadA: "#b9bec7",
+    roadB: "#afb4be",
+    skyTop: "#a8dbf6",
+    skyBottom: "#d6effb",
   };
 
   const player = {
@@ -64,12 +109,13 @@
   };
 
   const buildings = [
-    { id: "cafe", x: 22, y: 7, w: 3, h: 2, z: 2.2, color: "#8ea8bc", label: "Cafe" },
-    { id: "office", x: 25, y: 9, w: 4, h: 2, z: 2.8, color: "#889990", label: "Office" },
-    { id: "market", x: 19, y: 23, w: 4, h: 3, z: 2.4, color: "#b4967e", label: "Market" },
+    { id: "cafe", x: 22, y: 7, w: 3, h: 2, z: 2.2, color: "#efc1c8", label: "Cafe" },
+    { id: "office", x: 25, y: 9, w: 4, h: 2, z: 2.8, color: "#bfd1ee", label: "Office" },
+    { id: "market", x: 19, y: 23, w: 4, h: 3, z: 2.4, color: "#edcfab", label: "Market" },
   ];
 
   const hotspots = [
+    { id: "exitGate", x: 1.2, y: 17.2, label: "Exit" },
     { id: "cafeDoor", x: 23, y: 9, label: "Cafe Door" },
     { id: "marketBoard", x: 20.5, y: 26, label: "Market Board" },
     { id: "parkMonument", x: 8.6, y: 8.2, label: "Park Monument" },
@@ -124,6 +170,20 @@
 
   function clamp(v, min, max) {
     return Math.max(min, Math.min(max, v));
+  }
+
+  function resizeCanvasToDisplaySize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const displayWidth = Math.max(320, Math.floor(canvas.clientWidth));
+    const displayHeight = Math.max(320, Math.floor(canvas.clientHeight));
+    const nextWidth = Math.floor(displayWidth * dpr);
+    const nextHeight = Math.floor(displayHeight * dpr);
+    if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+      canvas.width = nextWidth;
+      canvas.height = nextHeight;
+      if (world.cameraX === 0 || !Number.isFinite(world.cameraX)) world.cameraX = canvas.width * 0.5;
+      if (world.cameraY === 0 || !Number.isFinite(world.cameraY)) world.cameraY = canvas.height * 0.24;
+    }
   }
 
   function dist(a, b) {
@@ -274,6 +334,14 @@
     const hs = nearestHotspot(1.3);
     if (!hs) return false;
 
+    if (hs.id === "exitGate") {
+      addLog("Leaving playground... returning to About Me.");
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 120);
+      return true;
+    }
+
     if (hs.id === "parkMonument") {
       if (quest.stage === 3) {
         if (hourOfDay() >= 20 || hourOfDay() < 5) {
@@ -371,7 +439,54 @@
     return npcSmallTalk(npc).replace(`${npc.name}: `, "");
   }
 
-  function sendChat() {
+  async function requestLlmNpcReply(npc, userMessage) {
+    if (!LLM_API_URL) throw new Error("LLM API URL is empty");
+
+    const persona = npcPersonas[npc.id] || { age: "20s", gender: "male", personality: "natural and balanced" };
+    const near = nearestNpc(2.2);
+    const payload = {
+      npcId: npc.id,
+      npcName: npc.name,
+      persona,
+      userMessage,
+      worldContext: {
+        time: formatTime(),
+        objective: quest.objective,
+        questDone: quest.done,
+        nearby: near ? near.npc.name : "none",
+        relationSummary: {
+          playerToHeo: relations.playerToHeo,
+          playerToKim: relations.playerToKim,
+          playerToChoi: relations.playerToChoi,
+          heoToKim: relations.heoToKim,
+        },
+      },
+      recentMessages: chats.slice(0, 6).reverse(),
+    };
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const res = await fetch(LLM_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        throw new Error(`LLM HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const reply = (data && typeof data.reply === "string" && data.reply.trim()) || "";
+      if (!reply) throw new Error("Empty LLM reply");
+      llmAvailable = true;
+      return reply;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async function sendChat() {
     if (!chatInputEl) return;
     const msg = chatInputEl.value.trim();
     if (!msg) return;
@@ -386,7 +501,20 @@
     }
 
     const npc = near.npc;
-    const reply = npcReply(npc, msg);
+    if (chatSendEl) chatSendEl.disabled = true;
+    if (chatInputEl) chatInputEl.disabled = true;
+    let reply = "";
+    try {
+      reply = await requestLlmNpcReply(npc, msg);
+    } catch (err) {
+      if (llmAvailable) addLog("LLM unavailable. Switched to local NPC response.");
+      llmAvailable = false;
+      reply = npcReply(npc, msg);
+    } finally {
+      if (chatSendEl) chatSendEl.disabled = false;
+      if (chatInputEl) chatInputEl.disabled = false;
+      if (chatInputEl) chatInputEl.focus();
+    }
     addChat(npc.name, reply);
   }
 
@@ -452,7 +580,7 @@
       if (state.world) {
         world.totalMinutes = state.world.totalMinutes ?? world.totalMinutes;
         world.paused = !!state.world.paused;
-        world.zoom = clamp(state.world.zoom ?? 1, 0.65, 1.6);
+        world.zoom = clamp(state.world.zoom ?? 1.42, 0.65, 1.8);
         cameraPan.x = clamp((state.world.cameraPan && state.world.cameraPan.x) || 0, -320, 320);
         cameraPan.y = clamp((state.world.cameraPan && state.world.cameraPan.y) || 0, -220, 220);
       }
@@ -485,17 +613,20 @@
   }
 
   function updatePlayer(dt) {
-    let dx = 0;
-    let dy = 0;
-    if (keys.has("KeyA") || keys.has("ArrowLeft")) dx -= 1;
-    if (keys.has("KeyD") || keys.has("ArrowRight")) dx += 1;
-    if (keys.has("KeyW") || keys.has("ArrowUp")) dy -= 1;
-    if (keys.has("KeyS") || keys.has("ArrowDown")) dy += 1;
+    let keyDx = 0;
+    let keyDy = 0;
+    if (keys.has("KeyA") || keys.has("ArrowLeft")) keyDx -= 1;
+    if (keys.has("KeyD") || keys.has("ArrowRight")) keyDx += 1;
+    if (keys.has("KeyW") || keys.has("ArrowUp")) keyDy -= 1;
+    if (keys.has("KeyS") || keys.has("ArrowDown")) keyDy += 1;
+
+    const dx = keyDx + inputState.joyX;
+    const dy = keyDy + inputState.joyY;
 
     const mag = Math.hypot(dx, dy);
     if (!mag) return;
 
-    const runMul = keys.has("ShiftLeft") || keys.has("ShiftRight") ? 1.75 : 1;
+    const runMul = keys.has("ShiftLeft") || keys.has("ShiftRight") || inputState.runHold ? 1.75 : 1;
     const spd = player.speed * runMul;
     const tx = player.x + (dx / mag) * spd * dt;
     const ty = player.y + (dy / mag) * spd * dt;
@@ -533,8 +664,41 @@
   function resetView() {
     cameraPan.x = 0;
     cameraPan.y = 0;
-    world.zoom = 1;
+    world.zoom = 1.42;
     addLog("View reset.");
+  }
+
+  function touchDistance(t1, t2) {
+    return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+  }
+
+  function setJoystick(x, y) {
+    const mag = Math.hypot(x, y);
+    const nx = mag > 1 ? x / mag : x;
+    const ny = mag > 1 ? y / mag : y;
+    inputState.joyX = nx;
+    inputState.joyY = ny;
+    if (joystickKnob) {
+      const base = joystickBase ? joystickBase.getBoundingClientRect() : null;
+      const knob = joystickKnob.getBoundingClientRect();
+      const center = base ? base.width * 0.5 - knob.width * 0.5 : 27;
+      const radius = base ? base.width * 0.28 : 27;
+      joystickKnob.style.left = `${center + nx * radius}px`;
+      joystickKnob.style.top = `${center + ny * radius}px`;
+    }
+  }
+
+  function resetJoystick() {
+    inputState.joyX = 0;
+    inputState.joyY = 0;
+    inputState.joystickPointerId = null;
+    if (joystickKnob) {
+      const base = joystickBase ? joystickBase.getBoundingClientRect() : null;
+      const knob = joystickKnob.getBoundingClientRect();
+      const center = base ? base.width * 0.5 - knob.width * 0.5 : 27;
+      joystickKnob.style.left = `${center}px`;
+      joystickKnob.style.top = `${center}px`;
+    }
   }
 
   function drawDiamond(x, y, color) {
@@ -551,8 +715,18 @@
     ctx.closePath();
     ctx.fillStyle = color;
     ctx.fill();
-    ctx.strokeStyle = "rgba(22,30,40,0.08)";
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = "rgba(58,58,58,0.26)";
     ctx.stroke();
+
+    // Cartoony top highlight
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo((p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5);
+    ctx.lineTo((p1.x + p4.x) * 0.5, (p1.y + p4.y) * 0.5);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.fill();
   }
 
   function shade(hex, delta) {
@@ -574,7 +748,7 @@
     const baseC = project(b.x + b.w, b.y + b.h, 0);
     const baseD = project(b.x, b.y + b.h, 0);
 
-    ctx.fillStyle = shade(b.color, -14);
+    ctx.fillStyle = shade(b.color, -12);
     ctx.beginPath();
     ctx.moveTo(pB.x, pB.y);
     ctx.lineTo(baseB.x, baseB.y);
@@ -583,7 +757,7 @@
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = shade(b.color, -30);
+    ctx.fillStyle = shade(b.color, -28);
     ctx.beginPath();
     ctx.moveTo(pD.x, pD.y);
     ctx.lineTo(baseD.x, baseD.y);
@@ -601,8 +775,16 @@
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = "rgba(0,0,0,0.24)";
+    ctx.strokeStyle = palette.outline;
+    ctx.lineWidth = 1.6;
     ctx.stroke();
+
+    const cx = (pA.x + pC.x) * 0.5;
+    const cy = (pA.y + pC.y) * 0.5 - 4;
+    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 18, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   function drawEntity(e, radius, label) {
@@ -615,30 +797,83 @@
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(p.x, p.y - 10, radius, 0, Math.PI * 2);
+    ctx.ellipse(sh.x, sh.y, radius + 2, radius * 0.4, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0,0,0,0.12)";
+    ctx.fill();
+
+    // Cartoony body
+    const bw = radius * 1.5;
+    const bh = radius * 1.85;
+    const bx = p.x - bw * 0.5;
+    const by = p.y - 13;
+    ctx.beginPath();
+    ctx.ellipse(bx + bw * 0.5, by, bw * 0.5, 4, 0, Math.PI, 0);
+    ctx.lineTo(bx + bw, by + bh - 4);
+    ctx.ellipse(bx + bw * 0.5, by + bh - 4, bw * 0.5, 4, 0, 0, Math.PI);
+    ctx.closePath();
     ctx.fillStyle = e.color;
     ctx.fill();
-    ctx.strokeStyle = "#1b1b1b";
+    ctx.strokeStyle = palette.outline;
+    ctx.lineWidth = 1.4;
     ctx.stroke();
 
-    ctx.fillStyle = "#101010";
-    ctx.font = "11px sans-serif";
-    ctx.fillText(label, p.x - 16, p.y - 24);
+    // Head
+    ctx.beginPath();
+    ctx.arc(p.x, by - 3, Math.max(4.5, radius * 0.48), 0, Math.PI * 2);
+    ctx.fillStyle = "#ffe2c8";
+    ctx.fill();
+    ctx.strokeStyle = palette.outline;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Name tag
+    const tagW = Math.max(34, label.length * 7.1);
+    const tagH = 13;
+    const tx = p.x - tagW * 0.5;
+    const ty = p.y - 31;
+    ctx.fillStyle = "rgba(255,255,255,0.72)";
+    ctx.strokeStyle = palette.outline;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(tx, ty, tagW, tagH, 5);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#1f1c1c";
+    ctx.font = "700 10px sans-serif";
+    ctx.fillText(label, tx + 5, ty + 9.6);
   }
 
   function drawGround() {
     const h = hourOfDay();
     const dayFactor = Math.sin(((h - 6) / 24) * Math.PI * 2) * 0.5 + 0.5;
-    const r = Math.floor(174 + dayFactor * 26);
-    const g = Math.floor(196 + dayFactor * 32);
-    const b = Math.floor(178 + dayFactor * 16);
-    ctx.fillStyle = `rgb(${r - 35}, ${g - 40}, ${b - 22})`;
+    const r = Math.floor(142 + dayFactor * 34);
+    const g = Math.floor(198 + dayFactor * 22);
+    const b = Math.floor(238 - dayFactor * 16);
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    skyGrad.addColorStop(0, `rgb(${r},${g},${b})`);
+    skyGrad.addColorStop(1, `rgb(${r - 4},${g + 6},${Math.max(136, b - 64)})`);
+    ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Clouds
+    const cloudShift = (world.totalMinutes * 0.9) % (canvas.width + 220);
+    const cloudCount = mobileMode ? 2 : 4;
+    for (let i = 0; i < cloudCount; i += 1) {
+      const cx = ((i * 230 + cloudShift) % (canvas.width + 220)) - 100;
+      const cy = 74 + i * 18;
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+      ctx.arc(cx + 18, cy - 7, 18, 0, Math.PI * 2);
+      ctx.arc(cx + 37, cy, 16, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     for (let y = 0; y < world.height; y += 1) {
       for (let x = 0; x < world.width; x += 1) {
-        const grass = (x + y) % 2 === 0 ? "#9ecf8e" : "#96c786";
-        drawDiamond(x, y, roadTile(x + 0.5, y + 0.5) ? "#a7b8c3" : grass);
+        const grass = (x + y) % 2 === 0 ? palette.grassA : palette.grassB;
+        const road = (x + y) % 2 === 0 ? palette.roadA : palette.roadB;
+        drawDiamond(x, y, roadTile(x + 0.5, y + 0.5) ? road : grass);
       }
     }
   }
@@ -647,8 +882,35 @@
     drawGround();
     for (const b of buildings) drawBuilding(b);
 
+    for (const hs of hotspots) {
+      const p = project(hs.x, hs.y, 0);
+      const isExit = hs.id === "exitGate";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - 7, isExit ? 6.5 : 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = isExit ? "#ffd872" : "#f0ca6a";
+      ctx.fill();
+      ctx.strokeStyle = palette.outline;
+      ctx.lineWidth = isExit ? 1.8 : 1.2;
+      ctx.stroke();
+
+      if (isExit) {
+        const tx = p.x - 19;
+        const ty = p.y - 28;
+        ctx.fillStyle = "rgba(255,255,255,0.78)";
+        ctx.strokeStyle = palette.outline;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(tx, ty, 38, 14, 5);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#1f1c1c";
+        ctx.font = "700 10px sans-serif";
+        ctx.fillText("EXIT", tx + 8, ty + 10);
+      }
+    }
+
     const actors = [...npcs, player].sort((a, b) => a.x + a.y - (b.x + b.y));
-    for (const actor of actors) drawEntity(actor, actor === player ? 9 : 8, actor.name);
+    for (const actor of actors) drawEntity(actor, actor === player ? 11 : 10, actor.name);
   }
 
   function drawMinimap() {
@@ -661,10 +923,10 @@
     const sy = (h - pad * 2) / world.height;
 
     mctx.clearRect(0, 0, w, h);
-    mctx.fillStyle = "#e8f1e1";
+    mctx.fillStyle = "#daf2c2";
     mctx.fillRect(0, 0, w, h);
 
-    mctx.fillStyle = "#b8c7d1";
+    mctx.fillStyle = "#b7bcc8";
     for (let y = 0; y < world.height; y += 1) {
       for (let x = 0; x < world.width; x += 1) {
         if (roadTile(x + 0.5, y + 0.5)) {
@@ -673,7 +935,7 @@
       }
     }
 
-    mctx.fillStyle = "#6f7f88";
+    mctx.fillStyle = "#8897a5";
     for (const b of buildings) {
       mctx.fillRect(pad + b.x * sx, pad + b.y * sy, b.w * sx, b.h * sy);
     }
@@ -694,7 +956,7 @@
     mctx.beginPath();
     mctx.arc(pad + player.x * sx, pad + player.y * sy, 3.2, 0, Math.PI * 2);
     mctx.fill();
-    mctx.strokeStyle = "#111";
+    mctx.strokeStyle = palette.outline;
     mctx.stroke();
 
     mctx.strokeStyle = "rgba(30,40,50,0.58)";
@@ -730,11 +992,14 @@
 
   let last = performance.now();
   addLog("World initialized. Explore and interact with NPCs.");
-  addChat("System", "Chat with nearby NPCs to influence relationships and quests.");
+  if (LLM_API_URL) addChat("System", "LLM chat is enabled for nearby NPCs.");
+  else addChat("System", "LLM endpoint is not configured. Using local NPC chat.");
 
   function frame(now) {
+    resizeCanvasToDisplaySize();
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now;
+    frameCount += 1;
 
     if (!world.paused) {
       world.totalMinutes += dt * 14;
@@ -746,7 +1011,7 @@
 
     updateUI();
     drawWorld();
-    drawMinimap();
+    if (!mobileMode || frameCount % 3 === 0) drawMinimap();
     requestAnimationFrame(frame);
   }
 
@@ -797,10 +1062,118 @@
     (ev) => {
       ev.preventDefault();
       const delta = ev.deltaY > 0 ? -0.06 : 0.06;
-      world.zoom = clamp(world.zoom + delta, 0.65, 1.6);
+      world.zoom = clamp(world.zoom + delta, 0.65, 1.8);
     },
     { passive: false }
   );
+
+  canvas.addEventListener(
+    "touchstart",
+    (ev) => {
+      if (!mobileMode) return;
+      if (ev.touches.length === 1) {
+        const t = ev.touches[0];
+        inputState.touchPanActive = true;
+        inputState.touchPanX = t.clientX;
+        inputState.touchPanY = t.clientY;
+        inputState.pinchDist = 0;
+      } else if (ev.touches.length >= 2) {
+        inputState.touchPanActive = false;
+        inputState.pinchDist = touchDistance(ev.touches[0], ev.touches[1]);
+      }
+    },
+    { passive: true }
+  );
+
+  canvas.addEventListener(
+    "touchmove",
+    (ev) => {
+      if (!mobileMode) return;
+      ev.preventDefault();
+
+      if (ev.touches.length === 1 && inputState.touchPanActive) {
+        const t = ev.touches[0];
+        const dx = t.clientX - inputState.touchPanX;
+        const dy = t.clientY - inputState.touchPanY;
+        inputState.touchPanX = t.clientX;
+        inputState.touchPanY = t.clientY;
+        cameraPan.x = clamp(cameraPan.x + dx, -320, 320);
+        cameraPan.y = clamp(cameraPan.y + dy, -220, 220);
+      } else if (ev.touches.length >= 2) {
+        const distNow = touchDistance(ev.touches[0], ev.touches[1]);
+        if (inputState.pinchDist > 0) {
+          const delta = (distNow - inputState.pinchDist) * 0.0025;
+          world.zoom = clamp(world.zoom + delta, 0.65, 1.8);
+        }
+        inputState.pinchDist = distNow;
+      }
+    },
+    { passive: false }
+  );
+
+  canvas.addEventListener("touchend", () => {
+    inputState.touchPanActive = false;
+    inputState.pinchDist = 0;
+  });
+
+  if (joystickBase) {
+    joystickBase.addEventListener("pointerdown", (ev) => {
+      ev.preventDefault();
+      inputState.joystickPointerId = ev.pointerId;
+      joystickBase.setPointerCapture(ev.pointerId);
+      const rect = joystickBase.getBoundingClientRect();
+      const x = (ev.clientX - rect.left - rect.width / 2) / (rect.width / 2);
+      const y = (ev.clientY - rect.top - rect.height / 2) / (rect.height / 2);
+      setJoystick(x, y);
+    });
+
+    joystickBase.addEventListener("pointermove", (ev) => {
+      if (inputState.joystickPointerId !== ev.pointerId) return;
+      const rect = joystickBase.getBoundingClientRect();
+      const x = (ev.clientX - rect.left - rect.width / 2) / (rect.width / 2);
+      const y = (ev.clientY - rect.top - rect.height / 2) / (rect.height / 2);
+      setJoystick(x, y);
+    });
+
+    const endJoystick = (ev) => {
+      if (inputState.joystickPointerId !== ev.pointerId) return;
+      resetJoystick();
+    };
+    joystickBase.addEventListener("pointerup", endJoystick);
+    joystickBase.addEventListener("pointercancel", endJoystick);
+  }
+
+  if (mobileInteractBtn) {
+    mobileInteractBtn.addEventListener("click", () => interact());
+  }
+  if (mobileResetBtn) {
+    mobileResetBtn.addEventListener("click", () => resetView());
+  }
+  if (mobileZoomInBtn) {
+    mobileZoomInBtn.addEventListener("click", () => {
+      world.zoom = clamp(world.zoom + 0.08, 0.65, 1.8);
+    });
+  }
+  if (mobileZoomOutBtn) {
+    mobileZoomOutBtn.addEventListener("click", () => {
+      world.zoom = clamp(world.zoom - 0.08, 0.65, 1.8);
+    });
+  }
+  if (mobileRunBtn) {
+    const runDown = (ev) => {
+      ev.preventDefault();
+      inputState.runHold = true;
+      mobileRunBtn.classList.add("pg-pressed");
+    };
+    const runUp = () => {
+      inputState.runHold = false;
+      mobileRunBtn.classList.remove("pg-pressed");
+    };
+    mobileRunBtn.addEventListener("pointerdown", runDown);
+    mobileRunBtn.addEventListener("pointerup", runUp);
+    mobileRunBtn.addEventListener("pointercancel", runUp);
+    mobileRunBtn.addEventListener("pointerleave", runUp);
+  }
 
   if (chatSendEl) chatSendEl.addEventListener("click", sendChat);
   if (chatInputEl) {
@@ -814,6 +1187,17 @@
 
   if (saveBtn) saveBtn.addEventListener("click", saveState);
   if (loadBtn) loadBtn.addEventListener("click", loadState);
+  if (uiToggleBtn && stageEl) {
+    uiToggleBtn.addEventListener("click", () => {
+      const collapsed = stageEl.classList.toggle("pg-ui-collapsed");
+      uiToggleBtn.textContent = collapsed ? "Show UI" : "Hide UI";
+      uiToggleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    });
+  }
+
+  if (mobileMode) resetJoystick();
+  resizeCanvasToDisplaySize();
+  window.addEventListener("resize", resizeCanvasToDisplaySize);
 
   requestAnimationFrame(frame);
 })();
