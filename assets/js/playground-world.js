@@ -1905,9 +1905,12 @@
     const sy = (h - pad * 2) / world.height;
 
     mctx.clearRect(0, 0, w, h);
+    mctx.save();
+    mctx.globalAlpha = 0.28;
     mctx.fillStyle = "#daf2c2";
     mctx.fillRect(0, 0, w, h);
 
+    mctx.globalAlpha = 0.22;
     mctx.fillStyle = "#b7bcc8";
     for (let y = 0; y < world.height; y += 1) {
       for (let x = 0; x < world.width; x += 1) {
@@ -1917,16 +1920,19 @@
       }
     }
 
+    mctx.globalAlpha = 0.24;
     mctx.fillStyle = "#8897a5";
     for (const b of buildings) {
       mctx.fillRect(pad + b.x * sx, pad + b.y * sy, b.w * sx, b.h * sy);
     }
 
+    mctx.globalAlpha = 0.28;
     mctx.fillStyle = "#d8ae47";
     for (const hs of hotspots) {
       mctx.fillRect(pad + hs.x * sx - 1.5, pad + hs.y * sy - 1.5, 3, 3);
     }
 
+    mctx.globalAlpha = 0.44;
     for (const npc of npcs) {
       mctx.fillStyle = npc.color;
       mctx.beginPath();
@@ -1934,6 +1940,7 @@
       mctx.fill();
     }
 
+    mctx.globalAlpha = 0.56;
     mctx.fillStyle = player.color;
     mctx.beginPath();
     mctx.arc(pad + player.x * sx, pad + player.y * sy, 3.2, 0, Math.PI * 2);
@@ -1941,8 +1948,10 @@
     mctx.strokeStyle = palette.outline;
     mctx.stroke();
 
+    mctx.globalAlpha = 0.34;
     mctx.strokeStyle = "rgba(30,40,50,0.58)";
     mctx.strokeRect(pad + (player.x - 6) * sx, pad + (player.y - 5) * sy, 12 * sx, 10 * sy);
+    mctx.restore();
   }
 
   function updateCamera() {
