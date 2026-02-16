@@ -263,6 +263,12 @@
       roamWait: 0,
       roamRadius: 2.4 + Math.random() * 2.1,
       nextLongTripAt: 8 + Math.random() * 14,
+      mood: "neutral",
+      moodUntil: 0,
+      favorLevel: 0,
+      favorPoints: 0,
+      activeRequest: null,
+      lastRequestAt: 0,
     };
   }
 
@@ -296,6 +302,415 @@
     day: -1,
     once: {},
   };
+
+  const timedEvent = {
+    active: false,
+    type: "",
+    title: "",
+    description: "",
+    endsAt: 0,
+    npcId: null,
+    targetPlace: null,
+    reward: null,
+    nextCheckAt: 0,
+  };
+
+  const timedEventTemplates = [
+    {
+      type: "flash_sale",
+      make() {
+        const npc = npcs[Math.floor(Math.random() * npcs.length)];
+        const itemKey = Object.keys(itemTypes)[Math.floor(Math.random() * Object.keys(itemTypes).length)];
+        const info = itemTypes[itemKey];
+        return {
+          title: `${npc.name}의 긴급 요청`,
+          description: `${npc.name}이(가) ${info.label}을(를) 급히 찾고 있습니다!`,
+          duration: 120_000,
+          npcId: npc.id,
+          reward: { type: "relation", npcId: npc.id, amount: 15, itemNeeded: itemKey },
+        };
+      },
+    },
+    {
+      type: "gathering",
+      make() {
+        const placeNames = { plaza: "광장", cafe: "카페", park: "공원", market: "시장" };
+        const placeKeys = Object.keys(placeNames);
+        const pk = placeKeys[Math.floor(Math.random() * placeKeys.length)];
+        return {
+          title: `${placeNames[pk]} 모임`,
+          description: `${placeNames[pk]}에서 주민 모임이 열립니다! 가보세요.`,
+          duration: 90_000,
+          targetPlace: places[pk],
+          reward: { type: "items", items: ["gem", "snack"] },
+        };
+      },
+    },
+    {
+      type: "npc_emergency",
+      make() {
+        const npc = npcs[Math.floor(Math.random() * npcs.length)];
+        return {
+          title: `${npc.name} 긴급 상황`,
+          description: `${npc.name}이(가) 도움을 요청하고 있습니다! 빨리 찾아가세요.`,
+          duration: 100_000,
+          npcId: npc.id,
+          reward: { type: "relation", npcId: npc.id, amount: 20 },
+        };
+      },
+    },
+  ];
+
+  const favorLevelNames = ["낯선 사이", "아는 사이", "친구", "절친", "소울메이트"];
+  const favorRequestTemplates = [
+    {
+      minLevel: 0,
+      make(npc) {
+        const itemKeys = Object.keys(itemTypes);
+        const itemKey = itemKeys[Math.floor(Math.random() * itemKeys.length)];
+        const info = itemTypes[itemKey];
+        return {
+          type: "bring_item",
+          title: `${npc.name}의 부탁`,
+          description: `${info.label}을(를) 가져다 주세요.`,
+          itemNeeded: itemKey,
+          expiresAt: nowMs() + 180_000,
+          reward: { favorPoints: 20, relationBoost: 8, items: [] },
+        };
+      },
+    },
+    {
+      minLevel: 1,
+      make(npc) {
+        const others = npcs.filter((n) => n.id !== npc.id);
+        const target = others[Math.floor(Math.random() * others.length)];
+        return {
+          type: "deliver_to",
+          title: `${target.name}에게 전달`,
+          description: `${target.name}에게 가서 말을 전해주세요.`,
+          targetNpcId: target.id,
+          expiresAt: nowMs() + 150_000,
+          reward: { favorPoints: 25, relationBoost: 10, items: ["snack"] },
+        };
+      },
+    },
+    {
+      minLevel: 2,
+      make(npc) {
+        const placeNames = { plaza: "광장", cafe: "카페", park: "공원", market: "시장" };
+        const pk = Object.keys(placeNames)[Math.floor(Math.random() * 4)];
+        return {
+          type: "visit_place",
+          title: `${placeNames[pk]} 탐사`,
+          description: `${placeNames[pk]}에 가서 상황을 확인해주세요.`,
+          targetPlace: places[pk],
+          expiresAt: nowMs() + 120_000,
+          reward: { favorPoints: 30, relationBoost: 12, items: ["gem"] },
+        };
+      },
+    },
+  ];
+
+  function updateFavorRequests() {
+    const now = nowMs();
+    for (const npc of npcs) {
+      if (npc.activeRequest) {
+        if (now > npc.activeRequest.expiresAt) {
+          addChat("System", `⏰ '${npc.activeRequest.title}' 시간 초과!`);
+          npc.activeRequest = null;
+        }
+        continue;
+      }
+      if (now < npc.lastRequestAt + 120_000) continue;
+      if (dist(player, npc) > 20) continue;
+      if (Math.random() > 0.008) continue;
+
+      const eligible = favorRequestTemplates.filter((t) => npc.favorLevel >= t.minLevel);
+      if (!eligible.length) continue;
+      const template = eligible[Math.floor(Math.random() * eligible.length)];
+      npc.activeRequest = template.make(npc);
+      npc.lastRequestAt = now;
+      npc.mood = "neutral";
+      addChat("System", `❗ ${npc.name}이(가) 도움을 요청합니다: ${npc.activeRequest.description}`);
+    }
+  }
+
+  function checkFavorCompletion(npc) {
+    const req = npc.activeRequest;
+    if (!req) return false;
+
+    if (req.type === "bring_item") {
+      if (inventory[req.itemNeeded] > 0) {
+        inventory[req.itemNeeded] -= 1;
+        completeFavor(npc, req);
+        return true;
+      }
+      addChat(npc.name, `${itemTypes[req.itemNeeded].label}이(가) 필요해요.`);
+      return true;
+    }
+
+    if (req.type === "deliver_to") {
+      const target = npcById(req.targetNpcId);
+      if (target && dist(player, target) < 2.5) {
+        completeFavor(npc, req);
+        return true;
+      }
+      addChat(npc.name, `${npcById(req.targetNpcId)?.name || "대상"}에게 가주세요!`);
+      return true;
+    }
+
+    if (req.type === "visit_place") {
+      if (req.targetPlace && dist(player, req.targetPlace) < 3.0) {
+        completeFavor(npc, req);
+        return true;
+      }
+      addChat(npc.name, `목적지에 가서 확인해주세요!`);
+      return true;
+    }
+
+    return false;
+  }
+
+  function completeFavor(npc, req) {
+    npc.favorPoints += req.reward.favorPoints;
+    const relKey = Object.keys(relations).find((k) => k.toLowerCase().includes(npc.id.slice(0, 3)));
+    if (relKey) adjustRelation(relKey, req.reward.relationBoost);
+    for (const it of req.reward.items || []) {
+      inventory[it] = (inventory[it] || 0) + 1;
+    }
+    npc.mood = "happy";
+    npc.moodUntil = nowMs() + 45_000;
+    npc.activeRequest = null;
+
+    if (npc.favorPoints >= 100) {
+      npc.favorLevel = Math.min(npc.favorLevel + 1, 4);
+      npc.favorPoints = 0;
+      addChat("System", `🎉 ${npc.name}과(와)의 관계: ${favorLevelNames[npc.favorLevel]}!`);
+    }
+
+    addChat("System", `✅ '${req.title}' 완료! (호감도 +${req.reward.favorPoints})`);
+    tryCardDrop("quest_complete", npc);
+  }
+
+  const cardDefs = {
+    card_sunrise: { name: "첫 일출", rarity: "rare", emoji: "🌅", effect: "이동속도 +5%", effectKey: "speed", effectVal: 0.05 },
+    card_night: { name: "별이 빛나는 밤", rarity: "rare", emoji: "🌙", effect: "야간 시야 확대", effectKey: "nightVision", effectVal: 1 },
+    card_friendship: { name: "우정의 증표", rarity: "epic", emoji: "🤝", effect: "관계도 +10%", effectKey: "relation", effectVal: 0.10 },
+    card_explorer: { name: "탐험가의 발자국", rarity: "common", emoji: "👣", effect: "아이템 발견률 증가", effectKey: "itemFind", effectVal: 0.15 },
+    card_chef: { name: "요리사의 비밀", rarity: "common", emoji: "🍳", effect: "간식 2배 획득", effectKey: "snackDouble", effectVal: 1 },
+    card_gem_hunter: { name: "보석 사냥꾼", rarity: "epic", emoji: "💎", effect: "보석 발견 확률 증가", effectKey: "gemFind", effectVal: 0.20 },
+    card_social: { name: "사교계의 달인", rarity: "rare", emoji: "🎭", effect: "호감도 +15%", effectKey: "favor", effectVal: 0.15 },
+    card_legend: { name: "전설의 주민", rarity: "legendary", emoji: "⭐", effect: "모든 보상 2배", effectKey: "allDouble", effectVal: 1 },
+  };
+
+  const ownedCards = {};
+  const cardAlbum = {};
+  let cardNotifyUntil = 0;
+  let cardNotifyName = "";
+  let cardNotifyRarity = "";
+
+  function tryCardDrop(trigger, context) {
+    let chance = 0;
+    if (trigger === "quest_complete") chance = 0.25;
+    else if (trigger === "npc_interaction") chance = 0.06;
+    else if (trigger === "item_pickup") chance = 0.04;
+    else if (trigger === "timed_event") chance = 0.30;
+    else chance = 0.03;
+
+    if (Math.random() > chance) return;
+
+    const eligible = Object.entries(cardDefs).filter(([id, card]) => {
+      const rChance = card.rarity === "legendary" ? 0.02 : card.rarity === "epic" ? 0.12 : card.rarity === "rare" ? 0.25 : 0.5;
+      return Math.random() < rChance;
+    });
+    if (!eligible.length) return;
+
+    const [cardId, card] = eligible[Math.floor(Math.random() * eligible.length)];
+    ownedCards[cardId] = (ownedCards[cardId] || 0) + 1;
+
+    if (!cardAlbum[cardId]) {
+      cardAlbum[cardId] = nowMs();
+      addChat("System", `✨ 새 카드! [${card.emoji} ${card.name}] (${card.rarity}) — ${card.effect}`);
+      cardNotifyUntil = nowMs() + 3500;
+      cardNotifyName = card.name;
+      cardNotifyRarity = card.rarity;
+    } else {
+      addChat("System", `카드 획득: ${card.emoji} ${card.name} (x${ownedCards[cardId]})`);
+    }
+  }
+
+  function cardEffectMultiplier(key) {
+    let mult = 1.0;
+    for (const [cardId, count] of Object.entries(ownedCards)) {
+      if (count <= 0) continue;
+      const def = cardDefs[cardId];
+      if (!def) continue;
+      if (def.effectKey === key) mult += def.effectVal;
+    }
+    return mult;
+  }
+
+  function cardCollectionSummary() {
+    const total = Object.keys(cardDefs).length;
+    const owned = Object.keys(cardAlbum).length;
+    return `${owned}/${total}`;
+  }
+
+  function startTimedEvent() {
+    const template = timedEventTemplates[Math.floor(Math.random() * timedEventTemplates.length)];
+    const ev = template.make();
+    timedEvent.active = true;
+    timedEvent.type = template.type;
+    timedEvent.title = ev.title;
+    timedEvent.description = ev.description;
+    timedEvent.endsAt = nowMs() + ev.duration;
+    timedEvent.npcId = ev.npcId || null;
+    timedEvent.targetPlace = ev.targetPlace || null;
+    timedEvent.reward = ev.reward || null;
+    addChat("System", `⚡ 이벤트: ${ev.title} — ${ev.description}`);
+  }
+
+  function checkTimedEventCompletion() {
+    if (!timedEvent.active) return;
+    const now = nowMs();
+    if (now >= timedEvent.endsAt) {
+      addChat("System", `⏰ 이벤트 '${timedEvent.title}' 시간 초과!`);
+      timedEvent.active = false;
+      return;
+    }
+
+    if (timedEvent.type === "flash_sale" && timedEvent.reward && timedEvent.reward.itemNeeded) {
+      const npc = npcById(timedEvent.npcId);
+      if (npc && dist(player, npc) < 2.0 && inventory[timedEvent.reward.itemNeeded] > 0) {
+        inventory[timedEvent.reward.itemNeeded] -= 1;
+        const relKey = Object.keys(relations).find((k) => k.toLowerCase().includes(npc.id.slice(0, 3)));
+        if (relKey) adjustRelation(relKey, timedEvent.reward.amount);
+        npc.mood = "happy";
+        npc.moodUntil = nowMs() + 40_000;
+        addChat(npc.name, "딱 필요했던 거야! 정말 고마워!");
+        addChat("System", `✅ 이벤트 '${timedEvent.title}' 완료! 관계도가 올랐습니다.`);
+        timedEvent.active = false;
+        tryCardDrop("timed_event");
+      }
+    }
+
+    if (timedEvent.type === "gathering" && timedEvent.targetPlace) {
+      if (dist(player, timedEvent.targetPlace) < 2.5) {
+        if (timedEvent.reward && timedEvent.reward.items) {
+          for (const it of timedEvent.reward.items) {
+            inventory[it] = (inventory[it] || 0) + 1;
+          }
+          const labels = timedEvent.reward.items.map((t) => itemTypes[t].emoji).join(" ");
+          addChat("System", `✅ 이벤트 '${timedEvent.title}' 완료! ${labels} 획득!`);
+        }
+        timedEvent.active = false;
+        tryCardDrop("timed_event");
+      }
+    }
+
+    if (timedEvent.type === "npc_emergency") {
+      const npc = npcById(timedEvent.npcId);
+      if (npc && dist(player, npc) < 2.0) {
+        const relKey = Object.keys(relations).find((k) => k.toLowerCase().includes(npc.id.slice(0, 3)));
+        if (relKey) adjustRelation(relKey, timedEvent.reward.amount);
+        npc.mood = "happy";
+        npc.moodUntil = nowMs() + 40_000;
+        addChat(npc.name, "와줘서 정말 고마워! 큰 도움이 됐어.");
+        addChat("System", `✅ 이벤트 '${timedEvent.title}' 완료!`);
+        timedEvent.active = false;
+        tryCardDrop("timed_event");
+      }
+    }
+  }
+
+  const itemTypes = {
+    flower_red: { label: "빨간 꽃", emoji: "🌹", color: "#ff6b7a" },
+    flower_yellow: { label: "노란 꽃", emoji: "🌼", color: "#ffd54f" },
+    coffee: { label: "커피 원두", emoji: "☕", color: "#8d6e63" },
+    snack: { label: "간식", emoji: "🍪", color: "#e6a34f" },
+    letter: { label: "편지", emoji: "💌", color: "#ef9a9a" },
+    gem: { label: "보석", emoji: "💎", color: "#4fc3f7" },
+  };
+
+  const groundItems = [
+    { id: "gi1", type: "flower_red", x: 7.5, y: 16.5, pickedAt: 0 },
+    { id: "gi2", type: "flower_yellow", x: 9.2, y: 16.3, pickedAt: 0 },
+    { id: "gi3", type: "coffee", x: 22.5, y: 8.2, pickedAt: 0 },
+    { id: "gi4", type: "snack", x: 20.3, y: 24.5, pickedAt: 0 },
+    { id: "gi5", type: "letter", x: 13.2, y: 17.5, pickedAt: 0 },
+    { id: "gi6", type: "flower_red", x: 28.0, y: 21.0, pickedAt: 0 },
+    { id: "gi7", type: "coffee", x: 23.5, y: 9.5, pickedAt: 0 },
+    { id: "gi8", type: "snack", x: 6.5, y: 24.2, pickedAt: 0 },
+    { id: "gi9", type: "gem", x: 8.8, y: 8.5, pickedAt: 0 },
+    { id: "gi10", type: "letter", x: 26.0, y: 10.5, pickedAt: 0 },
+    { id: "gi11", type: "flower_yellow", x: 16.5, y: 6.5, pickedAt: 0 },
+    { id: "gi12", type: "gem", x: 20.0, y: 17.0, pickedAt: 0 },
+  ];
+
+  const ITEM_RESPAWN_MS = 180_000;
+
+  const inventory = {};
+  for (const k of Object.keys(itemTypes)) inventory[k] = 0;
+
+  function nearestGroundItem(maxDist) {
+    const now = nowMs();
+    let best = null;
+    let bestD = Infinity;
+    for (const gi of groundItems) {
+      if (gi.pickedAt > 0 && now - gi.pickedAt < ITEM_RESPAWN_MS) continue;
+      const d = dist(player, gi);
+      if (d <= maxDist && d < bestD) {
+        best = gi;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  function pickupItem() {
+    const gi = nearestGroundItem(1.5);
+    if (!gi) return false;
+    gi.pickedAt = nowMs();
+    inventory[gi.type] = (inventory[gi.type] || 0) + 1;
+    const info = itemTypes[gi.type];
+    addChat("System", `${info.emoji} ${info.label}을(를) 주웠습니다! (보유: ${inventory[gi.type]})`);
+    tryCardDrop("item_pickup");
+    return true;
+  }
+
+  function giftItemToNpc(npc) {
+    const giftable = Object.entries(inventory).filter(([, count]) => count > 0);
+    if (giftable.length === 0) {
+      addChat("System", "선물할 아이템이 없습니다. 바닥에서 아이템을 주워보세요.");
+      return false;
+    }
+    const [type] = giftable[Math.floor(Math.random() * giftable.length)];
+    inventory[type] -= 1;
+    const info = itemTypes[type];
+    const bonus = type === "gem" ? 12 : type === "letter" ? 8 : 5;
+    const relKey = Object.keys(relations).find((k) => k.toLowerCase().includes(npc.id.slice(0, 3)));
+    if (relKey) adjustRelation(relKey, bonus);
+    npc.mood = "happy";
+    npc.moodUntil = nowMs() + 30_000;
+    const reactions = [
+      `와, ${info.label}! 정말 고마워!`,
+      `${info.label}을(를) 받다니 감동이야!`,
+      `이거 내가 좋아하는 건데! 고마워!`,
+    ];
+    addChat(npc.name, reactions[Math.floor(Math.random() * reactions.length)]);
+    return true;
+  }
+
+  function inventorySummary() {
+    const parts = [];
+    for (const [type, count] of Object.entries(inventory)) {
+      if (count > 0) {
+        const info = itemTypes[type];
+        parts.push(`${info.emoji}${count}`);
+      }
+    }
+    return parts.length > 0 ? parts.join(" ") : "없음";
+  }
 
   function clamp(v, min, max) {
     return Math.max(min, Math.min(max, v));
@@ -1401,6 +1816,7 @@
 
   function interact() {
     if (handleHotspotInteraction()) return;
+    if (pickupItem()) return;
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     if (near) {
@@ -1416,11 +1832,14 @@
 
       if (near.npc.talkCooldown <= 0) {
         near.npc.talkCooldown = 3.5;
-        if (!handleQuestNpcTalk(near.npc)) {
+        if (near.npc.activeRequest && checkFavorCompletion(near.npc)) {
+          // favor quest handled
+        } else if (!handleQuestNpcTalk(near.npc)) {
           const greeting = npcSmallTalk(near.npc).replace(`${near.npc.name}: `, "");
           addChat(near.npc.name, greeting);
           if (near.npc.id === "heo") adjustRelation("playerToHeo", 1);
           if (near.npc.id === "kim") adjustRelation("playerToKim", 1);
+          tryCardDrop("npc_interaction", near.npc);
         }
       } else {
         addChat("System", `${near.npc.name}은(는) 잠시 바쁩니다.`);
@@ -1630,6 +2049,22 @@
   }
 
   async function sendChatMessage(msg) {
+    if (/^(선물|gift|줘|give)$/i.test(msg.trim())) {
+      const target = chatTargetNpc();
+      if (target && target.near) {
+        addChat("You", msg);
+        giftItemToNpc(target.npc);
+      } else {
+        addChat("You", msg);
+        addChat("System", "선물할 대상이 근처에 없습니다.");
+      }
+      return;
+    }
+    if (/^(인벤|인벤토리|inventory|가방)$/i.test(msg.trim())) {
+      addChat("System", `인벤토리: ${inventorySummary()}`);
+      return;
+    }
+
     addChat("You", msg);
 
     const target = chatTargetNpc();
@@ -1752,6 +2187,13 @@
       if (stage && stage.visit) {
         handleDynamicQuestProgress({ id: "__visit__" });
       }
+    }
+
+    const evNow = nowMs();
+    checkTimedEventCompletion();
+    if (!timedEvent.active && evNow > timedEvent.nextCheckAt) {
+      timedEvent.nextCheckAt = evNow + 60_000 + Math.random() * 120_000;
+      if (Math.random() < 0.4) startTimedEvent();
     }
   }
 
@@ -2729,12 +3171,68 @@
       }
     }
 
+    const now = nowMs();
+    for (const gi of groundItems) {
+      if (gi.pickedAt > 0 && now - gi.pickedAt < ITEM_RESPAWN_MS) continue;
+      const gp = project(gi.x, gi.y, 0);
+      const info = itemTypes[gi.type];
+      const bobY = Math.sin(now * 0.003 + gi.x * 2) * 3;
+      const sz = Math.max(12, world.zoom * 5);
+      ctx.save();
+      ctx.shadowColor = info.color;
+      ctx.shadowBlur = 8;
+      ctx.font = `${sz}px sans-serif`;
+      ctx.fillText(info.emoji, gp.x - sz * 0.4, gp.y - 6 + bobY);
+      ctx.restore();
+    }
+
     const sceneItems = [...props, ...npcs, player].sort((a, b) => a.x + a.y - (b.x + b.y));
     const zoomScale = clamp(world.zoom, 0.9, ZOOM_MAX);
     for (const item of sceneItems) {
       if ("type" in item) drawProp(item);
       else drawEntity(item, (item === player ? 12 : 11) * zoomScale, item.name);
     }
+
+    for (const npc of npcs) {
+      const mp = project(npc.x, npc.y, 0);
+      const msz = Math.max(14, world.zoom * 4.5);
+      if (npc.activeRequest) {
+        const bob = Math.sin(now * 0.005) * 3;
+        ctx.font = `${msz * 1.3}px sans-serif`;
+        ctx.fillText("❗", mp.x - msz * 0.4, mp.y - world.zoom * 32 + bob);
+      } else if (npc.moodUntil > 0 && now < npc.moodUntil && npc.mood !== "neutral") {
+        const moodEmoji = npc.mood === "happy" ? "😊" : npc.mood === "sad" ? "😢" : "😐";
+        ctx.font = `${msz}px sans-serif`;
+        ctx.fillText(moodEmoji, mp.x + 12, mp.y - world.zoom * 28);
+      }
+      if (npc.favorLevel > 0) {
+        const hearts = "♥".repeat(Math.min(npc.favorLevel, 4));
+        ctx.font = `${Math.max(10, world.zoom * 3)}px sans-serif`;
+        ctx.fillStyle = "#ff6b8a";
+        ctx.fillText(hearts, mp.x - npc.favorLevel * 4, mp.y - world.zoom * 22);
+        ctx.fillStyle = "rgba(66, 52, 35, 0.92)";
+      }
+    }
+
+    if (cardNotifyUntil > now) {
+      const rarityColors = { common: "#90a4ae", rare: "#42a5f5", epic: "#ab47bc", legendary: "#ff9800" };
+      const cText = `✨ ${cardNotifyName}`;
+      ctx.save();
+      ctx.font = "700 16px sans-serif";
+      const cw = ctx.measureText(cText).width + 24;
+      const cx = canvas.width * 0.5 - cw * 0.5;
+      const cy = 70;
+      ctx.fillStyle = rarityColors[cardNotifyRarity] || "#666";
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.roundRect(cx, cy, cw, 28, 8);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff";
+      ctx.fillText(cText, cx + 12, cy + 20);
+      ctx.restore();
+    }
+
     drawSpeechBubbles();
   }
 
@@ -2791,6 +3289,33 @@
     }
   }
 
+  function drawTimedEventHud() {
+    if (!timedEvent.active) return;
+    const remaining = Math.max(0, timedEvent.endsAt - nowMs());
+    const secs = Math.ceil(remaining / 1000);
+    const mins = Math.floor(secs / 60);
+    const s = secs % 60;
+    const timeStr = `${mins}:${String(s).padStart(2, "0")}`;
+
+    const text = `⚡ ${timedEvent.title} — ${timeStr}`;
+    ctx.save();
+    ctx.font = "700 14px sans-serif";
+    const tw = ctx.measureText(text).width;
+    const bw = tw + 20;
+    const bh = 28;
+    const bx = canvas.width * 0.5 - bw * 0.5;
+    const by = 36;
+
+    const urgency = remaining < 30_000 ? 0.9 : 0.75;
+    ctx.fillStyle = `rgba(180, 40, 30, ${urgency})`;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 8);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.fillText(text, bx + 10, by + 19);
+    ctx.restore();
+  }
+
   function drawMinimap() {
     if (!mctx || !minimap) return;
 
@@ -2838,6 +3363,16 @@
       mctx.fillRect(pad + hs.x * sx - 1.5, pad + hs.y * sy - 1.5, 3, 3);
     }
 
+    mctx.globalAlpha = 0.6;
+    const mnow = nowMs();
+    for (const gi of groundItems) {
+      if (gi.pickedAt > 0 && mnow - gi.pickedAt < ITEM_RESPAWN_MS) continue;
+      mctx.fillStyle = itemTypes[gi.type].color;
+      mctx.beginPath();
+      mctx.arc(pad + gi.x * sx, pad + gi.y * sy, 2, 0, Math.PI * 2);
+      mctx.fill();
+    }
+
     mctx.globalAlpha = 0.44;
     for (const npc of npcs) {
       mctx.fillStyle = npc.color;
@@ -2870,7 +3405,7 @@
 
   function updateUI() {
     uiTime.textContent = `시간: ${formatTime()} ${world.paused ? "(일시정지)" : ""}`;
-    uiPlayer.textContent = `플레이어: ${player.name} (${player.x.toFixed(1)}, ${player.y.toFixed(1)})`;
+    uiPlayer.textContent = `${player.name} | 가방: ${inventorySummary()} | 카드: ${cardCollectionSummary()}`;
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     const stateKo = { idle: "대기", moving: "이동 중", chatting: "대화 중" };
@@ -2890,6 +3425,9 @@
           parkMonument: "조사하기",
         };
         mobileInteractBtn.textContent = hsLabels[hs.id] || "상호작용";
+      } else if (nearestGroundItem(1.5)) {
+        const gi = nearestGroundItem(1.5);
+        mobileInteractBtn.textContent = `줍기 ${itemTypes[gi.type].emoji}`;
       } else if (nearNpc) {
         mobileInteractBtn.textContent = "대화";
       } else {
@@ -3011,6 +3549,7 @@
       updateNpcs(dt);
       updateNpcSocialEvents();
       updateAmbientEvents();
+      updateFavorRequests();
       updateAmbientSpeech(nowMs());
       updateConversationCamera();
       updateCamera();
@@ -3018,6 +3557,7 @@
 
     updateUI();
     drawWorld();
+    drawTimedEventHud();
     if (!mobileMode || frameCount % 3 === 0) drawMinimap();
     requestAnimationFrame(frame);
   }
