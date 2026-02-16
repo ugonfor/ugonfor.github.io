@@ -62,10 +62,14 @@ extra_head: |
           </div>
         </div>
         <div id="pg-card-info" class="pg-world-card">
-          <h3>캐릭터 생성</h3>
+          <h3>캐릭터 관리</h3>
           <div class="pg-create-row">
             <input id="pg-create-name" type="text" maxlength="18" placeholder="이름" />
             <button id="pg-create-btn" type="button">생성</button>
+          </div>
+          <div class="pg-create-row">
+            <select id="pg-remove-select"><option value="">NPC 선택</option></select>
+            <button id="pg-remove-btn" type="button">제거</button>
           </div>
           <div class="pg-create-row pg-create-row-single">
             <input id="pg-create-personality" type="text" maxlength="60" placeholder="성격 (선택)" />
