@@ -1,0 +1,23 @@
+{
+  "rules": {
+    "playground": {
+      "players": {
+        "$sessionId": {
+          ".read": true,
+          ".write": true,
+          ".validate": "newData.hasChildren(['name', 'x', 'y', 'color', 'species', 'ts'])",
+          "name": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "x": { ".validate": "newData.isNumber()" },
+          "y": { ".validate": "newData.isNumber()" },
+          "color": { ".validate": "newData.isString()" },
+          "species": { ".validate": "newData.isString()" },
+          "ts": { ".validate": "newData.val() <= now" }
+        },
+        ".read": true,
+        ".write": false
+      }
+    },
+    ".read": false,
+    ".write": false
+  }
+}

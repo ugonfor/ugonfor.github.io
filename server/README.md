@@ -110,6 +110,26 @@ JSON
 
 For production, avoid broad public exposure. If possible, put this service behind Cloud Run IAM / API Gateway in addition to the app-level controls above.
 
+## Optional: Firebase Realtime DB (multiplayer)
+
+실시간 멀티플레이어를 활성화하려면:
+
+1) Firebase 콘솔(https://console.firebase.google.com)에서 프로젝트 생성
+2) Realtime Database 활성화 (asia-southeast1 등 가까운 리전 선택)
+3) 보안 규칙에 `server/firebase-rules.json` 내용 적용
+4) 프로젝트 설정 > 웹 앱 추가 > Firebase config 값 복사
+5) `_config.yml`에 설정:
+
+```yaml
+playground_firebase:
+  apiKey: "AIza..."
+  authDomain: "your-project.firebaseapp.com"
+  databaseURL: "https://your-project-default-rtdb.asia-southeast1.firebasedatabase.app"
+  projectId: "your-project"
+```
+
+6) 사이트 재빌드/배포. Firebase config가 비어있으면 싱글플레이어 모드로 동작.
+
 ## Optional: Turnstile integration
 
 1) Set `TURNSTILE_SECRET_KEY` in Cloud Run env vars.

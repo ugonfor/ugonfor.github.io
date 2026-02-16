@@ -56,3 +56,13 @@ playground_llm_api: "https://playground-llm-proxy-733855937288.asia-northeast3.r
 # Optional Cloudflare Turnstile site key (public key)
 # If empty, browser-side human verification is disabled.
 playground_turnstile_site_key: ""
+
+# Firebase Realtime DB config for multiplayer
+# Create a project at https://console.firebase.google.com
+# Enable Realtime Database, then paste your web app config below.
+# If empty, multiplayer is disabled and game runs in single-player mode.
+playground_firebase:
+  apiKey: ""
+  authDomain: ""
+  databaseURL: ""
+  projectId: ""
