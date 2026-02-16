@@ -907,8 +907,6 @@
     const idx = npcs.findIndex((n) => n.name === query || n.id === query);
     if (idx === -1) return { ok: false, reason: `'${query}' NPC를 찾을 수 없습니다.` };
     const npc = npcs[idx];
-    const originalIds = ["heo", "kim", "choi", "jung", "seo", "lee", "park", "jang", "yoo"];
-    if (originalIds.includes(npc.id)) return { ok: false, reason: `${npc.name}은(는) 기본 NPC라서 제거할 수 없습니다.` };
     npcs.splice(idx, 1);
     if (conversationFocusNpcId === npc.id) conversationFocusNpcId = null;
     if (focusedNpcId === npc.id) focusedNpcId = null;
@@ -3915,10 +3913,8 @@
   }
   function refreshRemoveSelect() {
     if (!removeSelectEl) return;
-    const originalIds = ["heo", "kim", "choi", "jung", "seo", "lee", "park", "jang", "yoo"];
-    const removable = npcs.filter((n) => !originalIds.includes(n.id));
     removeSelectEl.innerHTML = '<option value="">NPC 선택</option>';
-    for (const n of removable) {
+    for (const n of npcs) {
       const opt = document.createElement("option");
       opt.value = n.id;
       opt.textContent = n.name;
