@@ -28,6 +28,9 @@
   const createBtnEl = document.getElementById("pg-create-btn");
   const createStatusEl = document.getElementById("pg-create-status");
 
+  const removeSelectEl = document.getElementById("pg-remove-select");
+  const removeBtnEl = document.getElementById("pg-remove-btn");
+
   const questBannerEl = document.getElementById("pg-quest-banner");
   const questBannerTitleEl = document.getElementById("pg-quest-banner-title");
   const questBannerObjectiveEl = document.getElementById("pg-quest-banner-objective");
@@ -896,6 +899,22 @@
     npcs.push(npc);
     npcPersonas[id] = { age: "20대", gender: "남성", personality };
     return { ok: true, npc };
+  }
+
+  function removeNpc(nameOrId) {
+    const query = String(nameOrId || "").trim();
+    if (!query) return { ok: false, reason: "제거할 NPC 이름을 입력해 주세요." };
+    const idx = npcs.findIndex((n) => n.name === query || n.id === query);
+    if (idx === -1) return { ok: false, reason: `'${query}' NPC를 찾을 수 없습니다.` };
+    const npc = npcs[idx];
+    const originalIds = ["heo", "kim", "choi", "jung", "seo", "lee", "park", "jang", "yoo"];
+    if (originalIds.includes(npc.id)) return { ok: false, reason: `${npc.name}은(는) 기본 NPC라서 제거할 수 없습니다.` };
+    npcs.splice(idx, 1);
+    if (conversationFocusNpcId === npc.id) conversationFocusNpcId = null;
+    if (focusedNpcId === npc.id) focusedNpcId = null;
+    if (chatSession.npcId === npc.id) { chatSession.npcId = null; chatSession.expiresAt = 0; }
+    delete npcPersonas[npc.id];
+    return { ok: true, name: npc.name };
   }
 
   async function fetchSharedNpcs() {
@@ -2062,6 +2081,17 @@
     }
     if (/^(인벤|인벤토리|inventory|가방)$/i.test(msg.trim())) {
       addChat("System", `인벤토리: ${inventorySummary()}`);
+      return;
+    }
+    const removeMatch = msg.trim().match(/^(제거|삭제|remove)\s+(.+)$/i);
+    if (removeMatch) {
+      const result = removeNpc(removeMatch[2].trim());
+      if (result.ok) {
+        addChat("System", `${result.name}이(가) 월드에서 제거되었습니다.`);
+        addLog(`${result.name} NPC가 제거되었습니다.`);
+      } else {
+        addChat("System", result.reason);
+      }
       return;
     }
 
@@ -3883,6 +3913,33 @@
       }
     });
   }
+  function refreshRemoveSelect() {
+    if (!removeSelectEl) return;
+    const originalIds = ["heo", "kim", "choi", "jung", "seo", "lee", "park", "jang", "yoo"];
+    const removable = npcs.filter((n) => !originalIds.includes(n.id));
+    removeSelectEl.innerHTML = '<option value="">NPC 선택</option>';
+    for (const n of removable) {
+      const opt = document.createElement("option");
+      opt.value = n.id;
+      opt.textContent = n.name;
+      removeSelectEl.appendChild(opt);
+    }
+  }
+  if (removeBtnEl) {
+    removeBtnEl.addEventListener("click", () => {
+      if (!removeSelectEl || !removeSelectEl.value) return;
+      const result = removeNpc(removeSelectEl.value);
+      if (result.ok) {
+        addChat("System", `${result.name}이(가) 월드에서 제거되었습니다.`);
+        addLog(`${result.name} NPC가 제거되었습니다.`);
+        refreshRemoveSelect();
+      }
+    });
+  }
+  if (removeSelectEl) {
+    removeSelectEl.addEventListener("focus", refreshRemoveSelect);
+  }
+
   if (uiToggleBtn && stageEl) {
     uiToggleBtn.addEventListener("click", () => {
       const collapsed = stageEl.classList.toggle("pg-ui-collapsed");
