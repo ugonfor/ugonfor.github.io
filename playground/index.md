@@ -11,10 +11,23 @@ extra_head: |
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
 {% endif %}
 
+{% if site.playground_firebase and site.playground_firebase.databaseURL != "" %}
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+{% endif %}
+
 <div class="pg-world-shell">
   <script>
     window.PG_LLM_API_URL = {{ site.playground_llm_api | jsonify }};
     window.PG_TURNSTILE_SITE_KEY = {{ site.playground_turnstile_site_key | jsonify }};
+    {% if site.playground_firebase and site.playground_firebase.databaseURL != "" %}
+    window.PG_FIREBASE_CONFIG = {
+      apiKey: {{ site.playground_firebase.apiKey | jsonify }},
+      authDomain: {{ site.playground_firebase.authDomain | jsonify }},
+      databaseURL: {{ site.playground_firebase.databaseURL | jsonify }},
+      projectId: {{ site.playground_firebase.projectId | jsonify }}
+    };
+    {% endif %}
   </script>
   <div class="pg-world-stage">
     <canvas id="pg-world-canvas" width="960" height="540" aria-label="Local open-world simulation"></canvas>
@@ -84,6 +97,7 @@ extra_head: |
           <div id="pg-status-body">
             <p id="pg-time">시간: --:--</p>
             <p id="pg-player">플레이어: --</p>
+            <p id="pg-online" hidden>접속자: --</p>
             <p id="pg-nearby">근처: --</p>
             <p id="pg-quest">퀘스트: --</p>
             <p id="pg-rel">관계도: --</p>

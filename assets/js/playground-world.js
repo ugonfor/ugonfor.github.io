@@ -30,6 +30,7 @@
 
   const removeSelectEl = document.getElementById("pg-remove-select");
   const removeBtnEl = document.getElementById("pg-remove-btn");
+  const uiOnlineEl = document.getElementById("pg-online");
 
   const questBannerEl = document.getElementById("pg-quest-banner");
   const questBannerTitleEl = document.getElementById("pg-quest-banner-title");
@@ -301,6 +302,9 @@
     done: false,
   };
 
+  const questHistory = [];
+  let questCount = 0;
+
   const worldEvents = {
     day: -1,
     once: {},
@@ -364,6 +368,41 @@
     },
   ];
 
+  // ─── Weather System ───
+  const weather = {
+    current: "clear",
+    next: "clear",
+    intensity: 0,
+    targetIntensity: 0,
+    windX: 0,
+    transitionProgress: 1,
+    nextChangeAt: 0,
+    lightningFlash: 0,
+  };
+  const weatherParticles = { rain: [], snow: [], fireflies: [], leaves: [], splashes: [] };
+  const WEATHER_TYPES = ["clear", "clear", "clear", "cloudy", "rain", "rain", "storm", "snow", "fog"];
+
+  // ─── Discovery System ───
+  const discoveries = [
+    { id: "secret_garden", x: 30.5, y: 6.5, radius: 1.8, found: false, title: "비밀 정원", desc: "건물 뒤에 숨겨진 작은 정원을 발견했다.", condition: "always", reward: "gem" },
+    { id: "river_message", x: 5.5, y: 14, radius: 1.5, found: false, title: "강변의 편지", desc: "강가에서 유리병 속 편지를 발견했다.", condition: "always", reward: "letter" },
+    { id: "midnight_glow", x: 8.6, y: 8.2, radius: 1.5, found: false, title: "자정의 빛", desc: "공원 기념비가 자정에 은은하게 빛나고 있다!", condition: "night", reward: "gem" },
+    { id: "rain_mushrooms", x: 15, y: 12, radius: 2.0, found: false, title: "비 오는 날의 버섯", desc: "비가 오자 길가에 형형색색 버섯이 자라났다.", condition: "rain", reward: "snack" },
+    { id: "hidden_well", x: 28, y: 20, radius: 1.5, found: false, title: "숨겨진 우물", desc: "덤불 사이에서 오래된 우물을 발견했다.", condition: "always", reward: "gem" },
+    { id: "sunset_view", x: 32, y: 4, radius: 2.0, found: false, title: "노을 전망대", desc: "언덕 위에서 아름다운 노을을 볼 수 있다.", condition: "evening", reward: "flower_red" },
+    { id: "fog_figure", x: 10, y: 26, radius: 2.0, found: false, title: "안개 속 그림자", desc: "안개 속에서 희미한 형체를 발견했다...", condition: "fog", reward: "gem" },
+    { id: "market_stash", x: 18, y: 26.5, radius: 1.5, found: false, title: "시장 뒷골목 비밀", desc: "시장 뒤에서 숨겨진 상자를 발견했다.", condition: "always", reward: "snack" },
+    { id: "night_cats", x: 24, y: 28, radius: 2.0, found: false, title: "밤의 고양이들", desc: "밤에만 나타나는 고양이 무리를 발견했다!", condition: "night", reward: "snack" },
+    { id: "flower_field", x: 7, y: 17.5, radius: 2.0, found: false, title: "비밀 꽃밭", desc: "수풀 사이에 숨겨진 꽃밭이 있었다.", condition: "always", reward: "flower_red" },
+    { id: "storm_crystal", x: 13, y: 5, radius: 2.0, found: false, title: "폭풍의 수정", desc: "폭풍우 속에서 빛나는 수정을 발견했다!", condition: "storm", reward: "gem" },
+    { id: "snow_angel", x: 20, y: 10, radius: 2.0, found: false, title: "눈 위의 천사", desc: "눈이 온 뒤 땅에 신비한 무늬가 생겼다.", condition: "snow", reward: "gem" },
+    { id: "dawn_song", x: 16, y: 30, radius: 2.0, found: false, title: "새벽의 노래", desc: "이른 새벽, 어디선가 아름다운 노래가 들린다.", condition: "dawn", reward: "letter" },
+    { id: "plaza_dance", x: 13, y: 17, radius: 1.5, found: false, title: "광장의 흔적", desc: "광장 바닥에서 오래된 모자이크 무늬를 발견했다.", condition: "always", reward: "coffee" },
+    { id: "lamp_wish", x: 13.2, y: 13.8, radius: 1.2, found: false, title: "소원의 가로등", desc: "이 가로등에는 작은 소원 종이가 매달려 있다.", condition: "night", reward: "letter" },
+  ];
+  let discoveryNotifyUntil = 0;
+  let discoveryNotifyTitle = "";
+
   const favorLevelNames = ["낯선 사이", "아는 사이", "친구", "절친", "소울메이트"];
   const favorRequestTemplates = [
     {
@@ -414,6 +453,136 @@
     },
   ];
 
+  // ─── Weather Update ───
+  function updateWeather(dt) {
+    const now = nowMs();
+    if (now > weather.nextChangeAt) {
+      weather.next = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
+      weather.targetIntensity = weather.next === "clear" ? 0 : 0.3 + Math.random() * 0.7;
+      weather.nextChangeAt = now + 180000 + Math.random() * 300000;
+      weather.transitionProgress = 0;
+      if (weather.next !== "clear" && weather.next !== "cloudy") {
+        const weatherNames = { rain: "비", storm: "폭풍우", snow: "눈", fog: "안개" };
+        addLog(`날씨 변화: ${weatherNames[weather.next] || weather.next}이(가) 다가옵니다...`);
+      }
+    }
+    if (weather.transitionProgress < 1) {
+      weather.transitionProgress = Math.min(1, weather.transitionProgress + dt * 0.12);
+      if (weather.transitionProgress >= 1) weather.current = weather.next;
+    }
+    weather.intensity += (weather.targetIntensity - weather.intensity) * dt * 2;
+    const targetWind = weather.current === "storm" ? -3.5 : weather.current === "rain" ? -1.5 : weather.current === "snow" ? -0.6 : 0;
+    weather.windX += (targetWind - weather.windX) * dt * 0.8;
+    if (weather.current === "storm" && Math.random() < dt * 0.12) weather.lightningFlash = 1;
+    weather.lightningFlash *= 0.82;
+    updateWeatherParticles(dt);
+  }
+
+  function updateWeatherParticles(dt) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const inten = weather.intensity;
+    // Rain
+    if (weather.current === "rain" || weather.current === "storm") {
+      const maxP = weather.current === "storm" ? 300 : 150;
+      const target = Math.floor(maxP * inten);
+      while (weatherParticles.rain.length < target) {
+        weatherParticles.rain.push({ x: Math.random() * (w + 200) - 100, y: -Math.random() * h, speed: 400 + Math.random() * 300, len: 8 + Math.random() * 12 });
+      }
+      if (weatherParticles.rain.length > target) weatherParticles.rain.length = target;
+      for (const p of weatherParticles.rain) {
+        p.x += weather.windX * 60 * dt;
+        p.y += p.speed * dt;
+        if (p.y > h) { p.y = -10; p.x = Math.random() * (w + 200) - 100; weatherParticles.splashes.push({ x: p.x, y: h - Math.random() * 40, life: 0.3 }); }
+      }
+    } else {
+      weatherParticles.rain.length = 0;
+    }
+    // Snow
+    if (weather.current === "snow") {
+      const target = Math.floor(120 * inten);
+      while (weatherParticles.snow.length < target) {
+        weatherParticles.snow.push({ x: Math.random() * w, y: -Math.random() * h, speed: 30 + Math.random() * 50, size: 2 + Math.random() * 4, wobble: Math.random() * Math.PI * 2 });
+      }
+      if (weatherParticles.snow.length > target) weatherParticles.snow.length = target;
+      for (const p of weatherParticles.snow) {
+        p.wobble += dt * 2;
+        p.x += Math.sin(p.wobble) * 20 * dt + weather.windX * 15 * dt;
+        p.y += p.speed * dt;
+        if (p.y > h) { p.y = -10; p.x = Math.random() * w; }
+      }
+    } else {
+      weatherParticles.snow.length = 0;
+    }
+    // Splashes
+    for (let i = weatherParticles.splashes.length - 1; i >= 0; i--) {
+      weatherParticles.splashes[i].life -= dt;
+      if (weatherParticles.splashes[i].life <= 0) weatherParticles.splashes.splice(i, 1);
+    }
+    // Fireflies (night only)
+    const hr = hourOfDay();
+    const isNight = hr >= 20 || hr < 5;
+    if (isNight) {
+      while (weatherParticles.fireflies.length < 18) {
+        const pp = places.park;
+        weatherParticles.fireflies.push({ x: pp.x - 4 + Math.random() * 8, y: pp.y - 4 + Math.random() * 8, phase: Math.random() * Math.PI * 2, dx: (Math.random() - 0.5) * 0.3, dy: (Math.random() - 0.5) * 0.3 });
+      }
+      for (const f of weatherParticles.fireflies) {
+        f.phase += dt * 1.8;
+        f.x += f.dx * dt + Math.sin(f.phase * 0.7) * 0.3 * dt;
+        f.y += f.dy * dt + Math.cos(f.phase * 0.5) * 0.3 * dt;
+        if (f.x < 2 || f.x > 30 || f.y < 2 || f.y > 30) { f.dx = -f.dx; f.dy = -f.dy; }
+      }
+    } else {
+      weatherParticles.fireflies.length = 0;
+    }
+    // Leaves (always, gentle)
+    while (weatherParticles.leaves.length < 8) {
+      weatherParticles.leaves.push({ x: Math.random() * w, y: -20 - Math.random() * h * 0.5, speed: 15 + Math.random() * 25, rot: Math.random() * Math.PI * 2, size: 3 + Math.random() * 4 });
+    }
+    for (let i = weatherParticles.leaves.length - 1; i >= 0; i--) {
+      const l = weatherParticles.leaves[i];
+      l.rot += dt * 1.5;
+      l.x += (weather.windX * 10 + Math.sin(l.rot) * 15) * dt;
+      l.y += l.speed * dt;
+      if (l.y > h + 20 || l.x < -40 || l.x > w + 40) { weatherParticles.leaves.splice(i, 1); }
+    }
+  }
+
+  // ─── Discovery Update ───
+  function discoveryConditionMet(d) {
+    const hr = hourOfDay();
+    if (d.condition === "always") return true;
+    if (d.condition === "night") return hr >= 22 || hr < 4;
+    if (d.condition === "dawn") return hr >= 4 && hr < 7;
+    if (d.condition === "evening") return hr >= 17 && hr < 20;
+    if (d.condition === "rain") return weather.current === "rain" || weather.current === "storm";
+    if (d.condition === "storm") return weather.current === "storm";
+    if (d.condition === "snow") return weather.current === "snow";
+    if (d.condition === "fog") return weather.current === "fog";
+    return true;
+  }
+
+  function updateDiscoveries() {
+    if (discoveries.every(d => d.found)) return;
+    const now = nowMs();
+    for (const d of discoveries) {
+      if (d.found) continue;
+      if (!discoveryConditionMet(d)) continue;
+      if (dist(player, d) > d.radius) continue;
+      d.found = true;
+      const itemKey = d.reward;
+      if (itemKey && inventory.hasOwnProperty(itemKey)) {
+        inventory[itemKey] = (inventory[itemKey] || 0) + 1;
+      }
+      discoveryNotifyUntil = now + 4000;
+      discoveryNotifyTitle = d.title;
+      addLog(`🔍 발견! "${d.title}" — ${d.desc}`);
+      addChat("System", `✨ 새로운 발견: ${d.title}!`);
+      tryCardDrop("quest_complete", null);
+    }
+  }
+
   function updateFavorRequests() {
     const now = nowMs();
     for (const npc of npcs) {
@@ -454,11 +623,16 @@
 
     if (req.type === "deliver_to") {
       const target = npcById(req.targetNpcId);
-      if (target && dist(player, target) < 2.5) {
+      if (!target) {
+        addChat("System", `대상 NPC가 더 이상 존재하지 않아 요청이 취소됩니다.`);
+        npc.activeRequest = null;
+        return true;
+      }
+      if (dist(player, target) < 2.5) {
         completeFavor(npc, req);
         return true;
       }
-      addChat(npc.name, `${npcById(req.targetNpcId)?.name || "대상"}에게 가주세요!`);
+      addChat(npc.name, `${target.name}에게 가주세요!`);
       return true;
     }
 
@@ -475,7 +649,7 @@
   }
 
   function completeFavor(npc, req) {
-    npc.favorPoints += req.reward.favorPoints;
+    npc.favorPoints += Math.round(req.reward.favorPoints * cardEffectMultiplier("favor") * cardEffectMultiplier("allDouble"));
     const relKey = Object.keys(relations).find((k) => k.toLowerCase().includes(npc.id.slice(0, 3)));
     if (relKey) adjustRelation(relKey, req.reward.relationBoost);
     for (const it of req.reward.items || []) {
@@ -582,6 +756,13 @@
       return;
     }
 
+    // Cancel events whose target NPC was removed
+    if (timedEvent.npcId && !npcById(timedEvent.npcId)) {
+      addChat("System", `이벤트 '${timedEvent.title}' 대상 NPC가 없어 취소됩니다.`);
+      timedEvent.active = false;
+      return;
+    }
+
     if (timedEvent.type === "flash_sale" && timedEvent.reward && timedEvent.reward.itemNeeded) {
       const npc = npcById(timedEvent.npcId);
       if (npc && dist(player, npc) < 2.0 && inventory[timedEvent.reward.itemNeeded] > 0) {
@@ -652,17 +833,23 @@
 
   const ITEM_RESPAWN_MS = 180_000;
 
+  function itemRespawnMs(gi) {
+    if (gi.type === "gem") return Math.round(ITEM_RESPAWN_MS / cardEffectMultiplier("gemFind"));
+    return ITEM_RESPAWN_MS;
+  }
+
   const inventory = {};
   for (const k of Object.keys(itemTypes)) inventory[k] = 0;
 
   function nearestGroundItem(maxDist) {
     const now = nowMs();
+    const boostedDist = maxDist * cardEffectMultiplier("itemFind");
     let best = null;
     let bestD = Infinity;
     for (const gi of groundItems) {
-      if (gi.pickedAt > 0 && now - gi.pickedAt < ITEM_RESPAWN_MS) continue;
+      if (gi.pickedAt > 0 && now - gi.pickedAt < itemRespawnMs(gi)) continue;
       const d = dist(player, gi);
-      if (d <= maxDist && d < bestD) {
+      if (d <= boostedDist && d < bestD) {
         best = gi;
         bestD = d;
       }
@@ -674,9 +861,12 @@
     const gi = nearestGroundItem(1.5);
     if (!gi) return false;
     gi.pickedAt = nowMs();
-    inventory[gi.type] = (inventory[gi.type] || 0) + 1;
+    let amount = 1;
+    if (gi.type === "snack") amount = Math.round(amount * cardEffectMultiplier("snackDouble"));
+    amount = Math.round(amount * cardEffectMultiplier("allDouble"));
+    inventory[gi.type] = (inventory[gi.type] || 0) + amount;
     const info = itemTypes[gi.type];
-    addChat("System", `${info.emoji} ${info.label}을(를) 주웠습니다! (보유: ${inventory[gi.type]})`);
+    addChat("System", `${info.emoji} ${info.label}을(를) 주웠습니다!${amount > 1 ? ` (x${amount})` : ""} (보유: ${inventory[gi.type]})`);
     tryCardDrop("item_pickup");
     return true;
   }
@@ -865,6 +1055,7 @@
   function spawnNpcFromSharedRecord(record) {
     if (!record || !record.id || !record.name) return null;
     if (npcs.some((n) => n.id === record.id)) return null;
+    if (removedNpcIds.has(record.id)) return null;
     const home = pickRandomPlace();
     const work = pickRandomPlace();
     const hobby = pickRandomPlace();
@@ -901,6 +1092,8 @@
     return { ok: true, npc };
   }
 
+  const removedNpcIds = new Set();
+
   function removeNpc(nameOrId) {
     const query = String(nameOrId || "").trim();
     if (!query) return { ok: false, reason: "제거할 NPC 이름을 입력해 주세요." };
@@ -908,10 +1101,22 @@
     if (idx === -1) return { ok: false, reason: `'${query}' NPC를 찾을 수 없습니다.` };
     const npc = npcs[idx];
     npcs.splice(idx, 1);
+    removedNpcIds.add(npc.id);
     if (conversationFocusNpcId === npc.id) conversationFocusNpcId = null;
     if (focusedNpcId === npc.id) focusedNpcId = null;
     if (chatSession.npcId === npc.id) { chatSession.npcId = null; chatSession.expiresAt = 0; }
     delete npcPersonas[npc.id];
+    // Cancel timed event referencing this NPC
+    if (timedEvent.active && timedEvent.npcId === npc.id) {
+      timedEvent.active = false;
+    }
+    // Cancel favor requests targeting this NPC
+    for (const other of npcs) {
+      if (other.activeRequest && other.activeRequest.targetNpcId === npc.id) {
+        other.activeRequest = null;
+      }
+    }
+    refreshRemoveSelect();
     return { ok: true, name: npc.name };
   }
 
@@ -1275,7 +1480,8 @@
   }
 
   function adjustRelation(key, delta) {
-    relations[key] = clamp(Math.round((relations[key] || 50) + delta), 0, 100);
+    const boosted = delta * cardEffectMultiplier("relation") * cardEffectMultiplier("allDouble");
+    relations[key] = clamp(Math.round((relations[key] || 50) + boosted), 0, 100);
   }
 
   function project(wx, wy, wz) {
@@ -1603,6 +1809,14 @@
     const nowHour = hourOfDay() + minuteOfDay() / 60;
     const anchor = targetFor(npc);
 
+    // NPCs seek shelter during storms and heavy rain
+    if (weather.current === "storm" || (weather.current === "rain" && weather.intensity > 0.6)) {
+      const shelters = [places.cafe, places.office, places.market];
+      const shelter = shelters[Math.floor(Math.random() * shelters.length)];
+      npc.roamTarget = randomPointNear(shelter, 2);
+      return;
+    }
+
     let base = anchor;
     if (nowHour >= npc.nextLongTripAt) {
       base = placesList[Math.floor(Math.random() * placesList.length)];
@@ -1658,79 +1872,343 @@
   const questTemplates = [
     {
       type: "deliver",
+      tier: 1,
+      dialogueVariants: [
+        ["전해줄래?", "고마워, 잘 받았어.", "잘 전해줬구나!"],
+        ["부탁할게.", "감사해, 전달 받았어.", "수고했어!"],
+        ["이 메시지 좀 전해줘.", "아, 그 이야기구나.", "역시 믿을 수 있어!"],
+        ["급한 건데 전달 좀.", "오, 알려줘서 고마워.", "빨리 해줬네, 고마워!"],
+      ],
       make(fromNpc, toNpc) {
+        const v = this.dialogueVariants[Math.floor(Math.random() * this.dialogueVariants.length)];
         return {
           title: `${fromNpc.name}의 전달 임무`,
           stages: [
-            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 임무를 받으세요.`, dialogue: `${toNpc.name}에게 이 이야기를 전해줄래?` },
-            { npcId: toNpc.id, objective: `${toNpc.name}에게 메시지를 전달하세요.`, dialogue: `아, 그 이야기구나. 전해줘서 고마워.` },
-            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 결과를 보고하세요.`, dialogue: `잘 전해줬구나, 고마워!` },
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 임무를 받으세요.`, dialogue: `${toNpc.name}에게 ${v[0]}` },
+            { npcId: toNpc.id, objective: `${toNpc.name}에게 메시지를 전달하세요.`, dialogue: v[1] },
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 결과를 보고하세요.`, dialogue: v[2] },
           ],
         };
       },
     },
     {
       type: "explore",
+      tier: 1,
+      dialogueVariants: [
+        ["한번 살펴봐줄래? 궁금한 게 있어.", "잘 다녀왔구나! 덕분에 도움이 됐어."],
+        ["좀 둘러봐줘. 뭔가 달라진 것 같아.", "그래? 좋은 정보야, 고마워!"],
+        ["요즘 분위기가 이상하대. 확인 좀.", "별일 없다니 다행이네."],
+      ],
       make(npc, _unused, place, placeLabel) {
+        const v = this.dialogueVariants[Math.floor(Math.random() * this.dialogueVariants.length)];
         return {
           title: `${placeLabel} 탐험`,
           stages: [
-            { npcId: npc.id, objective: `${npc.name}에게 탐험 임무를 받으세요.`, dialogue: `${placeLabel} 근처를 한번 살펴봐줄래? 궁금한 게 있어.` },
+            { npcId: npc.id, objective: `${npc.name}에게 탐험 임무를 받으세요.`, dialogue: `${placeLabel} 근처를 ${v[0]}` },
             { visit: place, radius: 2.5, objective: `${placeLabel}을(를) 방문하세요.`, autoText: `${placeLabel}에 도착했습니다. 주변을 둘러봤습니다.` },
-            { npcId: npc.id, objective: `${npc.name}에게 보고하세요.`, dialogue: `오, 잘 다녀왔구나! 덕분에 도움이 됐어.` },
+            { npcId: npc.id, objective: `${npc.name}에게 보고하세요.`, dialogue: v[1] },
           ],
         };
       },
     },
     {
       type: "social",
+      tier: 1,
+      dialogueVariants: [
+        ["반가워, 같이 이야기 좀 하자.", "다시 왔구나! 우리 좀 더 가까워진 것 같아.", "정말 즐거웠어. 다음에 또 이야기하자!"],
+        ["오, 잘 왔어! 할 얘기가 있었어.", "역시 통하는 게 있네.", "오늘 정말 좋았어!"],
+        ["심심했는데 잘 왔다.", "이야기가 잘 통하네.", "덕분에 기분 좋아졌어!"],
+      ],
       make(npc) {
+        const v = this.dialogueVariants[Math.floor(Math.random() * this.dialogueVariants.length)];
         return {
           title: `${npc.name}과(와) 친해지기`,
           stages: [
-            { npcId: npc.id, objective: `${npc.name}과(와) 대화하세요.`, dialogue: `반가워, 같이 이야기 좀 하자.` },
-            { npcId: npc.id, objective: `${npc.name}과(와) 한 번 더 대화하세요.`, dialogue: `다시 왔구나! 우리 좀 더 가까워진 것 같아.` },
-            { npcId: npc.id, objective: `${npc.name}에게 마무리 인사를 하세요.`, dialogue: `정말 즐거웠어. 다음에 또 이야기하자!` },
+            { npcId: npc.id, objective: `${npc.name}과(와) 대화하세요.`, dialogue: v[0] },
+            { npcId: npc.id, objective: `${npc.name}과(와) 한 번 더 대화하세요.`, dialogue: v[1] },
+            { npcId: npc.id, objective: `${npc.name}에게 마무리 인사를 하세요.`, dialogue: v[2] },
           ],
         };
       },
     },
     {
       type: "observe",
+      tier: 1,
+      dialogueVariants: [
+        ["밤에 가보면 뭔가 있을 거야.", "역시 뭔가 있었구나! 좋은 발견이야."],
+        ["어두울 때 분위기가 다르대.", "오, 대단한 걸 봤네!"],
+        ["야간에만 보이는 게 있다더라.", "신기하다! 잘 관찰했어."],
+      ],
       make(npc, _unused, place, placeLabel) {
+        const v = this.dialogueVariants[Math.floor(Math.random() * this.dialogueVariants.length)];
         const targetHour = 20 + Math.floor(Math.random() * 4);
         const displayHour = targetHour >= 24 ? targetHour - 24 : targetHour;
         return {
           title: `${placeLabel} 야간 관찰`,
           stages: [
-            { npcId: npc.id, objective: `${npc.name}에게 관찰 임무를 받으세요.`, dialogue: `밤 ${displayHour}시 이후에 ${placeLabel}에 가보면 뭔가 있을 거야.` },
+            { npcId: npc.id, objective: `${npc.name}에게 관찰 임무를 받으세요.`, dialogue: `${displayHour}시 이후에 ${placeLabel}에 ${v[0]}` },
             { visit: place, radius: 2.5, afterHour: displayHour, objective: `${displayHour}시 이후 ${placeLabel}을(를) 방문하세요.`, autoText: `밤의 ${placeLabel}에서 특별한 분위기를 느꼈습니다.` },
-            { npcId: npc.id, objective: `${npc.name}에게 보고하세요.`, dialogue: `역시 뭔가 있었구나! 좋은 발견이야.` },
+            { npcId: npc.id, objective: `${npc.name}에게 보고하세요.`, dialogue: v[1] },
+          ],
+        };
+      },
+    },
+    {
+      type: "fetch",
+      tier: 1,
+      make(npc) {
+        const itemKeys = Object.keys(itemTypes);
+        const itemKey = itemKeys[Math.floor(Math.random() * itemKeys.length)];
+        const info = itemTypes[itemKey];
+        return {
+          title: `${npc.name}에게 ${info.label} 가져다주기`,
+          stages: [
+            { npcId: npc.id, objective: `${npc.name}에게 말을 걸어 무엇이 필요한지 알아보세요.`, dialogue: `${info.label}${itemKey === "gem" ? "이" : "을(를)"} 하나 구해다 줄 수 있어?` },
+            { requireItem: itemKey, npcId: npc.id, objective: `${info.label}${itemKey === "gem" ? "을" : "을(를)"} 가지고 ${npc.name}에게 가세요.`, dialogue: `${info.emoji} 딱 이거야! 정말 고마워!` },
+          ],
+        };
+      },
+    },
+    {
+      type: "chain",
+      tier: 2,
+      make(fromNpc, _unused, _place, _label, extraNpcs) {
+        const chain = extraNpcs.slice(0, 3);
+        if (chain.length < 3) return null;
+        return {
+          title: `소식 전파: ${chain.map(n => n.name).join(" → ")}`,
+          stages: [
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 소식을 받으세요.`, dialogue: `이 소식을 ${chain[0].name}, ${chain[1].name}, ${chain[2].name} 순서대로 전해줘.` },
+            { npcId: chain[0].id, objective: `${chain[0].name}에게 소식을 전하세요.`, dialogue: `오, 그런 소식이? 다음 사람에게도 전해줘.` },
+            { npcId: chain[1].id, objective: `${chain[1].name}에게 소식을 전하세요.`, dialogue: `알려줘서 고마워. 마지막으로 한 명 더!` },
+            { npcId: chain[2].id, objective: `${chain[2].name}에게 소식을 전하세요.`, dialogue: `전부 알게 됐네! ${fromNpc.name}에게 완료했다고 알려줘.` },
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 보고하세요.`, dialogue: `모두에게 전달됐구나! 수고했어!` },
+          ],
+        };
+      },
+    },
+    {
+      type: "investigate",
+      tier: 2,
+      make(fromNpc, targetNpc) {
+        const persona = npcPersonas[targetNpc.id] || {};
+        const cluePlace = targetNpc.work || targetNpc.hobby || places.plaza;
+        const placeNames = { plaza: "광장", cafe: "카페", office: "사무실", park: "공원", market: "시장", homeA: "주택가A", homeB: "주택가B", homeC: "주택가C" };
+        const clueLabel = Object.entries(places).find(([, v]) => v === cluePlace)?.[0] || "plaza";
+        const cluePlaceName = placeNames[clueLabel] || clueLabel;
+        const trait = persona.personality ? persona.personality.split("하")[0] : "독특";
+        return {
+          title: `미스터리 인물 찾기`,
+          stages: [
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 의뢰를 받으세요.`, dialogue: `${trait}한 사람을 찾고 있어. 단서는 ${cluePlaceName} 근처야.` },
+            { visit: cluePlace, radius: 3.0, objective: `${cluePlaceName} 근처에서 단서를 찾으세요.`, autoText: `${cluePlaceName}에서 단서를 발견했습니다. 이 근처에서 활동하는 사람이 있는 것 같습니다.` },
+            { npcId: targetNpc.id, objective: `단서의 인물을 찾아 대화하세요.`, dialogue: `나를 찾고 있었어? 맞아, ${cluePlaceName} 근처에서 자주 있지.` },
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 보고하세요.`, dialogue: `찾았구나! 정말 대단해!` },
+          ],
+        };
+      },
+    },
+    {
+      type: "gift_quest",
+      tier: 2,
+      make(fromNpc, toNpc) {
+        const itemKeys = Object.keys(itemTypes);
+        const itemKey = itemKeys[Math.floor(Math.random() * itemKeys.length)];
+        const info = itemTypes[itemKey];
+        return {
+          title: `${toNpc.name}에게 선물하기`,
+          stages: [
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 부탁을 받으세요.`, dialogue: `${toNpc.name}에게 ${info.label}${itemKey === "gem" ? "을" : "을(를)"} 선물하고 싶은데, 구해다 줄 수 있어?` },
+            { requireItem: itemKey, npcId: toNpc.id, objective: `${info.label}${itemKey === "gem" ? "을" : "을(를)"} 가지고 ${toNpc.name}에게 전달하세요.`, dialogue: `${info.emoji} 이걸 나한테? 정말 감동이야!` },
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 보고하세요.`, dialogue: `전해줬구나! 정말 고마워!` },
+          ],
+        };
+      },
+    },
+    {
+      type: "nightwatch",
+      tier: 3,
+      make(npc, _unused, _place, _label, _extraNpcs, twoPlaces) {
+        if (!twoPlaces || twoPlaces.length < 2) return null;
+        const [p1, p2] = twoPlaces;
+        return {
+          title: `야간 순찰`,
+          stages: [
+            { npcId: npc.id, objective: `${npc.name}에게 순찰 임무를 받으세요.`, dialogue: `밤에 ${p1.label}과(와) ${p2.label}을(를) 순찰해줘. 이상한 일이 있는지 확인해.` },
+            { visit: p1.pos, radius: 2.5, afterHour: 20, objective: `20시 이후 ${p1.label}을(를) 순찰하세요.`, autoText: `${p1.label}을(를) 순찰했습니다. 이상 없음.` },
+            { visit: p2.pos, radius: 2.5, afterHour: 20, objective: `20시 이후 ${p2.label}을(를) 순찰하세요.`, autoText: `${p2.label}을(를) 순찰했습니다. 이상 없음.` },
+            { npcId: npc.id, objective: `${npc.name}에게 순찰 결과를 보고하세요.`, dialogue: `이상 없었구나. 수고했어! 든든하다.` },
+          ],
+        };
+      },
+    },
+    {
+      type: "urgent",
+      tier: 3,
+      make(fromNpc, toNpc) {
+        return {
+          title: `긴급 배달!`,
+          stages: [
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 긴급 임무를 받으세요.`, dialogue: `큰일이야! 이걸 빨리 ${toNpc.name}에게 전해줘! 빠를수록 좋아!` },
+            { npcId: toNpc.id, objective: `빨리 ${toNpc.name}에게 전달하세요! (빠를수록 보너스!)`, dialogue: `제때 와줬구나! 고마워!` },
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 보고하세요.`, dialogue: `무사히 전달됐구나! 정말 고마워!` },
           ],
         };
       },
     },
   ];
 
+  function relationKeyForNpc(npcId) {
+    return Object.keys(relations).find((k) => k.toLowerCase().includes(npcId.slice(0, 3))) || null;
+  }
+
+  function advanceDynamicQuest() {
+    quest.stage += 1;
+    if (quest.stage >= quest.dynamicStages.length) {
+      completeDynamicQuest();
+    } else {
+      quest.objective = quest.dynamicStages[quest.stage].objective;
+    }
+  }
+
+  function completeDynamicQuest() {
+    const title = quest.title;
+    const questType = quest.questType || "deliver";
+    const primaryNpcId = quest.primaryNpcId || null;
+    const startedAt = quest.startedAt || 0;
+    quest.objective = "완료";
+    quest.done = true;
+    quest.dynamic = false;
+    quest.dynamicStages = null;
+
+    const stageCount = quest._stageCount || 3;
+    const relKey = primaryNpcId ? relationKeyForNpc(primaryNpcId) : null;
+    const favorBoost = 5 + Math.max(0, stageCount - 3) * 2;
+    if (relKey) adjustRelation(relKey, favorBoost);
+
+    const primaryNpc = npcById(primaryNpcId);
+    if (primaryNpc) {
+      const boosted = Math.round(15 * cardEffectMultiplier("favor") * cardEffectMultiplier("allDouble"));
+      primaryNpc.favorPoints += boosted;
+      if (primaryNpc.favorPoints >= 100) {
+        primaryNpc.favorLevel = Math.min(primaryNpc.favorLevel + 1, 4);
+        primaryNpc.favorPoints = 0;
+        addChat("System", `🎉 ${primaryNpc.name}과(와)의 관계: ${favorLevelNames[primaryNpc.favorLevel]}!`);
+      }
+    }
+
+    tryCardDrop("quest_complete", primaryNpc || null);
+
+    if (Math.random() < 0.5) {
+      const itemKeys = Object.keys(itemTypes);
+      const rewardItem = itemKeys[Math.floor(Math.random() * itemKeys.length)];
+      inventory[rewardItem] = (inventory[rewardItem] || 0) + 1;
+      const info = itemTypes[rewardItem];
+      addChat("System", `🎁 보상: ${info.emoji} ${info.label} 획득!`);
+    }
+
+    if (questType === "urgent" && startedAt > 0) {
+      const elapsed = (nowMs() - startedAt) / 1000;
+      if (elapsed <= 60) {
+        addChat("System", `⚡ 긴급 배달 보너스! 빠른 완료 (${Math.round(elapsed)}초)`);
+        if (relKey) adjustRelation(relKey, 5);
+        if (primaryNpc) {
+          primaryNpc.favorPoints += Math.round(10 * cardEffectMultiplier("favor") * cardEffectMultiplier("allDouble"));
+          if (primaryNpc.favorPoints >= 100) {
+            primaryNpc.favorLevel = Math.min(primaryNpc.favorLevel + 1, 4);
+            primaryNpc.favorPoints = 0;
+            addChat("System", `🎉 ${primaryNpc.name}과(와)의 관계: ${favorLevelNames[primaryNpc.favorLevel]}!`);
+          }
+        }
+        tryCardDrop("quest_complete", primaryNpc);
+      }
+    }
+
+    questHistory.unshift({ type: questType, primaryNpcId });
+    if (questHistory.length > 5) questHistory.length = 5;
+    questCount += 1;
+
+    addChat("System", `퀘스트 '${title}' 완료!`);
+    generateDynamicQuest();
+  }
+
+  async function enrichQuestDialogue(questType, primaryNpc, stages) {
+    if (!LLM_API_URL || !primaryNpc) return;
+    const persona = npcPersonas[primaryNpc.id] || {};
+    const personality = persona.personality || "친절한 성격";
+    const stageDescs = stages.map((s, i) => `${i}: ${s.objective}`).join("; ");
+    const prompt = `퀘스트(${questType}): ${stageDescs}. ${primaryNpc.name}(${personality})의 성격에 맞게 각 스테이지 대사를 한국어 1문장씩 생성해줘. JSON 배열로 대사만 반환. 예: ["대사1","대사2","대사3"]. 20자 내외.`;
+    try {
+      const reply = await llmReplyOrEmpty(primaryNpc, prompt);
+      if (!reply) return;
+      const cleaned = reply.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
+      const arr = JSON.parse(cleaned);
+      if (!Array.isArray(arr) || arr.length < stages.length) return;
+      for (let i = 0; i < stages.length; i++) {
+        if (typeof arr[i] === "string" && arr[i].trim()) {
+          stages[i].dialogue = arr[i].trim();
+        }
+      }
+    } catch {
+      // fallback: keep original dialogue
+    }
+  }
+
   function generateDynamicQuest() {
     const placeNames = { plaza: "광장", cafe: "카페", office: "사무실", park: "공원", market: "시장", homeA: "주택가A", homeB: "주택가B", homeC: "주택가C" };
     const placeKeys = Object.keys(places);
-    const template = questTemplates[Math.floor(Math.random() * questTemplates.length)];
+
+    const maxTier = questCount < 6 ? 1 : questCount < 16 ? 2 : 3;
+    const recentTypes = questHistory.slice(0, 3).map(h => h.type);
+    const recentNpcs = questHistory.slice(0, 2).map(h => h.primaryNpcId);
+
+    const eligible = questTemplates.filter(t => {
+      if (t.tier > maxTier) return false;
+      if (recentTypes.filter(rt => rt === t.type).length >= 1) return false;
+      return true;
+    });
+    const pool = eligible.length > 0 ? eligible : questTemplates.filter(t => t.tier <= maxTier);
+    if (!pool.length) return;
+    const template = pool[Math.floor(Math.random() * pool.length)];
+
     const shuffled = npcs.slice().sort(() => Math.random() - 0.5);
-    const fromNpc = shuffled[0];
-    const toNpc = shuffled.length > 1 ? shuffled[1] : shuffled[0];
+    if (!shuffled.length) return;
+    let fromNpc = shuffled[0];
+    const nonRecent = shuffled.filter(n => !recentNpcs.includes(n.id));
+    if (nonRecent.length > 0) fromNpc = nonRecent[0];
+    const toNpc = shuffled.find(n => n.id !== fromNpc.id) || fromNpc;
+
     const placeKey = placeKeys[Math.floor(Math.random() * placeKeys.length)];
     const place = places[placeKey];
     const placeLabel = placeNames[placeKey] || placeKey;
 
-    const q = template.make(fromNpc, toNpc, place, placeLabel);
-    quest.title = q.title;
-    quest.stage = 0;
-    quest.objective = q.stages[0].objective;
-    quest.done = false;
-    quest.dynamic = true;
-    quest.dynamicStages = q.stages;
-    addChat("System", `새 퀘스트: ${q.title}`);
+    const extraNpcs = shuffled.filter(n => n.id !== fromNpc.id);
+    const placeEntries = Object.entries(placeNames).sort(() => Math.random() - 0.5);
+    const twoPlaces = placeEntries.slice(0, 2).map(([k, label]) => ({ pos: places[k], label }));
+
+    const q = template.make(fromNpc, toNpc, place, placeLabel, extraNpcs, twoPlaces);
+    if (!q) {
+      const fallback = questTemplates.find(t => t.type === "deliver");
+      const fb = fallback.make(fromNpc, toNpc, place, placeLabel, extraNpcs, twoPlaces);
+      applyQuest(fb, "deliver", fromNpc);
+      return;
+    }
+    applyQuest(q, template.type, fromNpc);
+
+    function applyQuest(q, type, primaryNpc) {
+      quest.title = q.title;
+      quest.stage = 0;
+      quest.objective = q.stages[0].objective;
+      quest.done = false;
+      quest.dynamic = true;
+      quest.dynamicStages = q.stages;
+      quest.questType = type;
+      quest.primaryNpcId = primaryNpc.id;
+      quest.startedAt = nowMs();
+      quest._stageCount = q.stages.length;
+      addChat("System", `새 퀘스트: ${q.title}`);
+      enrichQuestDialogue(type, primaryNpc, q.stages);
+    }
   }
 
   function handleDynamicQuestProgress(npc) {
@@ -1738,42 +2216,42 @@
     const stage = quest.dynamicStages[quest.stage];
     if (!stage) return false;
 
+    // NPC가 제거되어 퀘스트 진행 불가능한 경우 자동 스킵
+    if (stage.npcId && !npcById(stage.npcId)) {
+      addChat("System", `대상 NPC가 떠나서 이 단계를 건너뜁니다.`);
+      advanceDynamicQuest();
+      return true;
+    }
+
+    if (stage.requireItem) {
+      if (!stage.npcId || stage.npcId !== npc.id) return false;
+      const itemKey = stage.requireItem;
+      if (!inventory[itemKey] || inventory[itemKey] <= 0) {
+        const info = itemTypes[itemKey];
+        addChat(npc.name, `아직 ${info ? info.label : itemKey}이(가) 없네. 구해와줘!`);
+        return true;
+      }
+      inventory[itemKey] -= 1;
+      addChat(npc.name, stage.dialogue);
+      advanceDynamicQuest();
+      return true;
+    }
+
     if (stage.visit) {
       const d = dist(player, stage.visit);
       if (d > (stage.radius || 2.5)) return false;
       if (stage.afterHour != null) {
         const h = hourOfDay();
-        if (h < stage.afterHour && h >= 5) return false;
+        if (!(h >= stage.afterHour || h < 5)) return false;
       }
       addChat("System", stage.autoText || "목적지에 도착했습니다.");
-      quest.stage += 1;
-      if (quest.stage >= quest.dynamicStages.length) {
-        quest.objective = "완료";
-        quest.done = true;
-        quest.dynamic = false;
-        quest.dynamicStages = null;
-        addChat("System", `퀘스트 '${quest.title}' 완료!`);
-        generateDynamicQuest();
-      } else {
-        quest.objective = quest.dynamicStages[quest.stage].objective;
-      }
+      advanceDynamicQuest();
       return true;
     }
 
     if (stage.npcId && stage.npcId === npc.id) {
       addChat(npc.name, stage.dialogue);
-      adjustRelation("playerToHeo", 2);
-      quest.stage += 1;
-      if (quest.stage >= quest.dynamicStages.length) {
-        quest.objective = "완료";
-        quest.done = true;
-        quest.dynamic = false;
-        quest.dynamicStages = null;
-        addChat("System", `퀘스트 '${quest.title}' 완료!`);
-        generateDynamicQuest();
-      } else {
-        quest.objective = quest.dynamicStages[quest.stage].objective;
-      }
+      advanceDynamicQuest();
       return true;
     }
 
@@ -2215,6 +2693,11 @@
       if (stage && stage.visit) {
         handleDynamicQuestProgress({ id: "__visit__" });
       }
+      // 제거된 NPC 대상 스테이지 자동 스킵
+      if (stage && stage.npcId && !stage.visit && !stage.requireItem && !npcById(stage.npcId)) {
+        addChat("System", `대상 NPC가 떠나서 이 단계를 건너뜁니다.`);
+        advanceDynamicQuest();
+      }
     }
 
     const evNow = nowMs();
@@ -2242,7 +2725,17 @@
       quest,
       npcs: npcs
         .filter((n) => !n.id.startsWith("shared_") && !n.id.startsWith("custom_"))
-        .map((n) => ({ id: n.id, x: n.x, y: n.y, talkCooldown: n.talkCooldown })),
+        .map((n) => ({
+          id: n.id, x: n.x, y: n.y, talkCooldown: n.talkCooldown,
+          favorLevel: n.favorLevel, favorPoints: n.favorPoints,
+        })),
+      inventory: { ...inventory },
+      ownedCards: { ...ownedCards },
+      cardAlbum: { ...cardAlbum },
+      removedNpcIds: [...removedNpcIds],
+      discoveredIds: discoveries.filter(d => d.found).map(d => d.id),
+      questHistory: questHistory.slice(),
+      questCount,
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
@@ -2285,7 +2778,16 @@
         quest.done = !!state.quest.done;
         quest.dynamic = !!state.quest.dynamic;
         quest.dynamicStages = state.quest.dynamicStages || null;
+        quest.questType = state.quest.questType || null;
+        quest.primaryNpcId = state.quest.primaryNpcId || null;
+        quest.startedAt = state.quest.startedAt || 0;
+        quest._stageCount = state.quest._stageCount || (quest.dynamicStages ? quest.dynamicStages.length : 3);
       }
+      if (Array.isArray(state.questHistory)) {
+        questHistory.length = 0;
+        for (const h of state.questHistory) questHistory.push(h);
+      }
+      if (state.questCount != null) questCount = state.questCount;
       if (Array.isArray(state.npcs)) {
         for (const savedNpc of state.npcs) {
           const npc = npcs.find((n) => n.id === savedNpc.id);
@@ -2293,8 +2795,44 @@
           npc.x = clamp(savedNpc.x ?? npc.x, 1, world.width - 1);
           npc.y = clamp(savedNpc.y ?? npc.y, 1, world.height - 1);
           npc.talkCooldown = Math.max(0, savedNpc.talkCooldown || 0);
+          if (savedNpc.favorLevel != null) npc.favorLevel = savedNpc.favorLevel;
+          if (savedNpc.favorPoints != null) npc.favorPoints = savedNpc.favorPoints;
         }
       }
+      if (state.inventory) {
+        for (const [k, v] of Object.entries(state.inventory)) {
+          if (k in inventory) inventory[k] = Math.max(0, v || 0);
+        }
+      }
+      if (state.ownedCards) {
+        for (const [k, v] of Object.entries(state.ownedCards)) {
+          if (k in cardDefs) ownedCards[k] = Math.max(0, v || 0);
+        }
+      }
+      if (state.cardAlbum) {
+        for (const [k, v] of Object.entries(state.cardAlbum)) {
+          if (k in cardDefs) cardAlbum[k] = v;
+        }
+      }
+      if (Array.isArray(state.removedNpcIds)) {
+        for (const id of state.removedNpcIds) {
+          if (!removedNpcIds.has(id)) {
+            const idx = npcs.findIndex((n) => n.id === id);
+            if (idx !== -1) {
+              npcs.splice(idx, 1);
+              delete npcPersonas[id];
+            }
+            removedNpcIds.add(id);
+          }
+        }
+      }
+      if (Array.isArray(state.discoveredIds)) {
+        for (const id of state.discoveredIds) {
+          const d = discoveries.find(dd => dd.id === id);
+          if (d) d.found = true;
+        }
+      }
+      refreshRemoveSelect();
       addLog("월드 상태를 불러왔습니다.");
     } catch (err) {
       addLog("저장된 상태를 불러오지 못했습니다.");
@@ -2354,7 +2892,8 @@
     if (!mag) return;
 
     const runMul = keys.has("ShiftLeft") || keys.has("ShiftRight") || inputState.runHold ? 1.75 : 1;
-    const spd = player.speed * runMul;
+    const weatherSlow = weather.current === "storm" ? 0.8 : weather.current === "snow" ? 0.88 : 1;
+    const spd = player.speed * runMul * cardEffectMultiplier("speed") * weatherSlow;
     const tx = player.x + (dx / mag) * spd * dt;
     const ty = player.y + (dy / mag) * spd * dt;
 
@@ -2923,8 +3462,9 @@
 
   function getEntitySprite(e, radius) {
     const species = e.species || "cat";
-    const key = `entity:${species}:${e.color}:${e === player ? "p" : "n"}`;
-    return spriteCanvas(key, 140, 140, (c, w) => drawEntitySprite(c, species, e.color, e === player));
+    const isPlayerLike = e === player || !!e._isRemotePlayer;
+    const key = `entity:${species}:${e.color}:${isPlayerLike ? "p" : "n"}`;
+    return spriteCanvas(key, 140, 140, (c, w) => drawEntitySprite(c, species, e.color, isPlayerLike));
   }
 
   function drawEntity(e, radius, label) {
@@ -3064,40 +3604,83 @@
   function drawGround() {
     const h = hourOfDay();
     const dayFactor = Math.sin(((h - 6) / 24) * Math.PI * 2) * 0.5 + 0.5;
-    const r = Math.floor(136 + dayFactor * 40);
-    const g = Math.floor(206 + dayFactor * 24);
-    const b = Math.floor(246 - dayFactor * 14);
+    // Weather affects sky color
+    const weatherDarken = (weather.current === "storm") ? 0.5 : (weather.current === "rain") ? 0.7 : (weather.current === "cloudy") ? 0.85 : 1;
+    const r = Math.floor((136 + dayFactor * 40) * weatherDarken);
+    const g = Math.floor((206 + dayFactor * 24) * weatherDarken);
+    const b = Math.floor((246 - dayFactor * 14) * weatherDarken);
     const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
     skyGrad.addColorStop(0, `rgb(${r},${g},${b})`);
-    skyGrad.addColorStop(1, `rgb(${r - 8},${g + 3},${Math.max(154, b - 44)})`);
+    skyGrad.addColorStop(1, `rgb(${Math.max(0, r - 8)},${Math.max(0, g + 3)},${Math.max(100, b - 44)})`);
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    const isNight = h >= 20 || h < 6;
     const sunX = canvas.width - 140;
     const sunY = 88;
-    const sunGlow = ctx.createRadialGradient(sunX, sunY, 8, sunX, sunY, 62);
-    sunGlow.addColorStop(0, "rgba(255, 244, 193, 0.76)");
-    sunGlow.addColorStop(1, "rgba(255, 244, 193, 0)");
-    ctx.fillStyle = sunGlow;
-    ctx.beginPath();
-    ctx.arc(sunX, sunY, 62, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "rgba(255, 233, 156, 0.82)";
-    ctx.beginPath();
-    ctx.arc(sunX, sunY, 18, 0, Math.PI * 2);
-    ctx.fill();
 
-    // Clouds
-    const cloudShift = (world.totalMinutes * 0.75) % (canvas.width + 260);
-    const cloudCount = mobileMode ? 2 : 4;
-    for (let i = 0; i < cloudCount; i += 1) {
-      const cx = ((i * 260 + cloudShift) % (canvas.width + 260)) - 120;
-      const cy = 86 + i * 20;
-      ctx.fillStyle = "rgba(255,255,255,0.52)";
+    if (isNight) {
+      // Moon
+      const moonGlow = ctx.createRadialGradient(sunX, sunY, 6, sunX, sunY, 50);
+      moonGlow.addColorStop(0, "rgba(200, 210, 240, 0.5)");
+      moonGlow.addColorStop(1, "rgba(200, 210, 240, 0)");
+      ctx.fillStyle = moonGlow;
       ctx.beginPath();
-      ctx.arc(cx, cy, 20, 0, Math.PI * 2);
-      ctx.arc(cx + 18, cy - 7, 18, 0, Math.PI * 2);
-      ctx.arc(cx + 37, cy, 16, 0, Math.PI * 2);
+      ctx.arc(sunX, sunY, 50, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(220, 230, 250, 0.85)";
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 14, 0, Math.PI * 2);
+      ctx.fill();
+      // Moon crescent shadow
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.beginPath();
+      ctx.arc(sunX + 5, sunY - 2, 12, 0, Math.PI * 2);
+      ctx.fill();
+      // Stars
+      if (weather.current === "clear" || weather.current === "cloudy") {
+        ctx.fillStyle = "rgba(255,255,255,0.6)";
+        for (let i = 0; i < 25; i++) {
+          const sx = ((i * 137 + 50) % canvas.width);
+          const sy = ((i * 89 + 20) % 140);
+          const twinkle = Math.sin(nowMs() * 0.002 + i * 2.1) * 0.3 + 0.5;
+          ctx.globalAlpha = twinkle;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 1 + (i % 3) * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+    } else if (weather.current !== "storm" && weather.current !== "fog") {
+      // Sun
+      const sunGlow = ctx.createRadialGradient(sunX, sunY, 8, sunX, sunY, 62);
+      sunGlow.addColorStop(0, "rgba(255, 244, 193, 0.76)");
+      sunGlow.addColorStop(1, "rgba(255, 244, 193, 0)");
+      ctx.fillStyle = sunGlow;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 62, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255, 233, 156, 0.82)";
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Clouds (more/darker when cloudy/rainy)
+    const cloudShift = (world.totalMinutes * 0.75) % (canvas.width + 260);
+    const baseCloudCount = mobileMode ? 2 : 4;
+    const cloudExtra = (weather.current === "cloudy" || weather.current === "rain" || weather.current === "storm") ? 4 : 0;
+    const cloudCount = baseCloudCount + cloudExtra;
+    const cloudAlpha = weather.current === "storm" ? 0.72 : weather.current === "rain" ? 0.62 : weather.current === "cloudy" ? 0.58 : 0.52;
+    for (let i = 0; i < cloudCount; i += 1) {
+      const cx = ((i * 200 + cloudShift) % (canvas.width + 260)) - 120;
+      const cy = 70 + (i % 4) * 22;
+      const cScale = 0.8 + (i % 3) * 0.2;
+      ctx.fillStyle = `rgba(${weather.current === "storm" ? "140,150,160" : "255,255,255"},${cloudAlpha})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 20 * cScale, 0, Math.PI * 2);
+      ctx.arc(cx + 18 * cScale, cy - 7 * cScale, 18 * cScale, 0, Math.PI * 2);
+      ctx.arc(cx + 37 * cScale, cy, 16 * cScale, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -3111,17 +3694,55 @@
         if (waterTile(wx, wy)) {
           drawDiamondWithTexture(x, y, "water", (x + y) % 2 === 0 ? "a" : "b");
           const p = project(wx, wy, 0.02);
-          ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+          // Animated water shimmer
+          const waveT = nowMs() * 0.001;
+          const shimmer = Math.sin(x * 0.8 + waveT * 1.5) * 0.15 + Math.sin(y * 0.6 + waveT * 1.1) * 0.1;
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.2 + shimmer})`;
           ctx.beginPath();
-          ctx.arc(p.x - 2, p.y - 3, 1.2, 0, Math.PI * 2);
-          ctx.arc(p.x + 1.5, p.y - 1.5, 1, 0, Math.PI * 2);
+          const wOff = Math.sin(waveT + x * 0.5) * 2;
+          ctx.arc(p.x - 2 + wOff, p.y - 3, 1.5, 0, Math.PI * 2);
+          ctx.arc(p.x + 2 - wOff, p.y - 1.5, 1.2, 0, Math.PI * 2);
           ctx.fill();
+          // Extra highlight streak
+          if ((x + y) % 4 === 0) {
+            const streakA = Math.sin(waveT * 2 + x + y) * 0.5 + 0.5;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${streakA * 0.25})`;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(p.x - 4, p.y);
+            ctx.lineTo(p.x + 4, p.y - 1);
+            ctx.stroke();
+          }
         } else {
           if (roadTile(wx, wy)) {
             drawDiamondWithTexture(x, y, "road", blend > 0 ? "a" : "b");
+            // Rain puddles on roads
+            if ((weather.current === "rain" || weather.current === "storm") && (x * 7 + y * 11) % 13 === 0) {
+              const pp = project(wx, wy, 0.005);
+              const wt = nowMs() * 0.001;
+              ctx.fillStyle = `rgba(140, 190, 240, ${weather.intensity * 0.25})`;
+              ctx.beginPath();
+              ctx.ellipse(pp.x, pp.y, 5 * world.zoom, 2.5 * world.zoom, 0, 0, Math.PI * 2);
+              ctx.fill();
+              // Ripple
+              const ripR = ((wt + x) % 1.5) / 1.5 * 6 * world.zoom;
+              ctx.strokeStyle = `rgba(200, 230, 255, ${(1 - ripR / (6 * world.zoom)) * weather.intensity * 0.3})`;
+              ctx.lineWidth = 0.6;
+              ctx.beginPath();
+              ctx.ellipse(pp.x, pp.y, ripR, ripR * 0.5, 0, 0, Math.PI * 2);
+              ctx.stroke();
+            }
           } else {
             const grassVariant = baseGrass === palette.grassC ? "c" : (baseGrass === palette.grassB ? "b" : "a");
             drawDiamondWithTexture(x, y, "grass", grassVariant);
+            // Snow accumulation on grass
+            if (weather.current === "snow" && weather.intensity > 0.3 && (x + y) % 3 === 0) {
+              const sp = project(wx, wy, 0.01);
+              ctx.fillStyle = `rgba(255, 255, 255, ${weather.intensity * 0.3})`;
+              ctx.beginPath();
+              ctx.ellipse(sp.x, sp.y, 4 * world.zoom, 2 * world.zoom, 0, 0, Math.PI * 2);
+              ctx.fill();
+            }
           }
 
           if (!roadTile(wx, wy) && (x * 13 + y * 7) % 19 === 0) {
@@ -3164,6 +3785,193 @@
     }
   }
 
+  // ─── Weather & Lighting Rendering ───
+  function drawWeatherEffects() {
+    const w = canvas.width;
+    const h = canvas.height;
+    // Fog overlay
+    if (weather.current === "fog" && weather.intensity > 0) {
+      ctx.save();
+      ctx.fillStyle = `rgba(210, 220, 230, ${weather.intensity * 0.4})`;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+    // Rain
+    if (weatherParticles.rain.length > 0) {
+      ctx.save();
+      ctx.strokeStyle = weather.current === "storm" ? "rgba(160, 195, 240, 0.6)" : "rgba(180, 210, 255, 0.45)";
+      ctx.lineWidth = weather.current === "storm" ? 1.5 : 1;
+      for (const p of weatherParticles.rain) {
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + weather.windX * 4, p.y + p.len);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // Splashes
+    if (weatherParticles.splashes.length > 0) {
+      ctx.save();
+      for (const s of weatherParticles.splashes) {
+        const a = s.life / 0.3;
+        ctx.strokeStyle = `rgba(200, 220, 250, ${a * 0.5})`;
+        ctx.lineWidth = 0.8;
+        const r = (1 - a) * 6;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // Snow
+    if (weatherParticles.snow.length > 0) {
+      ctx.save();
+      for (const p of weatherParticles.snow) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.6 + Math.sin(p.wobble) * 0.2})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    // Leaves
+    if (weatherParticles.leaves.length > 0) {
+      ctx.save();
+      for (const l of weatherParticles.leaves) {
+        ctx.fillStyle = `rgba(140, 180, 80, ${0.5 + Math.sin(l.rot) * 0.2})`;
+        ctx.beginPath();
+        const sx = Math.cos(l.rot) * l.size;
+        const sy = Math.sin(l.rot) * l.size * 0.5;
+        ctx.ellipse(l.x, l.y, Math.abs(sx) + 1.5, Math.abs(sy) + 1, l.rot, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    // Lightning flash
+    if (weather.lightningFlash > 0.05) {
+      ctx.save();
+      ctx.fillStyle = `rgba(255, 255, 255, ${weather.lightningFlash * 0.6})`;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+    // Rain darkening
+    if ((weather.current === "rain" || weather.current === "storm") && weather.intensity > 0) {
+      ctx.save();
+      ctx.fillStyle = `rgba(20, 30, 50, ${weather.intensity * 0.15})`;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+  }
+
+  function drawLampGlow() {
+    const hr = hourOfDay();
+    if (hr >= 6 && hr < 18) return;
+    const nightFactor = hr >= 18 ? Math.min(1, (hr - 18) / 3) : hr < 6 ? 1 : Math.max(0, (7 - hr) / 2);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const prop of props) {
+      if (prop.type !== "lamp") continue;
+      const lp = project(prop.x, prop.y, 0);
+      const glowR = 65 * clamp(world.zoom, 1, 4);
+      const glow = ctx.createRadialGradient(lp.x, lp.y - 20 * world.zoom, 3, lp.x, lp.y, glowR);
+      glow.addColorStop(0, `rgba(255, 220, 130, ${0.3 * nightFactor})`);
+      glow.addColorStop(0.5, `rgba(255, 200, 100, ${0.12 * nightFactor})`);
+      glow.addColorStop(1, "rgba(255, 200, 100, 0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(lp.x, lp.y - 10, glowR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+  }
+
+  function drawFireflies() {
+    if (weatherParticles.fireflies.length === 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const f of weatherParticles.fireflies) {
+      const p = project(f.x, f.y, 0.3);
+      const brightness = 0.3 + Math.sin(f.phase) * 0.3;
+      if (brightness < 0.1) continue;
+      const r = (2 + Math.sin(f.phase * 1.3)) * clamp(world.zoom, 1, 3);
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 4);
+      glow.addColorStop(0, `rgba(200, 255, 100, ${brightness})`);
+      glow.addColorStop(1, "rgba(200, 255, 100, 0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `rgba(230, 255, 150, ${brightness * 1.5})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+  }
+
+  function drawDiscoverySparkles() {
+    const now = nowMs();
+    for (const d of discoveries) {
+      if (d.found) continue;
+      if (!discoveryConditionMet(d)) continue;
+      const pDist = dist(player, d);
+      if (pDist > 6) continue;
+      const p = project(d.x, d.y, 0);
+      const sparkleCount = pDist < 3 ? 4 : 2;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = 0; i < sparkleCount; i++) {
+        const angle = (now * 0.001 + i * Math.PI * 2 / sparkleCount) % (Math.PI * 2);
+        const r = 8 + Math.sin(now * 0.003 + i) * 4;
+        const sx = p.x + Math.cos(angle) * r * world.zoom;
+        const sy = p.y + Math.sin(angle) * r * world.zoom * 0.5 - 10;
+        const a = 0.3 + Math.sin(now * 0.005 + i * 1.5) * 0.2;
+        ctx.fillStyle = `rgba(255, 240, 150, ${a})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 2 * clamp(world.zoom, 1, 3), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = "source-over";
+      ctx.restore();
+    }
+    // Discovery notification
+    if (discoveryNotifyUntil > now) {
+      const text = `🔍 발견: ${discoveryNotifyTitle}`;
+      ctx.save();
+      ctx.font = "700 16px sans-serif";
+      const tw = ctx.measureText(text).width + 24;
+      const cx = canvas.width * 0.5 - tw * 0.5;
+      const cy = 105;
+      ctx.fillStyle = "rgba(90, 60, 20, 0.85)";
+      ctx.beginPath();
+      ctx.roundRect(cx, cy, tw, 30, 8);
+      ctx.fill();
+      ctx.fillStyle = "#ffe58f";
+      ctx.fillText(text, cx + 12, cy + 21);
+      ctx.restore();
+    }
+  }
+
+  function drawWeatherIndicator() {
+    if (weather.current === "clear") return;
+    const names = { cloudy: "☁️ 흐림", rain: "🌧️ 비", storm: "⛈️ 폭풍", snow: "❄️ 눈", fog: "🌫️ 안개" };
+    const text = names[weather.current] || "";
+    if (!text) return;
+    ctx.save();
+    ctx.font = "600 13px sans-serif";
+    const tw = ctx.measureText(text).width + 16;
+    const x = canvas.width - tw - 10;
+    ctx.fillStyle = "rgba(40, 50, 70, 0.55)";
+    ctx.beginPath();
+    ctx.roundRect(x, 10, tw, 24, 6);
+    ctx.fill();
+    ctx.fillStyle = "#e8eef5";
+    ctx.fillText(text, x + 8, 27);
+    ctx.restore();
+  }
+
   function drawWorld() {
     drawGround();
     for (const b of buildings) drawBuilding(b);
@@ -3201,7 +4009,7 @@
 
     const now = nowMs();
     for (const gi of groundItems) {
-      if (gi.pickedAt > 0 && now - gi.pickedAt < ITEM_RESPAWN_MS) continue;
+      if (gi.pickedAt > 0 && now - gi.pickedAt < itemRespawnMs(gi)) continue;
       const gp = project(gi.x, gi.y, 0);
       const info = itemTypes[gi.type];
       const bobY = Math.sin(now * 0.003 + gi.x * 2) * 3;
@@ -3214,11 +4022,16 @@
       ctx.restore();
     }
 
-    const sceneItems = [...props, ...npcs, player].sort((a, b) => a.x + a.y - (b.x + b.y));
+    const remotes = mp.enabled ? mpRemotePlayerList() : [];
+    const sceneItems = [...props, ...npcs, player, ...remotes].sort((a, b) => a.x + a.y - (b.x + b.y));
     const zoomScale = clamp(world.zoom, 0.9, ZOOM_MAX);
     for (const item of sceneItems) {
       if ("type" in item) drawProp(item);
-      else drawEntity(item, (item === player ? 12 : 11) * zoomScale, item.name);
+      else {
+        const isMe = item === player;
+        const isRemote = item._isRemotePlayer;
+        drawEntity(item, (isMe || isRemote ? 12 : 11) * zoomScale, item.name);
+      }
     }
 
     for (const npc of npcs) {
@@ -3261,7 +4074,26 @@
       ctx.restore();
     }
 
+    drawDiscoverySparkles();
     drawSpeechBubbles();
+
+    // Night overlay
+    const nh = hourOfDay();
+    let nightAlpha = 0;
+    if (nh >= 20) nightAlpha = (nh - 20) * 0.06;
+    else if (nh < 5) nightAlpha = 0.24 + (5 - nh) * 0.02;
+    else if (nh < 7) nightAlpha = (7 - nh) * 0.05;
+    if (nightAlpha > 0) {
+      nightAlpha = Math.max(0, nightAlpha - (cardEffectMultiplier("nightVision") - 1) * 0.15);
+      ctx.save();
+      ctx.fillStyle = `rgba(10, 10, 40, ${clamp(nightAlpha, 0, 0.35)})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    }
+    drawLampGlow();
+    drawFireflies();
+    drawWeatherEffects();
+    drawWeatherIndicator();
   }
 
   function drawSpeechBubbles() {
@@ -3394,7 +4226,7 @@
     mctx.globalAlpha = 0.6;
     const mnow = nowMs();
     for (const gi of groundItems) {
-      if (gi.pickedAt > 0 && mnow - gi.pickedAt < ITEM_RESPAWN_MS) continue;
+      if (gi.pickedAt > 0 && mnow - gi.pickedAt < itemRespawnMs(gi)) continue;
       mctx.fillStyle = itemTypes[gi.type].color;
       mctx.beginPath();
       mctx.arc(pad + gi.x * sx, pad + gi.y * sy, 2, 0, Math.PI * 2);
@@ -3407,6 +4239,16 @@
       mctx.beginPath();
       mctx.arc(pad + npc.x * sx, pad + npc.y * sy, 2.6, 0, Math.PI * 2);
       mctx.fill();
+    }
+
+    if (mp.enabled) {
+      mctx.globalAlpha = 0.5;
+      for (const rp of mpRemotePlayerList()) {
+        mctx.fillStyle = rp.color;
+        mctx.beginPath();
+        mctx.arc(pad + rp.x * sx, pad + rp.y * sy, 2.8, 0, Math.PI * 2);
+        mctx.fill();
+      }
     }
 
     mctx.globalAlpha = 0.56;
@@ -3432,7 +4274,10 @@
   }
 
   function updateUI() {
-    uiTime.textContent = `시간: ${formatTime()} ${world.paused ? "(일시정지)" : ""}`;
+    const weatherKo = { clear: "", cloudy: "☁️흐림", rain: "🌧️비", storm: "⛈️폭풍", snow: "❄️눈", fog: "🌫️안개" };
+    const weatherStr = weatherKo[weather.current] || "";
+    const discoveredCount = discoveries.filter(d => d.found).length;
+    uiTime.textContent = `시간: ${formatTime()}${weatherStr ? " " + weatherStr : ""} ${world.paused ? "(일시정지)" : ""} | 발견: ${discoveredCount}/${discoveries.length}`;
     uiPlayer.textContent = `${player.name} | 가방: ${inventorySummary()} | 카드: ${cardCollectionSummary()}`;
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
@@ -3578,9 +4423,20 @@
       updateNpcSocialEvents();
       updateAmbientEvents();
       updateFavorRequests();
+      updateWeather(dt);
+      updateDiscoveries();
       updateAmbientSpeech(nowMs());
       updateConversationCamera();
       updateCamera();
+      if (mp.enabled) {
+        mpBroadcast();
+        mpInterpolate(dt);
+        if (frameCount % 300 === 0) mpCleanStale();
+      }
+    }
+
+    if (mp.enabled && uiOnlineEl) {
+      uiOnlineEl.textContent = `접속자: ${mpOnlineCount()}명`;
     }
 
     updateUI();
@@ -3977,6 +4833,144 @@
     resizeCanvasToDisplaySize();
     applyPanelState();
   });
+
+  // ===== MULTIPLAYER (Firebase Realtime DB) =====
+  const mp = {
+    enabled: false,
+    db: null,
+    sessionId: null,
+    playersRef: null,
+    remotePlayers: {},
+    lastBroadcastAt: 0,
+    BROADCAST_INTERVAL: 100,
+    STALE_TIMEOUT: 12_000,
+  };
+
+  function mpRemotePlayerList() {
+    return Object.values(mp.remotePlayers);
+  }
+
+  function initMultiplayer() {
+    const cfg = window.PG_FIREBASE_CONFIG;
+    if (!cfg || !cfg.databaseURL || typeof firebase === "undefined") return;
+    try {
+      firebase.initializeApp(cfg);
+      mp.db = firebase.database();
+      mp.enabled = true;
+      mp.sessionId = "p_" + Math.random().toString(36).slice(2, 10) + "_" + Date.now().toString(36);
+      mp.playersRef = mp.db.ref("playground/players");
+
+      const myRef = mp.playersRef.child(mp.sessionId);
+      myRef.onDisconnect().remove();
+
+      myRef.set({
+        name: player.name,
+        x: Math.round(player.x * 100) / 100,
+        y: Math.round(player.y * 100) / 100,
+        color: player.color,
+        species: player.species || "human_a",
+        ts: firebase.database.ServerValue.TIMESTAMP,
+      });
+
+      mp.playersRef.on("child_added", (snap) => {
+        if (snap.key === mp.sessionId) return;
+        const d = snap.val();
+        if (!d) return;
+        mp.remotePlayers[snap.key] = {
+          id: snap.key,
+          name: d.name || "???",
+          x: d.x || 0,
+          y: d.y || 0,
+          _targetX: d.x || 0,
+          _targetY: d.y || 0,
+          color: d.color || "#aaa",
+          species: d.species || "human_a",
+          ts: d.ts || 0,
+          _isRemotePlayer: true,
+        };
+      });
+
+      mp.playersRef.on("child_changed", (snap) => {
+        if (snap.key === mp.sessionId) return;
+        const d = snap.val();
+        if (!d) return;
+        const rp = mp.remotePlayers[snap.key];
+        if (rp) {
+          rp.name = d.name || rp.name;
+          rp._targetX = d.x ?? rp._targetX;
+          rp._targetY = d.y ?? rp._targetY;
+          rp.color = d.color || rp.color;
+          rp.species = d.species || rp.species;
+          rp.ts = d.ts || rp.ts;
+        } else {
+          mp.remotePlayers[snap.key] = {
+            id: snap.key,
+            name: d.name || "???",
+            x: d.x || 0,
+            y: d.y || 0,
+            _targetX: d.x || 0,
+            _targetY: d.y || 0,
+            color: d.color || "#aaa",
+            species: d.species || "human_a",
+            ts: d.ts || 0,
+            _isRemotePlayer: true,
+          };
+        }
+      });
+
+      mp.playersRef.on("child_removed", (snap) => {
+        delete mp.remotePlayers[snap.key];
+      });
+
+      if (uiOnlineEl) uiOnlineEl.hidden = false;
+      addLog("멀티플레이어 연결됨!");
+      addChat("System", "멀티플레이어 모드가 활성화되었습니다. 다른 플레이어가 같은 월드에 접속할 수 있습니다.");
+    } catch (err) {
+      addLog("멀티플레이어 초기화 실패: " + (err.message || err));
+    }
+  }
+
+  function mpBroadcast() {
+    if (!mp.enabled) return;
+    const now = nowMs();
+    if (now - mp.lastBroadcastAt < mp.BROADCAST_INTERVAL) return;
+    mp.lastBroadcastAt = now;
+    mp.playersRef.child(mp.sessionId).update({
+      name: player.name,
+      x: Math.round(player.x * 100) / 100,
+      y: Math.round(player.y * 100) / 100,
+      color: player.color,
+      species: player.species || "human_a",
+      ts: firebase.database.ServerValue.TIMESTAMP,
+    });
+  }
+
+  function mpInterpolate(dt) {
+    for (const rp of Object.values(mp.remotePlayers)) {
+      if (!isFinite(rp._targetX) || !isFinite(rp._targetY)) continue;
+      const dx = rp._targetX - rp.x;
+      const dy = rp._targetY - rp.y;
+      const lerp = Math.min(1, dt * 8);
+      rp.x += dx * lerp;
+      rp.y += dy * lerp;
+    }
+  }
+
+  function mpCleanStale() {
+    const now = Date.now();
+    for (const [key, rp] of Object.entries(mp.remotePlayers)) {
+      if (now - rp.ts > mp.STALE_TIMEOUT) {
+        delete mp.remotePlayers[key];
+        mp.playersRef.child(key).remove().catch(() => {});
+      }
+    }
+  }
+
+  function mpOnlineCount() {
+    return Object.keys(mp.remotePlayers).length + 1;
+  }
+
+  initMultiplayer();
 
   requestAnimationFrame(frame);
 })();
