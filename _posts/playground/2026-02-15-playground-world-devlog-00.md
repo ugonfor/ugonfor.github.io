@@ -2,6 +2,7 @@
 layout: post
 title: "Playground Devlog #0 - 요구사항 정리"
 date: 2026-02-15 19:30:00 +0900
+categories: [playground, devlog]
 ---
 
 Playground 월드 시뮬레이션의 초기 요구사항 문서입니다.
