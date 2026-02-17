@@ -2,16 +2,25 @@
    Landing Page Styles
    ═══════════════════════════════════════════ */
 
+html.landing-page,
+html.landing-page body {
+  overflow-x: hidden;
+}
+
 html.landing-page .wrapper {
   width: 100% !important;
-  max-width: none !important;
+  max-width: 100vw !important;
   padding-top: 0 !important;
   margin: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  overflow-x: hidden;
 }
 
 html.landing-page section {
   padding: 0;
   margin: 0;
+  max-width: 100%;
 }
 
 html.landing-page footer {
@@ -76,8 +85,8 @@ html.landing-page footer {
 .landing-scroll-hint {
   position: absolute;
   bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
