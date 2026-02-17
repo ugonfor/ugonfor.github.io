@@ -68,6 +68,14 @@ extra_head: |
       <div class="pg-hud-left">
         <div id="pg-card-controls" class="pg-world-card">
           <h3>조작</h3>
+          <div class="pg-controls-help">
+            <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동</p>
+            <p><kbd>Shift</kbd> 달리기</p>
+            <p><kbd>E</kbd> 대화 / 상호작용</p>
+            <p><kbd>Space</kbd> 시점 초기화</p>
+            <p><kbd>P</kbd> 일시정지</p>
+            <p>마우스 드래그로 화면 이동</p>
+          </div>
           <div class="pg-actions">
             <button id="pg-save" type="button">저장</button>
             <button id="pg-load" type="button">불러오기</button>
