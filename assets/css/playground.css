@@ -556,6 +556,10 @@ button.pg-pressed,
     display: none !important;
   }
 
+  .pg-controls-help {
+    display: none;
+  }
+
   .pg-world-ui {
     position: fixed;
     inset: 0;
@@ -883,6 +887,13 @@ button.pg-pressed,
 }
 .pg-name-modal-box button:hover {
   background: #3a7bc8;
+}
+
+/* Hide keyboard help on touch devices (incl. landscape) */
+@media (pointer: coarse) {
+  .pg-controls-help {
+    display: none;
+  }
 }
 
 /* Chat source colors */
