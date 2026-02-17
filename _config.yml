@@ -62,7 +62,7 @@ playground_turnstile_site_key: ""
 # Enable Realtime Database, then paste your web app config below.
 # If empty, multiplayer is disabled and game runs in single-player mode.
 playground_firebase:
-  apiKey: ""
-  authDomain: ""
-  databaseURL: ""
-  projectId: ""
+  apiKey: "AIzaSyAJeq1BseMP7Z5VdKLs_6Naq7pyD2N64mw"
+  authDomain: "ugonfor-playground-ef32a.firebaseapp.com"
+  databaseURL: "https://ugonfor-playground-ef32a-default-rtdb.asia-southeast1.firebasedatabase.app"
+  projectId: "ugonfor-playground-ef32a"
