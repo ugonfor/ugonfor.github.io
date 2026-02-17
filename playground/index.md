@@ -135,4 +135,12 @@ extra_head: |
       </div>
     </div>
   </div>
+  <div id="pg-name-modal" class="pg-name-modal" hidden>
+    <div class="pg-name-modal-box">
+      <h3>플레이어 설정</h3>
+      <label for="pg-name-input">이름</label>
+      <input id="pg-name-input" type="text" maxlength="18" placeholder="이름을 입력하세요" />
+      <button id="pg-name-confirm" type="button">확인</button>
+    </div>
+  </div>
 </div>

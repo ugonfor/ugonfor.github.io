@@ -11,10 +11,24 @@
           "y": { ".validate": "newData.isNumber()" },
           "color": { ".validate": "newData.isString()" },
           "species": { ".validate": "newData.isString()" },
+          "flag": { ".validate": "newData.isString() && newData.val().length <= 8" },
           "ts": { ".validate": "newData.val() <= now" }
         },
         ".read": true,
         ".write": false
+      },
+      "messages": {
+        ".read": true,
+        ".indexOn": ["ts"],
+        "$msgId": {
+          ".write": true,
+          ".validate": "newData.hasChildren(['name', 'text', 'sessionId', 'ts'])",
+          "name": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "text": { ".validate": "newData.isString() && newData.val().length <= 200" },
+          "sessionId": { ".validate": "newData.isString()" },
+          "flag": { ".validate": "newData.isString() && newData.val().length <= 8" },
+          "ts": { ".validate": "newData.val() <= now" }
+        }
       }
     },
     ".read": false,
