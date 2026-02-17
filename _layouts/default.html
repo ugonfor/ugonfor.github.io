@@ -129,7 +129,7 @@
       var prevScrollpos = window.pageYOffset;
       window.onscroll = function() {
         var currentScrollPos = window.pageYOffset;
-        if (prevScrollpos > currentScrollPos) {
+        if (currentScrollPos <= 10 || prevScrollpos > currentScrollPos) {
           document.querySelector('.top-menu').style.transform = "translateY(0)";
         } else {
           document.querySelector('.top-menu').style.transform = "translateY(-100%)";
