@@ -63,7 +63,27 @@
   const UI_PREF_KEY = "playground_ui_pref_v1";
   const MOBILE_SHEET_KEY = "playground_mobile_sheet_v1";
   const PLAYER_NAME_KEY = "playground_player_name_v1";
+  const PLAYER_FLAG_KEY = "playground_player_flag_v1";
   const AUTO_WALK_KEY = "playground_auto_walk_v1";
+  const COUNTRY_LIST = [
+    { flag: "", label: "선택 안 함" },
+    { flag: "🇰🇷", label: "한국" },
+    { flag: "🇺🇸", label: "미국" },
+    { flag: "🇯🇵", label: "일본" },
+    { flag: "🇨🇳", label: "중국" },
+    { flag: "🇬🇧", label: "영국" },
+    { flag: "🇫🇷", label: "프랑스" },
+    { flag: "🇩🇪", label: "독일" },
+    { flag: "🇮🇹", label: "이탈리아" },
+    { flag: "🇪🇸", label: "스페인" },
+    { flag: "🇧🇷", label: "브라질" },
+    { flag: "🇨🇦", label: "캐나다" },
+    { flag: "🇦🇺", label: "호주" },
+    { flag: "🇮🇳", label: "인도" },
+    { flag: "🇷🇺", label: "러시아" },
+    { flag: "🇲🇽", label: "멕시코" },
+    { flag: "🇹🇭", label: "태국" },
+  ];
   const LLM_API_URL = String(window.PG_LLM_API_URL || "").trim();
   const LLM_STREAM_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/npc-chat-stream") : "";
   const WORLD_NPC_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/world-npcs") : "";
@@ -178,6 +198,7 @@
 
   const player = {
     name: "플레이어",
+    flag: "",
     x: 12,
     y: 18,
     speed: 3.7,
@@ -942,49 +963,107 @@
     return cleaned || "플레이어";
   }
 
-  function initPlayerName() {
-    let stored = "";
-    try {
-      stored = normalizePlayerName(localStorage.getItem(PLAYER_NAME_KEY) || "");
-    } catch {
-      stored = "";
-    }
-
-    if (!stored) {
-      const answer = window.prompt("당신의 이름은 무엇입니까?", player.name);
-      stored = normalizePlayerName(answer);
-      try {
-        localStorage.setItem(PLAYER_NAME_KEY, stored);
-      } catch {
-        // ignore localStorage errors
-      }
-    }
-
-    player.name = stored;
+  function normalizePlayerFlag(value) {
+    const v = String(value || "").trim();
+    if (!v) return "";
+    return COUNTRY_LIST.some((c) => c.flag === v) ? v : "";
   }
 
-  function changePlayerName() {
-    const answer = window.prompt("당신의 이름은 무엇입니까?", player.name);
-    if (answer === null) return;
-    const next = normalizePlayerName(answer);
+  function countryCodeToFlag(code) {
+    const cc = String(code || "").toUpperCase().trim();
+    if (cc.length !== 2) return "";
+    const flag = String.fromCodePoint(
+      cc.charCodeAt(0) - 65 + 0x1F1E6,
+      cc.charCodeAt(1) - 65 + 0x1F1E6,
+    );
+    return normalizePlayerFlag(flag);
+  }
+
+  async function detectCountryFlag() {
+    try {
+      const res = await fetch("https://ipapi.co/country_code/", { signal: AbortSignal.timeout(3000) });
+      if (!res.ok) return "";
+      const code = (await res.text()).trim();
+      return countryCodeToFlag(code);
+    } catch {
+      return "";
+    }
+  }
+
+  function showNameModal(defaultName) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById("pg-name-modal");
+      const nameInput = document.getElementById("pg-name-input");
+      const confirmBtn = document.getElementById("pg-name-confirm");
+      if (!modal || !nameInput || !confirmBtn) {
+        resolve(defaultName || "플레이어");
+        return;
+      }
+      nameInput.value = defaultName || "";
+      modal.hidden = false;
+      nameInput.focus();
+      function finish() {
+        confirmBtn.removeEventListener("click", finish);
+        nameInput.removeEventListener("keydown", onKey);
+        modal.hidden = true;
+        resolve(normalizePlayerName(nameInput.value));
+      }
+      function onKey(e) { if (e.key === "Enter") finish(); }
+      confirmBtn.addEventListener("click", finish);
+      nameInput.addEventListener("keydown", onKey);
+    });
+  }
+
+  async function initPlayerName() {
+    let storedName = "";
+    let storedFlag = "";
+    try {
+      storedName = localStorage.getItem(PLAYER_NAME_KEY) || "";
+      storedFlag = localStorage.getItem(PLAYER_FLAG_KEY) || "";
+    } catch { /* ignore */ }
+
+    // Auto-detect country via IP (non-blocking for returning users)
+    if (!storedFlag) {
+      const detected = await detectCountryFlag();
+      if (detected) {
+        storedFlag = detected;
+        try { localStorage.setItem(PLAYER_FLAG_KEY, storedFlag); } catch { /* ignore */ }
+      }
+    }
+    player.flag = normalizePlayerFlag(storedFlag);
+
+    if (storedName && storedName !== "플레이어") {
+      player.name = normalizePlayerName(storedName);
+      return;
+    }
+
+    player.name = await showNameModal("");
+    try { localStorage.setItem(PLAYER_NAME_KEY, player.name); } catch { /* ignore */ }
+  }
+
+  async function changePlayerName() {
+    const next = await showNameModal(player.name);
     if (next === player.name) return;
     player.name = next;
-    try {
-      localStorage.setItem(PLAYER_NAME_KEY, player.name);
-    } catch {
-      // ignore localStorage errors
-    }
-    addLog(`플레이어 이름이 '${player.name}'(으)로 변경되었습니다.`);
+    try { localStorage.setItem(PLAYER_NAME_KEY, player.name); } catch { /* ignore */ }
+    addLog(`플레이어 이름이 '${player.flag ? player.flag + " " : ""}${player.name}'(으)로 변경되었습니다.`);
   }
 
   function toggleMobileChatMode() {
     const target = chatTargetNpc();
-    if (!target) {
-      addChat("System", "근처 NPC가 없습니다. 먼저 NPC 옆으로 이동해 주세요.");
+    const npcNear = target && target.near;
+    if (!npcNear && mp.enabled) {
+      // Open chat panel for multiplayer global chat
+      if (isMobileViewport()) {
+        mobileChatOpen = true;
+        mobileUtilityOpen = false;
+      } else if (!panelState.chat) panelState.chat = true;
+      if (chatInputEl) chatInputEl.focus();
+      applyPanelState();
       return;
     }
-    if (!target.near) {
-      addChat("System", `${target.npc.name}에게 조금 더 가까이 가면 채팅할 수 있습니다.`);
+    if (!npcNear) {
+      addChat("System", "근처 NPC가 없습니다. 먼저 NPC 옆으로 이동해 주세요.");
       return;
     }
 
@@ -1374,6 +1453,10 @@
 
   function resolveSpeakerById(id) {
     if (id === "player") return player;
+    if (typeof id === "string" && id.startsWith("remote_")) {
+      const key = id.slice(7);
+      return mp.remotePlayers[key] || null;
+    }
     return npcs.find((n) => n.id === id) || null;
   }
 
@@ -1393,8 +1476,8 @@
     uiLog.replaceChildren(frag);
   }
 
-  function addChat(speaker, text) {
-    chats.unshift({ speaker, text, stamp: formatTime() });
+  function addChat(speaker, text, source) {
+    chats.unshift({ speaker, text, source: source || "", stamp: formatTime() });
     if (chats.length > 24) chats.length = 24;
     renderChats();
   }
@@ -1404,6 +1487,8 @@
     const frag = document.createDocumentFragment();
     for (const c of chats) {
       const row = document.createElement("div");
+      if (c.source === "remote") row.classList.add("pg-chat-remote");
+      else if (c.source === "local-player") row.classList.add("pg-chat-local-player");
       const speaker = document.createElement("strong");
       speaker.textContent = c.speaker;
       row.appendChild(speaker);
@@ -2571,13 +2656,21 @@
       return;
     }
 
-    addChat("You", msg);
-
     const target = chatTargetNpc();
+    const npcNear = target && target.near;
+    if (!npcNear && mp.enabled) {
+      mpSendMessage(msg);
+      const displayName = (player.flag ? player.flag + " " : "") + player.name;
+      addChat(displayName, msg, "local-player");
+      return;
+    }
     if (!target) {
+      addChat("You", msg);
       addChat("System", "근처에 대화 가능한 NPC가 없습니다.");
       return;
     }
+
+    addChat("You", msg);
     if (!target.near) {
       moveNearNpcTarget(target.npc);
       addChat("System", `${target.npc.name}에게 이동 중입니다. 가까이 가면 대화할 수 있습니다.`);
@@ -4031,7 +4124,8 @@
       else {
         const isMe = item === player;
         const isRemote = item._isRemotePlayer;
-        drawEntity(item, (isMe || isRemote ? 12 : 11) * zoomScale, item.name);
+        const label = (item.flag ? item.flag + " " : "") + item.name;
+        drawEntity(item, (isMe || isRemote ? 12 : 11) * zoomScale, label);
       }
     }
 
@@ -4318,12 +4412,18 @@
     uiRel.textContent = `관계도: 허승준 ${relations.playerToHeo} / 김민수 ${relations.playerToKim} / 최민영 ${relations.playerToChoi} / 허승준↔김민수 ${relations.heoToKim}`;
 
     const target = chatTargetNpc();
-    if (chatTargetEl) chatTargetEl.textContent = target ? `대상: ${target.npc.name}` : "대상: 없음";
-    if (chatSendEl) chatSendEl.disabled = !target || !target.near;
-    if (chatInputEl) chatInputEl.disabled = !target || !target.near;
-    if (chatActiveTargetEl) chatActiveTargetEl.textContent = target ? `대상: ${target.npc.name}` : "대상: 없음";
+    const npcNear = target && target.near;
+    const mpChat = mp.enabled && !npcNear;
+    if (chatTargetEl) chatTargetEl.textContent = npcNear ? `대상: ${target.npc.name}` : (mpChat ? "대상: 전체 채팅" : "대상: 없음");
+    if (chatSendEl) chatSendEl.disabled = mpChat ? false : !npcNear;
+    if (chatInputEl) {
+      chatInputEl.disabled = mpChat ? false : !npcNear;
+      chatInputEl.placeholder = mpChat ? "플레이어에게 말하기..." : "NPC에게 말 걸기...";
+    }
+    if (chatActiveTargetEl) chatActiveTargetEl.textContent = npcNear ? `대상: ${target.npc.name}` : (mpChat ? "대상: 전체 채팅" : "대상: 없음");
     if (chatActiveStateEl) {
-      if (!target) chatActiveStateEl.textContent = "상태: 대화 불가";
+      if (mpChat) chatActiveStateEl.textContent = "상태: 전체 채팅";
+      else if (!target) chatActiveStateEl.textContent = "상태: 대화 불가";
       else if (!target.near) chatActiveStateEl.textContent = "상태: 대상에게 이동 중";
       else if (conversationFocusNpcId && target.npc.id === conversationFocusNpcId) chatActiveStateEl.textContent = "상태: 대화 고정";
       else if (chatSessionActiveFor(target.npc.id)) chatActiveStateEl.textContent = "상태: 대화 중";
@@ -4369,7 +4469,7 @@
   let mouseDragged = false;
   let mouseDownX = 0;
   let mouseDownY = 0;
-  initPlayerName();
+  initPlayerName().then(() => { initMultiplayer(); });
   addLog("월드가 초기화되었습니다. NPC와 상호작용해 보세요.");
   if (LLM_API_URL) addChat("System", "근처 NPC와 한국어 LLM 채팅이 활성화되었습니다.");
   else addChat("System", "LLM 엔드포인트가 없어 로컬 대화 모드로 동작합니다.");
@@ -4432,7 +4532,7 @@
       if (mp.enabled) {
         mpBroadcast();
         mpInterpolate(dt);
-        if (frameCount % 300 === 0) mpCleanStale();
+        if (frameCount % 300 === 0) { mpCleanStale(); mpCleanMessages(); }
       }
     }
 
@@ -4841,8 +4941,11 @@
     db: null,
     sessionId: null,
     playersRef: null,
+    messagesRef: null,
     remotePlayers: {},
     lastBroadcastAt: 0,
+    lastMessageSendAt: 0,
+    MESSAGE_COOLDOWN: 1500,
     BROADCAST_INTERVAL: 100,
     STALE_TIMEOUT: 12_000,
   };
@@ -4866,6 +4969,7 @@
 
       myRef.set({
         name: player.name,
+        flag: player.flag || "",
         x: Math.round(player.x * 100) / 100,
         y: Math.round(player.y * 100) / 100,
         color: player.color,
@@ -4877,7 +4981,8 @@
         const clampX = typeof d.x === "number" && isFinite(d.x) ? Math.max(0, Math.min(34, d.x)) : 0;
         const clampY = typeof d.y === "number" && isFinite(d.y) ? Math.max(0, Math.min(34, d.y)) : 0;
         const safeName = String(d.name || "???").replace(/[<>]/g, "").slice(0, 20);
-        return { x: clampX, y: clampY, name: safeName, color: String(d.color || "#aaa").slice(0, 20), species: String(d.species || "human_a").slice(0, 20), ts: d.ts || 0 };
+        const safeFlag = normalizePlayerFlag(d.flag);
+        return { x: clampX, y: clampY, name: safeName, flag: safeFlag, color: String(d.color || "#aaa").slice(0, 20), species: String(d.species || "human_a").slice(0, 20), ts: d.ts || 0 };
       }
 
       mp.playersRef.on("child_added", (snap) => {
@@ -4888,6 +4993,7 @@
         mp.remotePlayers[snap.key] = {
           id: snap.key,
           name: s.name,
+          flag: s.flag,
           x: s.x,
           y: s.y,
           _targetX: s.x,
@@ -4907,6 +5013,7 @@
         const rp = mp.remotePlayers[snap.key];
         if (rp) {
           rp.name = s.name;
+          rp.flag = s.flag;
           rp._targetX = s.x;
           rp._targetY = s.y;
           rp.color = s.color;
@@ -4916,6 +5023,7 @@
           mp.remotePlayers[snap.key] = {
             id: snap.key,
             name: s.name,
+            flag: s.flag,
             x: s.x,
             y: s.y,
             _targetX: s.x,
@@ -4930,6 +5038,22 @@
 
       mp.playersRef.on("child_removed", (snap) => {
         delete mp.remotePlayers[snap.key];
+      });
+
+      // Messages listener
+      mp.messagesRef = mp.db.ref("playground/messages");
+      mp.messagesRef.orderByChild("ts").startAt(Date.now()).on("child_added", (snap) => {
+        const d = snap.val();
+        if (!d || d.sessionId === mp.sessionId) return;
+        const name = String(d.name || "???").replace(/[<>]/g, "").slice(0, 20);
+        const text = String(d.text || "").slice(0, 200);
+        const flag = normalizePlayerFlag(d.flag);
+        const displayName = (flag ? flag + " " : "") + name;
+        if (!text) return;
+        addChat(displayName, text, "remote");
+        if (d.sessionId && mp.remotePlayers[d.sessionId]) {
+          upsertSpeechBubble("remote_" + d.sessionId, text, 4000);
+        }
       });
 
       if (uiOnlineEl) uiOnlineEl.hidden = false;
@@ -4947,6 +5071,7 @@
     mp.lastBroadcastAt = now;
     mp.playersRef.child(mp.sessionId).update({
       name: player.name,
+      flag: player.flag || "",
       x: Math.round(player.x * 100) / 100,
       y: Math.round(player.y * 100) / 100,
       color: player.color,
@@ -4976,11 +5101,36 @@
     }
   }
 
+  function mpSendMessage(text) {
+    if (!mp.enabled || !mp.messagesRef) return;
+    const now = Date.now();
+    if (now - mp.lastMessageSendAt < mp.MESSAGE_COOLDOWN) return;
+    mp.lastMessageSendAt = now;
+    const safeText = String(text || "").slice(0, 200);
+    if (!safeText) return;
+    mp.messagesRef.push({
+      name: player.name,
+      flag: player.flag || "",
+      text: safeText,
+      sessionId: mp.sessionId,
+      ts: firebase.database.ServerValue.TIMESTAMP,
+    });
+    upsertSpeechBubble("player", safeText, 4000);
+  }
+
+  function mpCleanMessages() {
+    if (!mp.enabled || !mp.messagesRef) return;
+    const cutoff = Date.now() - 60_000;
+    mp.messagesRef.orderByChild("ts").endAt(cutoff).once("value", (snap) => {
+      const updates = {};
+      snap.forEach((child) => { updates[child.key] = null; });
+      if (Object.keys(updates).length > 0) mp.messagesRef.update(updates);
+    });
+  }
+
   function mpOnlineCount() {
     return Object.keys(mp.remotePlayers).length + 1;
   }
-
-  initMultiplayer();
 
   requestAnimationFrame(frame);
 })();
