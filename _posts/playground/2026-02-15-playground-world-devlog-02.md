@@ -2,6 +2,7 @@
 layout: post
 title: "Playground Devlog #2 - 비스듬한 시점, 마우스 조작, 퀘스트/관계도"
 date: 2026-02-15 21:00:00 +0900
+categories: [playground, devlog]
 ---
 
 로컬 월드 시뮬레이션 2차 업데이트입니다.

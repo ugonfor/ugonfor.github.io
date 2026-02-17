@@ -2,6 +2,7 @@
 layout: post
 title: "Playground Devlog #1 - 로컬 월드 프로토타입"
 date: 2026-02-15 20:00:00 +0900
+categories: [playground, devlog]
 ---
 
 Playground 월드 시뮬레이션의 첫 구현 로그입니다.

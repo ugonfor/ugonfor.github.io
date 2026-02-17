@@ -1,6 +1,8 @@
 ---
 layout: post
 title: "Whitehat School - Secure Coding Lecture Material"
+categories: [lecture]
+listed: true
 ---
 
 # Whitehat School - Secure Coding Lecture Material

@@ -2,6 +2,7 @@
 layout: post
 title: "Playground Devlog #3 - 조작계, 미니맵, 채팅, 퀘스트 확장"
 date: 2026-02-15 22:00:00 +0900
+categories: [playground, devlog]
 ---
 
 이번 업데이트는 월드의 플레이성과 추적성을 높이는 데 집중했습니다.
