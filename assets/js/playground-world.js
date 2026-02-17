@@ -45,6 +45,9 @@
   const rightToggleBtn = document.getElementById("pg-toggle-right");
   const chatToggleBtn = document.getElementById("pg-toggle-chat");
   const stageEl = document.querySelector(".pg-world-stage");
+  if ("ontouchstart" in window || navigator.maxTouchPoints > 0) {
+    stageEl.classList.add("pg-touch");
+  }
   const mobileInteractBtn = document.getElementById("pg-mobile-interact");
   const mobileRunBtn = document.getElementById("pg-mobile-run");
   // pg-mobile-chat removed: interaction and chat merged into single "대화" button
@@ -1332,7 +1335,9 @@
   }
 
   function isMobileViewport() {
-    return (window.innerWidth || 1280) <= 900;
+    const w = window.innerWidth || 1280;
+    const h = window.innerHeight || 800;
+    return w <= 900 || (h <= 500 && w > h);
   }
 
   function togglePanel(key) {
