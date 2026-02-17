@@ -2892,8 +2892,9 @@
     if (!mag) return;
 
     const runMul = keys.has("ShiftLeft") || keys.has("ShiftRight") || inputState.runHold ? 1.75 : 1;
+    const walkMul = (player.moveTarget && player.moveTarget.autoWalk) ? 0.5 : 1;
     const weatherSlow = weather.current === "storm" ? 0.8 : weather.current === "snow" ? 0.88 : 1;
-    const spd = player.speed * runMul * cardEffectMultiplier("speed") * weatherSlow;
+    const spd = player.speed * runMul * walkMul * cardEffectMultiplier("speed") * weatherSlow;
     const tx = player.x + (dx / mag) * spd * dt;
     const ty = player.y + (dy / mag) * spd * dt;
 
@@ -4872,20 +4873,28 @@
         ts: firebase.database.ServerValue.TIMESTAMP,
       });
 
+      function sanitizeRemote(d) {
+        const clampX = typeof d.x === "number" && isFinite(d.x) ? Math.max(0, Math.min(34, d.x)) : 0;
+        const clampY = typeof d.y === "number" && isFinite(d.y) ? Math.max(0, Math.min(34, d.y)) : 0;
+        const safeName = String(d.name || "???").replace(/[<>]/g, "").slice(0, 20);
+        return { x: clampX, y: clampY, name: safeName, color: String(d.color || "#aaa").slice(0, 20), species: String(d.species || "human_a").slice(0, 20), ts: d.ts || 0 };
+      }
+
       mp.playersRef.on("child_added", (snap) => {
         if (snap.key === mp.sessionId) return;
         const d = snap.val();
         if (!d) return;
+        const s = sanitizeRemote(d);
         mp.remotePlayers[snap.key] = {
           id: snap.key,
-          name: d.name || "???",
-          x: d.x || 0,
-          y: d.y || 0,
-          _targetX: d.x || 0,
-          _targetY: d.y || 0,
-          color: d.color || "#aaa",
-          species: d.species || "human_a",
-          ts: d.ts || 0,
+          name: s.name,
+          x: s.x,
+          y: s.y,
+          _targetX: s.x,
+          _targetY: s.y,
+          color: s.color,
+          species: s.species,
+          ts: s.ts,
           _isRemotePlayer: true,
         };
       });
@@ -4894,25 +4903,26 @@
         if (snap.key === mp.sessionId) return;
         const d = snap.val();
         if (!d) return;
+        const s = sanitizeRemote(d);
         const rp = mp.remotePlayers[snap.key];
         if (rp) {
-          rp.name = d.name || rp.name;
-          rp._targetX = d.x ?? rp._targetX;
-          rp._targetY = d.y ?? rp._targetY;
-          rp.color = d.color || rp.color;
-          rp.species = d.species || rp.species;
-          rp.ts = d.ts || rp.ts;
+          rp.name = s.name;
+          rp._targetX = s.x;
+          rp._targetY = s.y;
+          rp.color = s.color;
+          rp.species = s.species;
+          rp.ts = s.ts;
         } else {
           mp.remotePlayers[snap.key] = {
             id: snap.key,
-            name: d.name || "???",
-            x: d.x || 0,
-            y: d.y || 0,
-            _targetX: d.x || 0,
-            _targetY: d.y || 0,
-            color: d.color || "#aaa",
-            species: d.species || "human_a",
-            ts: d.ts || 0,
+            name: s.name,
+            x: s.x,
+            y: s.y,
+            _targetX: s.x,
+            _targetY: s.y,
+            color: s.color,
+            species: s.species,
+            ts: s.ts,
             _isRemotePlayer: true,
           };
         }
