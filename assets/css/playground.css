@@ -535,7 +535,7 @@ button.pg-pressed,
   display: none;
 }
 
-@media print, screen and (max-width: 900px) {
+@media print, screen and (max-width: 900px), screen and (max-height: 500px) and (orientation: landscape) {
   .pg-world-stage {
     --pg-mobile-joystick: clamp(76px, 24vw, 92px);
     --pg-mobile-action-w: clamp(56px, 17.5vw, 66px);
@@ -758,7 +758,7 @@ button.pg-pressed,
   }
 }
 
-@media screen and (min-width: 901px) and (max-width: 1120px) {
+@media screen and (min-width: 901px) and (max-width: 1120px) and (min-height: 501px) {
   .pg-world-ui {
     --hud-left-w: clamp(210px, 31vw, 268px);
     --hud-right-w: 0px;
@@ -816,7 +816,7 @@ button.pg-pressed,
   line-height: 1.2;
 }
 
-@media print, screen and (max-width: 900px) {
+@media print, screen and (max-width: 900px), screen and (max-height: 500px) and (orientation: landscape) {
   .pg-quest-banner {
     position: fixed;
     top: 0;
@@ -889,12 +889,6 @@ button.pg-pressed,
   background: #3a7bc8;
 }
 
-/* Hide keyboard help on touch devices (incl. landscape) */
-@media (pointer: coarse) {
-  .pg-controls-help {
-    display: none;
-  }
-}
 
 /* Chat source colors */
 .pg-chat-remote { color: #2979ff; }
