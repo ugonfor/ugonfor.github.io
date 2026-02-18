@@ -35,6 +35,7 @@ extra_head: |
       <p id="pg-quest-banner-title" class="pg-quest-banner-title"></p>
       <p id="pg-quest-banner-objective" class="pg-quest-banner-objective"></p>
     </div>
+    <div id="pg-toast-container" class="pg-toast-container"></div>
     <div class="pg-mobile-controls" aria-label="Mobile controls">
       <div class="pg-joystick-wrap">
         <div id="pg-joystick-base" class="pg-joystick-base">
