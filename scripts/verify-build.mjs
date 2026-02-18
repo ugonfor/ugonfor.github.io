@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
-const BUILD_FILE = resolve(ROOT, "assets/js/playground-world.js");
+const BUILD_FILE = resolve(ROOT, "dist/assets/js/playground-world.js");
 
 let passed = 0;
 let failed = 0;

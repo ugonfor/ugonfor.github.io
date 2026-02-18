@@ -9,7 +9,7 @@ export default defineConfig({
       fileName: () => 'playground-world.js',
       formats: ['iife'],
     },
-    outDir: resolve(__dirname, 'assets/js'),
+    outDir: resolve(__dirname, 'dist/assets/js'),
     emptyOutDir: false,
     minify: false,
     rollupOptions: {
