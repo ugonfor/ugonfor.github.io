@@ -100,7 +100,9 @@
 
   const keys = new Set();
   const logs = [];
-  const chats = [];
+  const npcChatHistories = {};
+  const globalChats = [];
+  const systemToasts = [];
   let llmAvailable = true;
   let focusedNpcId = null;
   let conversationFocusNpcId = null;
@@ -165,8 +167,8 @@
   };
 
   const world = {
-    width: 34,
-    height: 34,
+    width: 100,
+    height: 100,
     totalMinutes: 8 * 60,
     paused: false,
     baseTileW: 40,
@@ -202,8 +204,8 @@
   const player = {
     name: "플레이어",
     flag: "",
-    x: 12,
-    y: 18,
+    x: 20,
+    y: 25,
     speed: 3.7,
     color: "#f2cc61",
     species: "human_a",
@@ -211,58 +213,130 @@
   };
 
   const places = {
-    plaza: { x: 13, y: 17 },
-    cafe: { x: 22, y: 8 },
-    office: { x: 26, y: 10 },
-    park: { x: 8, y: 8 },
-    market: { x: 20, y: 24 },
-    homeA: { x: 6, y: 24 },
-    homeB: { x: 28, y: 24 },
-    homeC: { x: 16, y: 6 },
+    plaza: { x: 20, y: 25 },
+    cafe: { x: 31, y: 11 },
+    office: { x: 36, y: 13 },
+    park: { x: 10, y: 10 },
+    market: { x: 27, y: 31 },
+    homeA: { x: 9, y: 36 },
+    homeB: { x: 51, y: 31 },
+    homeC: { x: 39, y: 41 },
+    bakery: { x: 25, y: 28 },
+    florist: { x: 13, y: 15 },
+    library: { x: 11.5, y: 29 },
+    ksa_main: { x: 44.5, y: 9.5 },
+    ksa_dorm: { x: 44.5, y: 15 },
   };
 
   const buildings = [
-    { id: "cafe", x: 22, y: 7, w: 3, h: 2, z: 2.3, color: "#f7b6b5", roof: "#e68a84", label: "카페" },
-    { id: "office", x: 25, y: 9, w: 4, h: 2, z: 2.9, color: "#f8d28d", roof: "#d79956", label: "사무실" },
-    { id: "market", x: 19, y: 23, w: 4, h: 3, z: 2.5, color: "#9ecbf0", roof: "#6ea2d4", label: "시장" },
+    { id: "cafe", x: 30, y: 10, w: 3, h: 2, z: 2.3, color: "#f7b6b5", roof: "#e68a84", label: "카페" },
+    { id: "office", x: 34, y: 12, w: 4, h: 2, z: 2.9, color: "#f8d28d", roof: "#d79956", label: "사무실" },
+    { id: "market", x: 25, y: 30, w: 4, h: 3, z: 2.5, color: "#9ecbf0", roof: "#6ea2d4", label: "시장" },
+    { id: "ksa_main", x: 42, y: 8, w: 5, h: 3, z: 3.2, color: "#d4c4a8", roof: "#b8a88c", label: "KSA 본관" },
+    { id: "ksa_dorm", x: 43, y: 14, w: 3, h: 2, z: 2.4, color: "#c9b896", roof: "#a89878", label: "KSA 기숙사" },
+    { id: "bakery", x: 24, y: 27, w: 2, h: 2, z: 2.2, color: "#f4d6a3", roof: "#dab977", label: "빵집" },
+    { id: "florist", x: 12, y: 14, w: 2, h: 2, z: 2.1, color: "#ffc9e0", roof: "#e8a1c1", label: "꽃집" },
+    { id: "library", x: 10, y: 28, w: 3, h: 2, z: 2.6, color: "#b0c9d4", roof: "#8aa3b8", label: "도서관" },
+    { id: "houseA", x: 8, y: 35, w: 2, h: 2, z: 2.0, color: "#e8c9a6", roof: "#c4a073", label: "주택" },
+    { id: "houseB", x: 50, y: 30, w: 2, h: 2, z: 2.0, color: "#d4b89a", roof: "#b09572", label: "주택" },
+    { id: "houseC", x: 38, y: 40, w: 2, h: 2, z: 2.0, color: "#ceb798", roof: "#a89370", label: "주택" },
   ];
 
   const hotspots = [
-    { id: "exitGate", x: 13, y: 32.5, label: "출구" },
-    { id: "cafeDoor", x: 23, y: 9, label: "카페 입구" },
-    { id: "marketBoard", x: 20.5, y: 26, label: "시장 게시판" },
-    { id: "parkMonument", x: 8.6, y: 8.2, label: "공원 기념비" },
+    { id: "exitGate", x: 50, y: 97, label: "출구" },
+    { id: "cafeDoor", x: 31, y: 12, label: "카페 입구" },
+    { id: "marketBoard", x: 27, y: 33, label: "시장 게시판" },
+    { id: "parkMonument", x: 10, y: 10, label: "공원 기념비" },
+    { id: "ksaMainDoor", x: 44.5, y: 11, label: "KSA 본관" },
+    { id: "ksaDormDoor", x: 44.5, y: 16, label: "KSA 기숙사" },
+    { id: "bakeryDoor", x: 25, y: 29, label: "빵집 입구" },
+    { id: "floristDoor", x: 13, y: 16, label: "꽃집 입구" },
+    { id: "libraryDoor", x: 11.5, y: 30, label: "도서관 입구" },
+    { id: "minigameZone", x: 30, y: 20, label: "🏃 놀이터" },
   ];
 
   const props = [
-    { type: "tree", x: 5.5, y: 10.2 },
-    { type: "tree", x: 8.2, y: 11.3 },
-    { type: "tree", x: 11.1, y: 8.9 },
-    { type: "tree", x: 18.8, y: 6.4 },
-    { type: "tree", x: 26.2, y: 6.8 },
-    { type: "tree", x: 30.2, y: 12.4 },
-    { type: "tree", x: 7.4, y: 27.2 },
-    { type: "tree", x: 14.2, y: 28.3 },
-    { type: "tree", x: 29.1, y: 28.1 },
-    { type: "lamp", x: 13.2, y: 13.8 },
-    { type: "lamp", x: 13.3, y: 20.2 },
-    { type: "lamp", x: 20.2, y: 17.1 },
-    { type: "lamp", x: 23.6, y: 17.1 },
-    { type: "bush", x: 10.3, y: 14.5 },
-    { type: "bush", x: 11.4, y: 15.2 },
-    { type: "bush", x: 24.3, y: 14.4 },
-    { type: "bush", x: 25.5, y: 13.6 },
-    { type: "flower", x: 7.2, y: 16.2 },
-    { type: "flower", x: 8.1, y: 16.8 },
-    { type: "flower", x: 9.1, y: 16.0 },
-    { type: "flower", x: 27.6, y: 20.8 },
-    { type: "flower", x: 28.4, y: 21.2 },
-    { type: "fence", x: 6.8, y: 22.4 },
-    { type: "fence", x: 7.8, y: 22.4 },
-    { type: "fence", x: 8.8, y: 22.4 },
-    { type: "fence", x: 26.5, y: 22.8 },
-    { type: "fence", x: 27.5, y: 22.8 },
-    { type: "fence", x: 28.5, y: 22.8 },
+    // 공원 (10,10)
+    { type: "fountain", x: 10, y: 10 },
+    { type: "bench", x: 8, y: 9 }, { type: "bench", x: 12, y: 9 },
+    { type: "bench", x: 8, y: 11.5 }, { type: "bench", x: 12, y: 11.5 },
+    { type: "tree", x: 7.2, y: 7.5 }, { type: "tree", x: 13.5, y: 7.8 },
+    { type: "tree", x: 7, y: 12.8 }, { type: "tree", x: 14, y: 13 },
+    { type: "flower", x: 8.5, y: 8 }, { type: "flower", x: 11.5, y: 8.2 },
+    { type: "flower", x: 9, y: 12 }, { type: "flower", x: 11, y: 12.2 },
+    { type: "bush", x: 6.5, y: 10 }, { type: "bush", x: 14.5, y: 10.5 },
+    // 꽃집 (12,14) 주변
+    { type: "flower", x: 11, y: 13.5 }, { type: "flower", x: 11.5, y: 15.5 },
+    { type: "flower", x: 14.5, y: 14.2 }, { type: "flower", x: 14, y: 15.8 },
+    { type: "flower", x: 13.5, y: 13.2 }, { type: "bush", x: 11.2, y: 16.5 },
+    // 카페/사무실
+    { type: "tree", x: 28, y: 9 }, { type: "tree", x: 39, y: 11 },
+    { type: "bush", x: 33, y: 9.5 }, { type: "bush", x: 37, y: 14.5 },
+    { type: "flower", x: 29, y: 12.5 }, { type: "lamp", x: 31, y: 14 },
+    // KSA 캠퍼스
+    { type: "tree", x: 40, y: 7 }, { type: "tree", x: 48, y: 7.5 },
+    { type: "tree", x: 40, y: 17 }, { type: "tree", x: 48, y: 16.5 },
+    { type: "bush", x: 41, y: 12 }, { type: "bush", x: 47, y: 12.5 },
+    { type: "bench", x: 41, y: 10 }, { type: "bench", x: 46, y: 10 },
+    { type: "lamp", x: 44, y: 11.5 }, { type: "lamp", x: 44, y: 16.5 },
+    { type: "fence", x: 41, y: 7 }, { type: "fence", x: 42, y: 7 },
+    { type: "fence", x: 47, y: 7 }, { type: "fence", x: 48, y: 7 },
+    { type: "flower", x: 43, y: 7.5 }, { type: "flower", x: 45, y: 7.5 },
+    { type: "signpost", x: 42, y: 18 },
+    // 놀이터 (30,20)
+    { type: "fence", x: 28, y: 18 }, { type: "fence", x: 29, y: 18 },
+    { type: "fence", x: 31, y: 18 }, { type: "fence", x: 32, y: 18 },
+    { type: "bench", x: 28, y: 22 }, { type: "bench", x: 32, y: 22 },
+    { type: "lamp", x: 28, y: 20 }, { type: "lamp", x: 32, y: 20 },
+    // 광장 (20,25)
+    { type: "lamp", x: 18, y: 23.5 }, { type: "lamp", x: 22, y: 23.5 },
+    { type: "lamp", x: 18, y: 26.5 }, { type: "lamp", x: 22, y: 26.5 },
+    { type: "bench", x: 17, y: 24 }, { type: "bench", x: 23, y: 24 },
+    { type: "signpost", x: 21, y: 23.5 },
+    { type: "bush", x: 17, y: 26 }, { type: "bush", x: 23.5, y: 26 },
+    // 빵집/도서관/시장 주변
+    { type: "bush", x: 23, y: 26.5 }, { type: "flower", x: 26.5, y: 27.5 },
+    { type: "tree", x: 8, y: 27 }, { type: "tree", x: 14, y: 29 },
+    { type: "bench", x: 9, y: 30.5 }, { type: "bush", x: 13.5, y: 28 },
+    { type: "tree", x: 23, y: 33.5 }, { type: "tree", x: 30, y: 30.5 },
+    { type: "lamp", x: 27, y: 34 }, { type: "bush", x: 24, y: 33 },
+    // 주택A (8,35)
+    { type: "fence", x: 7, y: 37.5 }, { type: "fence", x: 8, y: 37.5 },
+    { type: "fence", x: 9, y: 37.5 }, { type: "fence", x: 10, y: 37.5 },
+    { type: "flower", x: 7.5, y: 34.5 }, { type: "flower", x: 10.5, y: 34.5 },
+    { type: "tree", x: 6, y: 33 }, { type: "bush", x: 11, y: 36 },
+    // 주택B (50,30)
+    { type: "fence", x: 49, y: 32.5 }, { type: "fence", x: 50, y: 32.5 },
+    { type: "fence", x: 51, y: 32.5 }, { type: "fence", x: 52, y: 32.5 },
+    { type: "flower", x: 49.5, y: 29.5 }, { type: "flower", x: 52.5, y: 29.5 },
+    { type: "tree", x: 53, y: 28 }, { type: "bush", x: 48, y: 31 },
+    // 주택C (38,40)
+    { type: "fence", x: 37, y: 42.5 }, { type: "fence", x: 38, y: 42.5 },
+    { type: "fence", x: 39, y: 42.5 }, { type: "fence", x: 40, y: 42.5 },
+    { type: "flower", x: 37.5, y: 39.5 }, { type: "flower", x: 40.5, y: 39.5 },
+    { type: "tree", x: 36, y: 38 }, { type: "bush", x: 41, y: 41 },
+    // 도로 주변
+    { type: "lamp", x: 15, y: 43.5 }, { type: "lamp", x: 30, y: 43.5 },
+    { type: "lamp", x: 50, y: 43.5 }, { type: "lamp", x: 45, y: 20 },
+    { type: "lamp", x: 45, y: 35 }, { type: "signpost", x: 20, y: 43.5 },
+    // 자연 소품
+    { type: "tree", x: 18, y: 5 }, { type: "tree", x: 25, y: 4.5 },
+    { type: "tree", x: 35, y: 6 }, { type: "tree", x: 32, y: 20 },
+    { type: "tree", x: 38, y: 22 }, { type: "tree", x: 15, y: 20 },
+    { type: "bush", x: 35, y: 18 }, { type: "bush", x: 28, y: 22 },
+    { type: "rock", x: 16, y: 7 }, { type: "rock", x: 7, y: 18 },
+    { type: "rock", x: 7.5, y: 22 }, { type: "rock", x: 6.5, y: 30 },
+    { type: "tree", x: 7, y: 20 },
+    // 확장 영역
+    { type: "tree", x: 12, y: 50 }, { type: "tree", x: 25, y: 52 },
+    { type: "tree", x: 40, y: 48 }, { type: "tree", x: 55, y: 50 },
+    { type: "tree", x: 18, y: 58 }, { type: "tree", x: 35, y: 60 },
+    { type: "tree", x: 50, y: 55 }, { type: "tree", x: 60, y: 20 },
+    { type: "tree", x: 65, y: 35 }, { type: "tree", x: 70, y: 50 },
+    { type: "rock", x: 30, y: 55 }, { type: "rock", x: 45, y: 52 },
+    { type: "rock", x: 60, y: 45 },
+    { type: "bush", x: 20, y: 55 }, { type: "bush", x: 55, y: 40 },
+    { type: "bush", x: 65, y: 25 },
   ];
 
   const speciesPool = ["human_a", "human_b", "human_c", "human_d", "human_e", "human_f", "human_g", "human_h", "human_i"];
@@ -353,15 +427,23 @@
   }
 
   const npcs = [
-    makeNpc("heo", "허승준", "#e56f6f", places.homeA, places.office, places.park, "", "human_a"),
-    makeNpc("kim", "김민수", "#6fa1e5", places.homeB, places.market, places.plaza, "", "human_b"),
-    makeNpc("choi", "최민영", "#79c88b", places.homeC, places.cafe, places.park, "", "human_c"),
-    makeNpc("jung", "정욱진", "#b88be6", places.homeA, places.cafe, places.market, "", "human_d"),
-    makeNpc("seo", "서창근", "#e6a76f", places.homeB, places.office, places.plaza, "", "human_e"),
-    makeNpc("lee", "이진원", "#6fc7ba", places.homeC, places.market, places.plaza, "", "human_f"),
-    makeNpc("park", "박지호", "#d88972", places.homeA, places.office, places.park, "", "human_g"),
-    makeNpc("jang", "장동우", "#8e9be3", places.homeB, places.cafe, places.market, "", "human_h"),
-    makeNpc("yoo", "유효곤", "#5e88dd", places.homeC, places.office, places.plaza, "", "human_i"),
+    // KSA 학생들 (기숙사→본관→각자 취미)
+    makeNpc("heo", "허승준", "#e56f6f", places.ksa_dorm, places.ksa_main, places.park, "", "human_a"),
+    makeNpc("kim", "김민수", "#6fa1e5", places.ksa_dorm, places.ksa_main, places.cafe, "", "human_b"),
+    makeNpc("choi", "최민영", "#79c88b", places.ksa_dorm, places.ksa_main, places.plaza, "", "human_c"),
+    makeNpc("jung", "정욱진", "#b88be6", places.ksa_dorm, places.ksa_main, places.market, "", "human_d"),
+    makeNpc("seo", "서창근", "#e6a76f", places.ksa_dorm, places.ksa_main, places.park, "", "human_e"),
+    makeNpc("lee", "이진원", "#6fc7ba", places.ksa_dorm, places.ksa_main, places.cafe, "", "human_f"),
+    makeNpc("park", "박지호", "#d88972", places.ksa_dorm, places.ksa_main, places.plaza, "", "human_g"),
+    makeNpc("jang", "장동우", "#8e9be3", places.ksa_dorm, places.ksa_main, places.market, "", "human_h"),
+    makeNpc("yoo", "유효곤", "#5e88dd", places.ksa_dorm, places.ksa_main, places.park, "", "human_i"),
+    // 마을 주민들
+    makeNpc("baker", "한소영", "#e6a76f", places.bakery, places.bakery, places.market, "빵집 사장. 밝고 다정하며, 매일 새벽에 빵을 굽는다.", "human_d"),
+    makeNpc("floristNpc", "윤채린", "#ff8fa3", places.florist, places.florist, places.park, "꽃집 주인. 조용하고 섬세하며, 꽃 이름을 다 알고 있다.", "human_c"),
+    makeNpc("librarian", "송재현", "#7a9ec7", places.library, places.library, places.cafe, "도서관 사서. 책벌레이고, 모든 주제에 박식하다.", "human_b"),
+    makeNpc("residentA", "강민호", "#8bc77a", places.homeA, places.market, places.plaza, "은퇴한 어부. 옛날 얘기를 좋아한다.", "human_g"),
+    makeNpc("residentB", "오지은", "#c9a0d4", places.homeB, places.office, places.library, "프리랜서 작가. 카페에서 글을 쓴다.", "human_f"),
+    makeNpc("residentC", "임태준", "#d4a070", places.homeC, places.bakery, places.park, "시장에서 장사하며, 요리를 잘한다.", "human_h"),
   ];
 
   const relations = {
@@ -419,12 +501,134 @@
   const quest = {
     title: "이웃의 실타래",
     stage: 0,
-    objective: "광장에서 허승준에게 말을 걸어보세요.",
+    objective: "허승준에게 말을 걸어보세요. (KSA 본관 근처)",
     done: false,
   };
 
   const questHistory = [];
   let questCount = 0;
+
+  // ─── 술래잡기 미니게임 ───
+  const tagGame = {
+    active: false,
+    targetNpcId: null,
+    startedAt: 0,
+    duration: 60_000, // 60초
+    caught: false,
+    cooldownUntil: 0,
+  };
+
+  function startTagGame(npc) {
+    tagGame.active = true;
+    tagGame.targetNpcId = npc.id;
+    tagGame.startedAt = nowMs();
+    tagGame.caught = false;
+    npc.roamTarget = null;
+    addChat("System", `🏃 술래잡기 시작! ${npc.name}을(를) 60초 안에 잡으세요!`);
+    addLog(`술래잡기: ${npc.name}을(를) 잡아라!`);
+  }
+
+  function updateTagGame(dt) {
+    if (!tagGame.active) return;
+    const elapsed = nowMs() - tagGame.startedAt;
+    const remaining = tagGame.duration - elapsed;
+
+    // 시간 초과 → 패배
+    if (remaining <= 0) {
+      tagGame.active = false;
+      tagGame.cooldownUntil = nowMs() + 120_000;
+      addChat("System", "⏰ 시간 초과! 술래잡기에서 졌습니다.");
+      addLog("술래잡기 실패...");
+      return;
+    }
+
+    const targetNpc = npcs.find(n => n.id === tagGame.targetNpcId);
+    if (!targetNpc) { tagGame.active = false; return; }
+
+    // 잡았는지 확인
+    const dist = Math.hypot(player.x - targetNpc.x, player.y - targetNpc.y);
+    if (dist < 1.5) {
+      tagGame.active = false;
+      tagGame.caught = true;
+      tagGame.cooldownUntil = nowMs() + 120_000;
+      const reward = 15;
+      coins += reward;
+      targetNpc.favorPoints += 8;
+      addChat("System", `🎉 잡았다! ${targetNpc.name}을(를) 잡았습니다! (+${reward}코인)`);
+      addLog(`술래잡기 승리! +${reward}코인`);
+      tryCardDrop("timed_event", targetNpc);
+      return;
+    }
+
+    // NPC 도망 AI: 플레이어 반대 방향 + 약간의 랜덤
+    const dx = targetNpc.x - player.x;
+    const dy = targetNpc.y - player.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 0.1) {
+      // 도망 방향 = 플레이어 반대 + 랜덤 오프셋
+      const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 1.2;
+      const fleeSpeed = (targetNpc.speed + 1.5) * dt;
+      const nx = targetNpc.x + Math.cos(angle) * fleeSpeed;
+      const ny = targetNpc.y + Math.sin(angle) * fleeSpeed;
+      if (canStand(nx, ny)) {
+        targetNpc.x = nx;
+        targetNpc.y = ny;
+        targetNpc.state = "moving";
+      } else {
+        // 벽에 부딪히면 다른 방향 시도
+        const altAngle = angle + Math.PI * 0.5 * (Math.random() > 0.5 ? 1 : -1);
+        const ax = targetNpc.x + Math.cos(altAngle) * fleeSpeed;
+        const ay = targetNpc.y + Math.sin(altAngle) * fleeSpeed;
+        if (canStand(ax, ay)) {
+          targetNpc.x = ax;
+          targetNpc.y = ay;
+          targetNpc.state = "moving";
+        }
+      }
+    }
+  }
+
+  function drawTagGameHud() {
+    if (!tagGame.active) return;
+    const elapsed = nowMs() - tagGame.startedAt;
+    const remaining = Math.max(0, tagGame.duration - elapsed);
+    const secs = Math.ceil(remaining / 1000);
+
+    const targetNpc = npcs.find(n => n.id === tagGame.targetNpcId);
+    const npcName = targetNpc ? targetNpc.name : "???";
+    const text = `🏃 술래잡기! ${npcName}을(를) 잡아라! — ${secs}초`;
+
+    ctx.save();
+    ctx.font = "700 15px sans-serif";
+    const tw = ctx.measureText(text).width + 28;
+    const tx = canvas.width * 0.5 - tw * 0.5;
+    const ty = 38;
+
+    // 배경
+    ctx.fillStyle = secs <= 10 ? "rgba(220, 50, 50, 0.88)" : "rgba(50, 120, 200, 0.88)";
+    ctx.beginPath();
+    ctx.roundRect(tx, ty, tw, 30, 8);
+    ctx.fill();
+
+    // 텍스트
+    ctx.fillStyle = "#fff";
+    ctx.fillText(text, tx + 14, ty + 21);
+
+    // 거리 표시
+    if (targetNpc) {
+      const dist = Math.hypot(player.x - targetNpc.x, player.y - targetNpc.y);
+      const distText = `거리: ${dist.toFixed(1)}`;
+      ctx.font = "600 12px sans-serif";
+      const dw = ctx.measureText(distText).width + 16;
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.beginPath();
+      ctx.roundRect(canvas.width * 0.5 - dw * 0.5, ty + 34, dw, 20, 6);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillText(distText, canvas.width * 0.5 - dw * 0.5 + 8, ty + 49);
+    }
+    ctx.restore();
+  }
 
   const worldEvents = {
     day: -1,
@@ -505,21 +709,27 @@
 
   // ─── Discovery System ───
   const discoveries = [
-    { id: "secret_garden", x: 30.5, y: 6.5, radius: 1.8, found: false, title: "비밀 정원", desc: "건물 뒤에 숨겨진 작은 정원을 발견했다.", condition: "always", reward: "gem" },
-    { id: "river_message", x: 5.5, y: 14, radius: 1.5, found: false, title: "강변의 편지", desc: "강가에서 유리병 속 편지를 발견했다.", condition: "always", reward: "letter" },
-    { id: "midnight_glow", x: 8.6, y: 8.2, radius: 1.5, found: false, title: "자정의 빛", desc: "공원 기념비가 자정에 은은하게 빛나고 있다!", condition: "night", reward: "gem" },
-    { id: "rain_mushrooms", x: 15, y: 12, radius: 2.0, found: false, title: "비 오는 날의 버섯", desc: "비가 오자 길가에 형형색색 버섯이 자라났다.", condition: "rain", reward: "snack" },
-    { id: "hidden_well", x: 28, y: 20, radius: 1.5, found: false, title: "숨겨진 우물", desc: "덤불 사이에서 오래된 우물을 발견했다.", condition: "always", reward: "gem" },
-    { id: "sunset_view", x: 32, y: 4, radius: 2.0, found: false, title: "노을 전망대", desc: "언덕 위에서 아름다운 노을을 볼 수 있다.", condition: "evening", reward: "flower_red" },
-    { id: "fog_figure", x: 10, y: 26, radius: 2.0, found: false, title: "안개 속 그림자", desc: "안개 속에서 희미한 형체를 발견했다...", condition: "fog", reward: "gem" },
-    { id: "market_stash", x: 18, y: 26.5, radius: 1.5, found: false, title: "시장 뒷골목 비밀", desc: "시장 뒤에서 숨겨진 상자를 발견했다.", condition: "always", reward: "snack" },
-    { id: "night_cats", x: 24, y: 28, radius: 2.0, found: false, title: "밤의 고양이들", desc: "밤에만 나타나는 고양이 무리를 발견했다!", condition: "night", reward: "snack" },
-    { id: "flower_field", x: 7, y: 17.5, radius: 2.0, found: false, title: "비밀 꽃밭", desc: "수풀 사이에 숨겨진 꽃밭이 있었다.", condition: "always", reward: "flower_red" },
-    { id: "storm_crystal", x: 13, y: 5, radius: 2.0, found: false, title: "폭풍의 수정", desc: "폭풍우 속에서 빛나는 수정을 발견했다!", condition: "storm", reward: "gem" },
-    { id: "snow_angel", x: 20, y: 10, radius: 2.0, found: false, title: "눈 위의 천사", desc: "눈이 온 뒤 땅에 신비한 무늬가 생겼다.", condition: "snow", reward: "gem" },
-    { id: "dawn_song", x: 16, y: 30, radius: 2.0, found: false, title: "새벽의 노래", desc: "이른 새벽, 어디선가 아름다운 노래가 들린다.", condition: "dawn", reward: "letter" },
-    { id: "plaza_dance", x: 13, y: 17, radius: 1.5, found: false, title: "광장의 흔적", desc: "광장 바닥에서 오래된 모자이크 무늬를 발견했다.", condition: "always", reward: "coffee" },
-    { id: "lamp_wish", x: 13.2, y: 13.8, radius: 1.2, found: false, title: "소원의 가로등", desc: "이 가로등에는 작은 소원 종이가 매달려 있다.", condition: "night", reward: "letter" },
+    { id: "secret_garden", x: 38, y: 8, radius: 1.8, found: false, title: "비밀 정원", desc: "건물 뒤에 숨겨진 작은 정원을 발견했다.", condition: "always", reward: "gem" },
+    { id: "river_message", x: 7, y: 16, radius: 1.5, found: false, title: "강변의 편지", desc: "강가에서 유리병 속 편지를 발견했다.", condition: "always", reward: "letter" },
+    { id: "midnight_glow", x: 10, y: 10, radius: 1.5, found: false, title: "자정의 빛", desc: "공원 분수가 자정에 은은하게 빛나고 있다!", condition: "night", reward: "gem" },
+    { id: "rain_mushrooms", x: 18, y: 15, radius: 2.0, found: false, title: "비 오는 날의 버섯", desc: "비가 오자 길가에 형형색색 버섯이 자라났다.", condition: "rain", reward: "snack" },
+    { id: "hidden_well", x: 35, y: 28, radius: 1.5, found: false, title: "숨겨진 우물", desc: "덤불 사이에서 오래된 우물을 발견했다.", condition: "always", reward: "gem" },
+    { id: "sunset_view", x: 55, y: 6, radius: 2.0, found: false, title: "노을 전망대", desc: "언덕 위에서 아름다운 노을을 볼 수 있다.", condition: "evening", reward: "flower_red" },
+    { id: "fog_figure", x: 12, y: 38, radius: 2.0, found: false, title: "안개 속 그림자", desc: "안개 속에서 희미한 형체를 발견했다...", condition: "fog", reward: "gem" },
+    { id: "market_stash", x: 24, y: 34, radius: 1.5, found: false, title: "시장 뒷골목 비밀", desc: "시장 뒤에서 숨겨진 상자를 발견했다.", condition: "always", reward: "snack" },
+    { id: "night_cats", x: 30, y: 38, radius: 2.0, found: false, title: "밤의 고양이들", desc: "밤에만 나타나는 고양이 무리를 발견했다!", condition: "night", reward: "snack" },
+    { id: "flower_field", x: 8, y: 22, radius: 2.0, found: false, title: "비밀 꽃밭", desc: "수풀 사이에 숨겨진 꽃밭이 있었다.", condition: "always", reward: "flower_red" },
+    { id: "storm_crystal", x: 20, y: 8, radius: 2.0, found: false, title: "폭풍의 수정", desc: "폭풍우 속에서 빛나는 수정을 발견했다!", condition: "storm", reward: "gem" },
+    { id: "snow_angel", x: 28, y: 15, radius: 2.0, found: false, title: "눈 위의 천사", desc: "눈이 온 뒤 땅에 신비한 무늬가 생겼다.", condition: "snow", reward: "gem" },
+    { id: "dawn_song", x: 22, y: 42, radius: 2.0, found: false, title: "새벽의 노래", desc: "이른 새벽, 어디선가 아름다운 노래가 들린다.", condition: "dawn", reward: "letter" },
+    { id: "plaza_dance", x: 20, y: 25, radius: 1.5, found: false, title: "광장의 흔적", desc: "광장 바닥에서 오래된 모자이크 무늬를 발견했다.", condition: "always", reward: "coffee" },
+    { id: "lamp_wish", x: 18, y: 23.5, radius: 1.2, found: false, title: "소원의 가로등", desc: "이 가로등에는 작은 소원 종이가 매달려 있다.", condition: "night", reward: "letter" },
+    // 확장 영역 발견 장소
+    { id: "ksa_rooftop", x: 46, y: 8, radius: 1.5, found: false, title: "KSA 옥상의 비밀", desc: "본관 옥상에서 밤하늘에 빛나는 무언가를 발견했다.", condition: "night", reward: "gem" },
+    { id: "south_lake", x: 40, y: 60, radius: 2.5, found: false, title: "남쪽 호수", desc: "숲 사이에 숨겨진 고요한 호수를 발견했다.", condition: "always", reward: "gem" },
+    { id: "east_cabin", x: 70, y: 25, radius: 2.0, found: false, title: "동쪽 숲속 오두막", desc: "안개 속에서 오래된 오두막이 보인다...", condition: "fog", reward: "letter" },
+    { id: "cat_village", x: 15, y: 55, radius: 2.0, found: false, title: "고양이 마을", desc: "밤이 되자 고양이들이 모여드는 비밀 장소!", condition: "night", reward: "snack" },
+    { id: "rainbow_spot", x: 55, y: 50, radius: 2.5, found: false, title: "폭풍 후 무지개", desc: "폭풍이 지나간 뒤, 하늘에 거대한 무지개가 떴다.", condition: "storm", reward: "gem" },
   ];
   let discoveryNotifyUntil = 0;
   let discoveryNotifyTitle = "";
@@ -939,18 +1149,27 @@
   };
 
   const groundItems = [
-    { id: "gi1", type: "flower_red", x: 7.5, y: 16.5, pickedAt: 0 },
-    { id: "gi2", type: "flower_yellow", x: 9.2, y: 16.3, pickedAt: 0 },
-    { id: "gi3", type: "coffee", x: 22.5, y: 8.2, pickedAt: 0 },
-    { id: "gi4", type: "snack", x: 20.3, y: 24.5, pickedAt: 0 },
-    { id: "gi5", type: "letter", x: 13.2, y: 17.5, pickedAt: 0 },
-    { id: "gi6", type: "flower_red", x: 28.0, y: 21.0, pickedAt: 0 },
-    { id: "gi7", type: "coffee", x: 23.5, y: 9.5, pickedAt: 0 },
-    { id: "gi8", type: "snack", x: 6.5, y: 24.2, pickedAt: 0 },
-    { id: "gi9", type: "gem", x: 8.8, y: 8.5, pickedAt: 0 },
-    { id: "gi10", type: "letter", x: 26.0, y: 10.5, pickedAt: 0 },
-    { id: "gi11", type: "flower_yellow", x: 16.5, y: 6.5, pickedAt: 0 },
-    { id: "gi12", type: "gem", x: 20.0, y: 17.0, pickedAt: 0 },
+    { id: "gi1", type: "flower_red", x: 9, y: 11, pickedAt: 0 },
+    { id: "gi2", type: "flower_yellow", x: 11, y: 9, pickedAt: 0 },
+    { id: "gi3", type: "coffee", x: 32, y: 11, pickedAt: 0 },
+    { id: "gi4", type: "snack", x: 26, y: 32, pickedAt: 0 },
+    { id: "gi5", type: "letter", x: 20, y: 26, pickedAt: 0 },
+    { id: "gi6", type: "flower_red", x: 35, y: 28, pickedAt: 0 },
+    { id: "gi7", type: "coffee", x: 31, y: 13, pickedAt: 0 },
+    { id: "gi8", type: "snack", x: 9, y: 35, pickedAt: 0 },
+    { id: "gi9", type: "gem", x: 10, y: 10.5, pickedAt: 0 },
+    { id: "gi10", type: "letter", x: 36, y: 13, pickedAt: 0 },
+    { id: "gi11", type: "flower_yellow", x: 14, y: 15, pickedAt: 0 },
+    { id: "gi12", type: "gem", x: 21, y: 25, pickedAt: 0 },
+    // 확장 영역
+    { id: "gi13", type: "coffee", x: 44, y: 10, pickedAt: 0 },
+    { id: "gi14", type: "snack", x: 45, y: 15, pickedAt: 0 },
+    { id: "gi15", type: "flower_red", x: 50, y: 31, pickedAt: 0 },
+    { id: "gi16", type: "gem", x: 40, y: 42, pickedAt: 0 },
+    { id: "gi17", type: "letter", x: 25, y: 50, pickedAt: 0 },
+    { id: "gi18", type: "snack", x: 15, y: 45, pickedAt: 0 },
+    { id: "gi19", type: "flower_yellow", x: 55, y: 20, pickedAt: 0 },
+    { id: "gi20", type: "gem", x: 60, y: 35, pickedAt: 0 },
   ];
 
   const ITEM_RESPAWN_MS = 180_000;
@@ -1812,49 +2031,108 @@
     uiLog.replaceChildren(frag);
   }
 
-  function addChat(speaker, text, source) {
-    chats.unshift({ speaker, text, source: source || "", stamp: formatTime() });
-    if (chats.length > 24) chats.length = 24;
-    renderChats();
+  function getNpcChats(npcId) {
+    if (!npcChatHistories[npcId]) npcChatHistories[npcId] = [];
+    return npcChatHistories[npcId];
   }
 
-  function renderChats() {
+  function addNpcChat(npcId, speaker, text) {
+    const history = getNpcChats(npcId);
+    history.unshift({ speaker, text, source: "", stamp: formatTime() });
+    if (history.length > 30) history.length = 30;
+    renderCurrentChat();
+  }
+
+  function addGlobalChat(speaker, text, source) {
+    globalChats.unshift({ speaker, text, source: source || "", stamp: formatTime() });
+    if (globalChats.length > 24) globalChats.length = 24;
+    renderCurrentChat();
+  }
+
+  const TOAST_DURATION_MS = 4000;
+  function addSystemToast(text) {
+    systemToasts.push({ text, stamp: formatTime(), until: performance.now() + TOAST_DURATION_MS });
+    if (systemToasts.length > 5) systemToasts.shift();
+    renderToasts();
+  }
+
+  function addChat(speaker, text, source) {
+    if (speaker === "System") { addSystemToast(text); return; }
+    if (source === "remote" || source === "local-player") { addGlobalChat(speaker, text, source); return; }
+    const targetNpcId = conversationFocusNpcId
+      || (chatSession.npcId && performance.now() < chatSession.expiresAt ? chatSession.npcId : null);
+    if (targetNpcId) { addNpcChat(targetNpcId, speaker, text); }
+    else { addGlobalChat(speaker, text, source); }
+  }
+
+  function renderCurrentChat() {
     if (!chatLogEl) return;
+    const target = chatTargetNpc();
+    const npcNear = target && target.near;
+    const mpChat = mp.enabled && !npcNear;
+
+    let messages;
+    if (mpChat) {
+      messages = globalChats;
+    } else if (target && target.npc) {
+      messages = getNpcChats(target.npc.id);
+    } else if (conversationFocusNpcId) {
+      messages = getNpcChats(conversationFocusNpcId);
+    } else {
+      messages = [];
+    }
+
     const frag = document.createDocumentFragment();
-    for (const c of chats) {
+    for (const c of messages) {
       const row = document.createElement("div");
       if (c.source === "remote") row.classList.add("pg-chat-remote");
       else if (c.source === "local-player") row.classList.add("pg-chat-local-player");
-      const speaker = document.createElement("strong");
-      speaker.textContent = c.speaker;
-      row.appendChild(speaker);
+      const sp = document.createElement("strong");
+      sp.textContent = c.speaker;
+      row.appendChild(sp);
       row.appendChild(document.createTextNode(`: ${c.text}`));
       frag.appendChild(row);
     }
     chatLogEl.replaceChildren(frag);
   }
 
-  function startStreamingChat(speaker) {
+  const toastContainer = document.getElementById("pg-toast-container");
+  function renderToasts() {
+    if (!toastContainer) return;
+    const now = performance.now();
+    while (systemToasts.length && systemToasts[0].until <= now) systemToasts.shift();
+    const frag = document.createDocumentFragment();
+    for (const n of systemToasts) {
+      const el = document.createElement("div");
+      el.className = "pg-toast";
+      el.textContent = n.text;
+      frag.appendChild(el);
+    }
+    toastContainer.replaceChildren(frag);
+  }
+
+  function startStreamingChat(npcId, speaker) {
+    const history = getNpcChats(npcId);
     const entry = { speaker, text: "", stamp: formatTime(), streaming: true };
-    chats.unshift(entry);
-    if (chats.length > 24) chats.length = 24;
-    renderChats();
+    history.unshift(entry);
+    if (history.length > 30) history.length = 30;
+    renderCurrentChat();
     return {
       append(chunk) {
         entry.text += chunk;
-        renderChats();
+        renderCurrentChat();
       },
       done() {
         entry.streaming = false;
-        renderChats();
+        renderCurrentChat();
       },
       empty() {
         return !entry.text.trim();
       },
       remove() {
-        const idx = chats.indexOf(entry);
-        if (idx >= 0) chats.splice(idx, 1);
-        renderChats();
+        const idx = history.indexOf(entry);
+        if (idx >= 0) history.splice(idx, 1);
+        renderCurrentChat();
       },
       text() {
         return entry.text;
@@ -1915,8 +2193,10 @@
   }
 
   function roadTile(x, y) {
-    if (Math.abs(x - 13) <= 1.2) return true;
-    if (Math.abs(y - 17) <= 1.2) return true;
+    if (Math.abs(x - 20) <= 1.2) return true;
+    if (Math.abs(y - 25) <= 1.2) return true;
+    if (Math.abs(x - 45) <= 1.0 && y >= 10 && y <= 45) return true;
+    if (Math.abs(y - 45) <= 1.0 && x >= 8 && x <= 55) return true;
     return false;
   }
 
@@ -2247,7 +2527,7 @@
   }
 
   function pickNpcRoamTarget(npc) {
-    const placesList = [places.plaza, places.cafe, places.office, places.park, places.market];
+    const placesList = [places.plaza, places.cafe, places.office, places.park, places.market, places.bakery, places.florist, places.library, places.ksa_main];
     const nowHour = hourOfDay() + minuteOfDay() / 60;
     const anchor = targetFor(npc);
 
@@ -2279,14 +2559,14 @@
     if (quest.done) return false;
 
     if (quest.stage === 0 && npc.id === "heo") {
-      setQuestStage(1, "시장에서 김민수에게 허승준의 메시지를 전달하세요.");
+      setQuestStage(1, "김민수에게 허승준의 메시지를 전달하세요.");
       adjustRelation("playerToHeo", 6);
       addChat("허승준", "김민수에게 이 메시지를 전해줄 수 있을까?");
       return true;
     }
 
     if (quest.stage === 1 && npc.id === "kim") {
-      setQuestStage(2, "카페에서 최민영을 만나 자세한 이야기를 들으세요.");
+      setQuestStage(2, "최민영을 만나 자세한 이야기를 들으세요.");
       adjustRelation("playerToKim", 8);
       adjustRelation("heoToKim", 10);
       addChat("김민수", "고마워. 최민영이 더 자세히 알고 있어.");
@@ -2435,7 +2715,7 @@
       make(fromNpc, targetNpc) {
         const persona = npcPersonas[targetNpc.id] || {};
         const cluePlace = targetNpc.work || targetNpc.hobby || places.plaza;
-        const placeNames = { plaza: "광장", cafe: "카페", office: "사무실", park: "공원", market: "시장", homeA: "주택가A", homeB: "주택가B", homeC: "주택가C" };
+        const placeNames = { plaza: "광장", cafe: "카페", office: "사무실", park: "공원", market: "시장", homeA: "주택가A", homeB: "주택가B", homeC: "주택가C", bakery: "빵집", florist: "꽃집", library: "도서관", ksa_main: "KSA 본관", ksa_dorm: "KSA 기숙사" };
         const clueLabel = Object.entries(places).find(([, v]) => v === cluePlace)?.[0] || "plaza";
         const cluePlaceName = placeNames[clueLabel] || clueLabel;
         const trait = persona.personality ? persona.personality.split("하")[0] : "독특";
@@ -2631,7 +2911,7 @@
   }
 
   function generateDynamicQuest() {
-    const placeNames = { plaza: "광장", cafe: "카페", office: "사무실", park: "공원", market: "시장", homeA: "주택가A", homeB: "주택가B", homeC: "주택가C" };
+    const placeNames = { plaza: "광장", cafe: "카페", office: "사무실", park: "공원", market: "시장", homeA: "주택가A", homeB: "주택가B", homeC: "주택가C", bakery: "빵집", florist: "꽃집", library: "도서관", ksa_main: "KSA 본관", ksa_dorm: "KSA 기숙사" };
     const placeKeys = Object.keys(places);
 
     const maxTier = questCount < 6 ? 1 : questCount < 16 ? 2 : 3;
@@ -2770,6 +3050,28 @@
 
     if (hs.id === "marketBoard") {
       addLog("게시판: '야시장은 20시에 광장 근처에서 시작됩니다.'");
+      return true;
+    }
+
+    if (hs.id === "minigameZone") {
+      if (tagGame.active) {
+        addLog("이미 술래잡기 진행 중!");
+        return true;
+      }
+      if (nowMs() < tagGame.cooldownUntil) {
+        const wait = Math.ceil((tagGame.cooldownUntil - nowMs()) / 1000);
+        addLog(`술래잡기 쿨다운 중... ${wait}초 후 다시 도전하세요.`);
+        return true;
+      }
+      // 근처 NPC 중 랜덤 하나를 상대로 선택
+      const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < 25);
+      if (candidates.length === 0) {
+        addLog("주변에 술래잡기할 NPC가 없습니다. NPC가 가까이 올 때 다시 시도하세요.");
+        return true;
+      }
+      const target = candidates[Math.floor(Math.random() * candidates.length)];
+      addChat("System", `🏃 놀이터에서 술래잡기! ${target.name}을(를) 60초 안에 잡으세요!`);
+      startTagGame(target);
       return true;
     }
 
@@ -2946,7 +3248,7 @@
           heoToKim: relations.heoToKim,
         },
       },
-      recentMessages: chats.slice(0, 6).reverse(),
+      recentMessages: getNpcChats(npc.id).slice(0, 8).reverse(),
       memory: getNpcMemorySummary(npc),
       tone: getMemoryBasedTone(npc),
       socialContext: getNpcSocialContext(npc),
@@ -3001,7 +3303,7 @@
           heoToKim: relations.heoToKim,
         },
       },
-      recentMessages: chats.slice(0, 6).reverse(),
+      recentMessages: getNpcChats(npc.id).slice(0, 8).reverse(),
       memory: getNpcMemorySummary(npc),
       tone: getMemoryBasedTone(npc),
       socialContext: getNpcSocialContext(npc),
@@ -3099,6 +3401,32 @@
       }
       return;
     }
+    if (/^(술래잡기|tag)$/i.test(msg.trim())) {
+      const zoneHs = hotspots.find(h => h.id === "minigameZone");
+      const nearZone = zoneHs && Math.hypot(player.x - zoneHs.x, player.y - zoneHs.y) < 5;
+      if (!nearZone) {
+        addChat("System", "놀이터 근처에서만 술래잡기를 할 수 있습니다! 🏃");
+        return;
+      }
+      if (tagGame.active) {
+        addChat("System", "이미 술래잡기 진행 중입니다!");
+      } else if (nowMs() < tagGame.cooldownUntil) {
+        addChat("System", "술래잡기 쿨다운 중... 잠시 후 다시 도전하세요.");
+      } else {
+        const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < 25);
+        if (!candidates.length) {
+          addChat("System", "주변에 술래잡기할 NPC가 없습니다.");
+        } else {
+          const target = candidates[Math.floor(Math.random() * candidates.length)];
+          addChat("You", "좋아, 술래잡기 하자!");
+          addChat(target.name, "잡아봐~! 🏃💨");
+          conversationFocusNpcId = null;
+          if (isMobileViewport()) mobileChatOpen = false;
+          startTagGame(target);
+        }
+      }
+      return;
+    }
     if (/^(인벤|인벤토리|inventory|가방)$/i.test(msg.trim())) {
       addChat("System", `인벤토리: ${inventorySummary()} | 💰 ${coins}코인`);
       return;
@@ -3166,15 +3494,14 @@
       return;
     }
 
-    addChat("You", msg);
-    if (!target.near) {
-      moveNearNpcTarget(target.npc);
-      addChat("System", `${target.npc.name}에게 이동 중입니다. 가까이 가면 대화할 수 있습니다.`);
-      return;
-    }
-
     const npc = target.npc;
     conversationFocusNpcId = npc.id;
+    addNpcChat(npc.id, "You", msg);
+    if (!target.near) {
+      moveNearNpcTarget(target.npc);
+      addSystemToast(`${target.npc.name}에게 이동 중입니다. 가까이 가면 대화할 수 있습니다.`);
+      return;
+    }
 
     if (handleStoryArcInteraction(npc, msg)) {
       setChatSession(npc.id, 90000);
@@ -3190,7 +3517,7 @@
     try {
       if (LLM_STREAM_API_URL) {
         streamedRendered = true;
-        streamingDraft = startStreamingChat(npc.name);
+        streamingDraft = startStreamingChat(npc.id, npc.name);
         const llm = await requestLlmNpcReplyStream(npc, msg, (chunk) => {
           if (streamingDraft) streamingDraft.append(chunk);
         });
@@ -3244,7 +3571,7 @@
       if (chatInputEl) chatInputEl.focus();
     }
     setChatSession(npc.id, 90000);
-    if (reply && !streamedRendered) addChat(npc.name, reply);
+    if (reply && !streamedRendered) addNpcChat(npc.id, npc.name, reply);
 
     if (reply) {
       challengeOnNpcTalk(npc.id);
@@ -3813,6 +4140,9 @@
     for (const npc of npcs) {
       if (npc.talkCooldown > 0) npc.talkCooldown -= dt;
 
+      // 술래잡기 중인 NPC는 updateTagGame에서 이동 처리
+      if (tagGame.active && npc.id === tagGame.targetNpcId) continue;
+
       if (pinnedNpcId && npc.id === pinnedNpcId) {
         npc.state = "chatting";
         npc.roamWait = Math.max(npc.roamWait, 0.35);
@@ -4142,6 +4472,58 @@
         ctx.stroke();
       }
     }
+    // 빵집 어닝
+    if (b.id === "bakery") {
+      ctx.fillStyle = "#f4a460";
+      ctx.beginPath();
+      ctx.moveTo(pA.x + 2, pA.y + 1);
+      ctx.lineTo(pB.x - 2, pB.y + 1);
+      ctx.lineTo((pB.x + pC.x) * 0.5, (pB.y + pC.y) * 0.5);
+      ctx.lineTo((pA.x + pD.x) * 0.5, (pA.y + pD.y) * 0.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.3)";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 4; i++) {
+        const t = i / 3;
+        ctx.beginPath();
+        ctx.moveTo(pA.x + (pB.x - pA.x) * t, pA.y + (pB.y - pA.y) * t);
+        ctx.lineTo((pA.x + pD.x) * 0.5 + ((pB.x + pC.x) * 0.5 - (pA.x + pD.x) * 0.5) * t,
+          (pA.y + pD.y) * 0.5 + ((pB.y + pC.y) * 0.5 - (pA.y + pD.y) * 0.5) * t);
+        ctx.stroke();
+      }
+    }
+    // 꽃집 꽃 장식
+    if (b.id === "florist") {
+      const fc = ["#ff6b9d", "#ffd93d", "#6bcf7f"];
+      for (let i = 0; i < 3; i++) {
+        const fx = pA.x + (pB.x - pA.x) * (0.25 + i * 0.25);
+        const fy = pA.y + (pB.y - pA.y) * (0.25 + i * 0.25) - 4;
+        ctx.fillStyle = fc[i];
+        for (let p = 0; p < 4; p++) {
+          const a = (p / 4) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.arc(fx + Math.cos(a) * 2.5, fy + Math.sin(a) * 2.5, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    // 주택 굴뚝
+    if (b.id === "houseA" || b.id === "houseB" || b.id === "houseC") {
+      const chX = roofPeak.x + 8 * world.zoom;
+      const chY = roofPeak.y;
+      ctx.fillStyle = "#8a5a44";
+      ctx.beginPath();
+      ctx.roundRect(chX - 3 * world.zoom, chY, 6 * world.zoom, 12 * world.zoom, 1);
+      ctx.fill();
+      const h = hourOfDay();
+      if (h >= 18 || h < 8) {
+        ctx.fillStyle = "rgba(200,200,200,0.25)";
+        ctx.beginPath();
+        ctx.ellipse(chX, chY - 4, 4, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
 
     const doorX = (baseD.x + baseC.x) * 0.5;
     const doorY = (baseD.y + baseC.y) * 0.5;
@@ -4205,6 +4587,50 @@
       ctx.fillRect(bx + 5, by + 2, 1.4, 1.4);
       ctx.fillRect(bx + 2, by + 4.3, 1.4, 1.4);
       ctx.fillRect(bx + 5, by + 4.3, 1.4, 1.4);
+    } else if (b.id === "bakery") {
+      const bx = signCx - signW * 0.32;
+      const by = signCy;
+      ctx.fillStyle = "rgba(210,150,90,0.9)";
+      ctx.beginPath(); ctx.roundRect(bx - 5, by - 3, 10, 6, 3); ctx.fill();
+    } else if (b.id === "florist") {
+      const fx = signCx - signW * 0.32;
+      const fy = signCy;
+      ctx.fillStyle = "#ff6b9d";
+      for (let p = 0; p < 5; p++) {
+        const a = (p / 5) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(fx + Math.cos(a) * 3, fy + Math.sin(a) * 3, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = "#ffd93d";
+      ctx.beginPath(); ctx.arc(fx, fy, 1.5, 0, Math.PI * 2); ctx.fill();
+    } else if (b.id === "library") {
+      const bx = signCx - signW * 0.32;
+      const by = signCy;
+      ctx.fillStyle = "rgba(100,130,180,0.9)";
+      ctx.beginPath(); ctx.roundRect(bx - 5, by - 4, 10, 8, 1); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.6)";
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(bx - 4, by - 1); ctx.lineTo(bx + 4, by - 1);
+      ctx.moveTo(bx - 4, by + 1); ctx.lineTo(bx + 4, by + 1);
+      ctx.stroke();
+    } else if (b.id === "ksa_main") {
+      const tx = signCx - signW * 0.32;
+      ctx.fillStyle = "rgba(70,52,34,0.85)";
+      ctx.font = "bold 8px sans-serif";
+      ctx.fillText("KSA", tx - 6, signCy + 3);
+    } else if (b.id === "ksa_dorm" || b.id === "houseA" || b.id === "houseB" || b.id === "houseC") {
+      const hx = signCx - signW * 0.32;
+      const hy = signCy;
+      ctx.fillStyle = "rgba(160,110,70,0.8)";
+      ctx.beginPath();
+      ctx.moveTo(hx, hy - 5);
+      ctx.lineTo(hx - 5, hy - 1);
+      ctx.lineTo(hx + 5, hy - 1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath(); ctx.roundRect(hx - 3, hy - 1, 6, 5, 0.5); ctx.fill();
     } else {
       const bx = signCx - signW * 0.33;
       const by = signCy - 1.8;
@@ -4463,6 +4889,74 @@
         c.beginPath();
         c.roundRect(cx - 8, baseY - 56, 16, 14, 3);
         c.fill();
+        return;
+      }
+      if (type === "bench") {
+        const grad = c.createLinearGradient(cx, baseY - 14, cx, baseY);
+        grad.addColorStop(0, "#d4a574");
+        grad.addColorStop(1, "#b8845a");
+        c.fillStyle = grad;
+        c.beginPath(); c.roundRect(cx - 16, baseY - 6, 32, 5, 2); c.fill();
+        c.beginPath(); c.roundRect(cx - 16, baseY - 14, 32, 3, 2); c.fill();
+        c.fillStyle = "#8a6840";
+        c.fillRect(cx - 14, baseY - 14, 2, 14);
+        c.fillRect(cx + 12, baseY - 14, 2, 14);
+        return;
+      }
+      if (type === "rock") {
+        const rg = c.createRadialGradient(cx - 2, baseY - 8, 2, cx, baseY - 6, 14);
+        rg.addColorStop(0, "#b0b0b0");
+        rg.addColorStop(1, "#787878");
+        c.fillStyle = rg;
+        c.beginPath();
+        c.ellipse(cx - 3, baseY - 5, 11, 7, 0, 0, Math.PI * 2);
+        c.fill();
+        c.beginPath();
+        c.ellipse(cx + 7, baseY - 4, 8, 5, 0.3, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = "rgba(255,255,255,0.25)";
+        c.beginPath();
+        c.ellipse(cx - 3, baseY - 9, 4, 2, 0, 0, Math.PI * 2);
+        c.fill();
+        return;
+      }
+      if (type === "signpost") {
+        c.fillStyle = "#9f7650";
+        c.fillRect(cx - 1.5, baseY - 28, 3, 28);
+        const bg = c.createLinearGradient(cx, baseY - 24, cx, baseY - 16);
+        bg.addColorStop(0, "#e8c9a6");
+        bg.addColorStop(1, "#c4a073");
+        c.fillStyle = bg;
+        c.beginPath(); c.roundRect(cx - 12, baseY - 26, 24, 10, 2); c.fill();
+        c.strokeStyle = "rgba(80,61,41,0.6)";
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(cx + 2, baseY - 23);
+        c.lineTo(cx + 8, baseY - 21);
+        c.lineTo(cx + 2, baseY - 19);
+        c.stroke();
+        return;
+      }
+      if (type === "fountain") {
+        c.fillStyle = "#a8d4f0";
+        c.beginPath();
+        c.ellipse(cx, baseY, 22, 9, 0, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = "rgba(255,255,255,0.35)";
+        c.beginPath();
+        c.ellipse(cx - 5, baseY - 1, 9, 3, 0, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = "#d0d0d0";
+        c.beginPath(); c.roundRect(cx - 3, baseY - 24, 6, 24, 2); c.fill();
+        c.fillStyle = "#a8d4f0";
+        c.beginPath();
+        c.ellipse(cx, baseY - 20, 10, 4, 0, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = "rgba(130,190,240,0.5)";
+        c.beginPath();
+        c.ellipse(cx, baseY - 30, 3, 7, 0, 0, Math.PI * 2);
+        c.fill();
+        return;
       }
     });
   }
@@ -4478,6 +4972,10 @@
       flower: { w: 16, h: 24, y: 16 },
       fence: { w: 20, h: 22, y: 16 },
       lamp: { w: 18, h: 42, y: 34 },
+      bench: { w: 32, h: 20, y: 12 },
+      rock: { w: 24, h: 16, y: 10 },
+      signpost: { w: 20, h: 30, y: 26 },
+      fountain: { w: 42, h: 40, y: 32 },
     };
     const cfg = scaleMap[prop.type];
     if (!cfg) return;
@@ -4569,8 +5067,17 @@
       ctx.fill();
     }
 
-    for (let y = 0; y < world.height; y += 1) {
-      for (let x = 0; x < world.width; x += 1) {
+    // Viewport culling: only render visible tiles
+    const vpTileW = world.baseTileW * world.zoom;
+    const vpTileH = world.baseTileH * world.zoom;
+    const vpMargin = 4;
+    const vpMinX = Math.max(0, Math.floor(player.x - canvas.width / vpTileW - vpMargin));
+    const vpMaxX = Math.min(world.width, Math.ceil(player.x + canvas.width / vpTileW + vpMargin));
+    const vpMinY = Math.max(0, Math.floor(player.y - canvas.height / vpTileH - vpMargin));
+    const vpMaxY = Math.min(world.height, Math.ceil(player.y + canvas.height / vpTileH + vpMargin));
+
+    for (let y = vpMinY; y < vpMaxY; y += 1) {
+      for (let x = vpMinX; x < vpMaxX; x += 1) {
         const blend = (Math.sin(x * 0.47) + Math.cos(y * 0.39) + Math.sin((x + y) * 0.23)) * 0.33;
         const baseGrass = blend > 0.28 ? palette.grassC : (blend > -0.22 ? palette.grassA : palette.grassB);
         const road = blend > 0 ? palette.roadA : palette.roadB;
@@ -4861,6 +5368,44 @@
     drawGround();
     for (const b of buildings) drawBuilding(b);
 
+    // ─── 놀이터 바닥 렌더링 ───
+    {
+      const pgCenter = { x: 30, y: 20 };
+      const pgRadius = 3;
+      const pA = project(pgCenter.x - pgRadius, pgCenter.y - pgRadius, 0);
+      const pB = project(pgCenter.x + pgRadius, pgCenter.y - pgRadius, 0);
+      const pC = project(pgCenter.x + pgRadius, pgCenter.y + pgRadius, 0);
+      const pD = project(pgCenter.x - pgRadius, pgCenter.y + pgRadius, 0);
+      // 녹색 바닥 (운동장)
+      ctx.fillStyle = "rgba(120, 200, 120, 0.35)";
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y); ctx.lineTo(pB.x, pB.y);
+      ctx.lineTo(pC.x, pC.y); ctx.lineTo(pD.x, pD.y);
+      ctx.closePath();
+      ctx.fill();
+      // 테두리 점선
+      ctx.strokeStyle = "rgba(80, 160, 80, 0.5)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // 라벨
+      const labelP = project(pgCenter.x, pgCenter.y - pgRadius - 0.5, 0);
+      const pgScale = clamp(world.zoom, 1.2, ZOOM_MAX);
+      const labelW = 70 * pgScale;
+      const labelH = 22 * pgScale;
+      const lx = labelP.x - labelW * 0.5;
+      const ly = labelP.y - labelH;
+      ctx.fillStyle = "rgba(80, 170, 80, 0.82)";
+      ctx.beginPath();
+      ctx.roundRect(lx, ly, labelW, labelH, 8 * pgScale);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      const pgFont = Math.max(14, Math.round(12 * pgScale));
+      ctx.font = `700 ${pgFont}px sans-serif`;
+      ctx.fillText("🏃 놀이터", lx + 8 * pgScale, ly + labelH - 6 * pgScale);
+    }
+
     for (const hs of hotspots) {
       const p = project(hs.x, hs.y, 0);
       const isExit = hs.id === "exitGate";
@@ -4923,7 +5468,11 @@
     for (const npc of npcs) {
       const mp = project(npc.x, npc.y, 0);
       const msz = Math.max(14, world.zoom * 4.5);
-      if (npc.activeRequest) {
+      if (tagGame.active && npc.id === tagGame.targetNpcId) {
+        const bob = Math.sin(now * 0.008) * 4;
+        ctx.font = `${msz * 1.4}px sans-serif`;
+        ctx.fillText("🏃💨", mp.x - msz * 0.6, mp.y - world.zoom * 34 + bob);
+      } else if (npc.activeRequest) {
         const bob = Math.sin(now * 0.005) * 3;
         ctx.font = `${msz * 1.3}px sans-serif`;
         ctx.fillText("❗", mp.x - msz * 0.4, mp.y - world.zoom * 32 + bob);
@@ -5079,20 +5628,21 @@
 
     mctx.globalAlpha = 0.5;
     mctx.fillStyle = "#7ac7f4";
-    for (let y = 0; y < world.height; y += 1) {
-      for (let x = 0; x < world.width; x += 1) {
+    const mmStep = world.width > 50 ? 2 : 1;
+    for (let y = 0; y < world.height; y += mmStep) {
+      for (let x = 0; x < world.width; x += mmStep) {
         if (waterTile(x + 0.5, y + 0.5)) {
-          mctx.fillRect(pad + x * sx, pad + y * sy, sx + 0.4, sy + 0.4);
+          mctx.fillRect(pad + x * sx, pad + y * sy, sx * mmStep + 0.4, sy * mmStep + 0.4);
         }
       }
     }
 
     mctx.globalAlpha = 0.25;
     mctx.fillStyle = "#cdb387";
-    for (let y = 0; y < world.height; y += 1) {
-      for (let x = 0; x < world.width; x += 1) {
+    for (let y = 0; y < world.height; y += mmStep) {
+      for (let x = 0; x < world.width; x += mmStep) {
         if (roadTile(x + 0.5, y + 0.5)) {
-          mctx.fillRect(pad + x * sx, pad + y * sy, sx + 0.4, sy + 0.4);
+          mctx.fillRect(pad + x * sx, pad + y * sy, sx * mmStep + 0.4, sy * mmStep + 0.4);
         }
       }
     }
@@ -5102,6 +5652,10 @@
     for (const b of buildings) {
       mctx.fillRect(pad + b.x * sx, pad + b.y * sy, b.w * sx, b.h * sy);
     }
+    // 놀이터 표시
+    mctx.globalAlpha = 0.35;
+    mctx.fillStyle = "#6bc76b";
+    mctx.fillRect(pad + 27 * sx, pad + 17 * sy, 6 * sx, 6 * sy);
 
     mctx.globalAlpha = 0.33;
     mctx.fillStyle = "#e9b25e";
@@ -5160,6 +5714,7 @@
   }
 
   function updateUI() {
+    if (systemToasts.length && systemToasts[0].until <= performance.now()) renderToasts();
     const weatherKo = { clear: "", cloudy: "☁️흐림", rain: "🌧️비", storm: "⛈️폭풍", snow: "❄️눈", fog: "🌫️안개" };
     const weatherStr = weatherKo[weather.current] || "";
     const discoveredCount = discoveries.filter(d => d.found).length;
@@ -5182,6 +5737,7 @@
           cafeDoor: "문 열기",
           marketBoard: "게시판 보기",
           parkMonument: "조사하기",
+          minigameZone: "🏃 술래잡기!",
         };
         mobileInteractBtn.textContent = hsLabels[hs.id] || "상호작용";
       } else if (nearestGroundItem(1.5)) {
@@ -5210,7 +5766,12 @@
     const target = chatTargetNpc();
     const npcNear = target && target.near;
     const mpChat = mp.enabled && !npcNear;
-    if (chatTargetEl) chatTargetEl.textContent = npcNear ? `대상: ${target.npc.name}` : (mpChat ? "대상: 전체 채팅" : "대상: 없음");
+    const newChatTargetId = npcNear ? target.npc.id : (mpChat ? "__mp__" : null);
+    if (chatTargetEl) {
+      const prevLabel = chatTargetEl.textContent;
+      const newLabel = npcNear ? `대상: ${target.npc.name}` : (mpChat ? "대상: 전체 채팅" : "대상: 없음");
+      if (prevLabel !== newLabel) { chatTargetEl.textContent = newLabel; renderCurrentChat(); }
+    }
     if (chatSendEl) chatSendEl.disabled = mpChat ? false : !npcNear;
     if (chatInputEl) {
       chatInputEl.disabled = mpChat ? false : !npcNear;
@@ -5320,6 +5881,7 @@
       updateNpcSocialEvents();
       updateAmbientEvents();
       updateFavorRequests();
+      updateTagGame(dt);
       updateWeather(dt);
       updateDiscoveries();
       updateAmbientSpeech(nowMs());
@@ -5339,6 +5901,7 @@
     updateUI();
     drawWorld();
     drawTimedEventHud();
+    drawTagGameHud();
     if (!mobileMode || frameCount % 3 === 0) drawMinimap();
     requestAnimationFrame(frame);
   }
@@ -5774,8 +6337,8 @@
       });
 
       function sanitizeRemote(d) {
-        const clampX = typeof d.x === "number" && isFinite(d.x) ? Math.max(0, Math.min(34, d.x)) : 0;
-        const clampY = typeof d.y === "number" && isFinite(d.y) ? Math.max(0, Math.min(34, d.y)) : 0;
+        const clampX = typeof d.x === "number" && isFinite(d.x) ? Math.max(0, Math.min(world.width, d.x)) : 0;
+        const clampY = typeof d.y === "number" && isFinite(d.y) ? Math.max(0, Math.min(world.height, d.y)) : 0;
         const safeName = String(d.name || "???").replace(/[<>]/g, "").slice(0, 20);
         const safeFlag = normalizePlayerFlag(d.flag);
         return { x: clampX, y: clampY, name: safeName, flag: safeFlag, color: String(d.color || "#aaa").slice(0, 20), species: String(d.species || "human_a").slice(0, 20), ts: d.ts || 0 };

@@ -833,6 +833,18 @@ button.pg-pressed,
   .pg-quest-banner-objective {
     font-size: 10px;
   }
+
+  .pg-toast-container {
+    position: fixed;
+    bottom: auto;
+    top: calc(36px + var(--pg-safe-top, 0px));
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(90vw, 340px);
+    flex-direction: column;
+    z-index: 39;
+  }
 }
 
 /* Name modal */
@@ -893,3 +905,31 @@ button.pg-pressed,
 /* Chat source colors */
 .pg-chat-remote { color: #2979ff; }
 .pg-chat-local-player { color: #388e3c; }
+
+/* System toast notifications */
+.pg-toast-container {
+  position: absolute;
+  bottom: calc(clamp(220px, 34vh, 340px) + 20px);
+  right: 12px;
+  width: clamp(280px, 28vw, 380px);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 6px;
+  z-index: 33;
+  pointer-events: none;
+}
+.pg-toast {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(20, 36, 56, 0.88);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(120, 160, 200, 0.3);
+  color: #e0ecf8;
+  font-size: 11px;
+  line-height: 1.3;
+  animation: pg-toast-in 0.3s ease-out;
+}
+@keyframes pg-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

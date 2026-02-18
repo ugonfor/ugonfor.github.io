@@ -7,7 +7,7 @@ const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || (process.env.K_SERVICE ? "0.0.0.0" : "127.0.0.1");
 const API_KEY = process.env.GOOGLE_API_KEY || "";
 const MODEL_CHAIN = (process.env.MODEL_CHAIN ||
-  "gemini-2.0-flash,gemini-2.5-pro,gemma-3-27b-it,gemma-3-12b-it")
+  "gemini-2.5-flash,gemini-3-flash-preview,gemini-2.5-flash-lite,gemma-3-27b-it")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
@@ -416,11 +416,14 @@ async function callGemini(prompt) {
 
   const errors = [];
   for (const model of MODEL_CHAIN) {
+    const body = model.includes("2.5") || model.includes("3-")
+      ? { ...payload, generationConfig: { ...payload.generationConfig, thinkingConfig: { thinkingBudget: 0 } } }
+      : payload;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
 
     const text = await response.text();
@@ -476,11 +479,14 @@ async function callGeminiStream(prompt) {
 
   const errors = [];
   for (const model of MODEL_CHAIN) {
+    const body = model.includes("2.5") || model.includes("3-")
+      ? { ...payload, generationConfig: { ...payload.generationConfig, thinkingConfig: { thinkingBudget: 0 } } }
+      : payload;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${API_KEY}`;
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
 
     if (response.ok && response.body) {
