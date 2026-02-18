@@ -9,8 +9,8 @@ vendor
 .jekyll-metadata
 git-update.sh
 .devcontainer
-.github
 .env
 .env.*
 !.env.example
 !server/.env.example
+node_modules
