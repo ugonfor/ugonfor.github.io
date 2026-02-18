@@ -285,7 +285,7 @@
       hobby,
       state: "idle",
       talkCooldown: 0,
-      memory: [],
+      memory: { entries: [], lastConversation: 0, conversationCount: 0, giftsReceived: 0, questsShared: 0 },
       personality,
       roamTarget: null,
       roamWait: 0,
@@ -298,6 +298,58 @@
       activeRequest: null,
       lastRequestAt: 0,
     };
+  }
+
+  function ensureMemoryFormat(npc) {
+    if (!npc.memory || Array.isArray(npc.memory)) {
+      npc.memory = { entries: [], lastConversation: 0, conversationCount: 0, giftsReceived: 0, questsShared: 0 };
+    }
+    if (!Array.isArray(npc.memory.entries)) npc.memory.entries = [];
+    if (!npc.memory.conversationCount) npc.memory.conversationCount = 0;
+    if (!npc.memory.giftsReceived) npc.memory.giftsReceived = 0;
+    if (!npc.memory.questsShared) npc.memory.questsShared = 0;
+    return npc.memory;
+  }
+
+  function addNpcMemory(npc, type, summary, metadata) {
+    const mem = ensureMemoryFormat(npc);
+    mem.entries.push({ type, summary, metadata: metadata || {}, time: world.totalMinutes });
+    if (mem.entries.length > 20) mem.entries.shift();
+  }
+
+  function getNpcMemorySummary(npc) {
+    const mem = ensureMemoryFormat(npc);
+    if (mem.entries.length === 0) return "";
+    const levelName = favorLevelNames[npc.favorLevel] || "낯선 사이";
+    const recent = mem.entries.slice(-8);
+    const lines = recent.map((e) => {
+      if (e.type === "chat") return `[대화] ${e.summary}`;
+      if (e.type === "gift") return `[선물] ${e.summary}`;
+      if (e.type === "quest") return `[퀘스트] ${e.summary}`;
+      if (e.type === "favor") return `[관계] ${e.summary}`;
+      return `[기타] ${e.summary}`;
+    });
+    const stats = `대화 ${mem.conversationCount}회, 선물 ${mem.giftsReceived}회, 퀘스트 ${mem.questsShared}회`;
+    return `관계: ${levelName} (호감도 ${npc.favorLevel}단계)\n통계: ${stats}\n최근 기억:\n${lines.join("\n")}`;
+  }
+
+  function getNpcSocialContext(npc) {
+    const others = npcs.filter(n => n.id !== npc.id).slice(0, 6);
+    if (others.length === 0) return "";
+    const lines = others.map(o => {
+      const rel = getNpcRelation(npc.id, o.id);
+      return `${o.name}: ${npcRelationLabel(rel)}(${rel})`;
+    });
+    return "다른 NPC와의 관계:\n" + lines.join(", ");
+  }
+
+  function getMemoryBasedTone(npc) {
+    const level = npc.favorLevel || 0;
+    if (level <= 0) return "정중한 존댓말로 대화하세요. 아직 서먹한 사이입니다.";
+    if (level === 1) return "정중하지만 약간 친근한 존댓말로 대화하세요.";
+    if (level === 2) return "편한 존댓말이나 가벼운 반말을 섞어 대화하세요.";
+    if (level === 3) return "친근한 반말로 대화하세요. 친한 친구처럼 대해주세요.";
+    return "매우 친밀한 반말로 대화하세요. 오랜 절친처럼 대해주세요.";
   }
 
   const npcs = [
@@ -318,6 +370,51 @@
     heoToKim: 38,
     playerToChoi: 50,
   };
+
+  // ─── NPC Social Graph ───
+  const npcSocialGraph = {};
+
+  function socialKey(a, b) {
+    return a < b ? `${a}_${b}` : `${b}_${a}`;
+  }
+
+  function getNpcRelation(aId, bId) {
+    return npcSocialGraph[socialKey(aId, bId)] || 50;
+  }
+
+  function adjustNpcRelation(aId, bId, delta) {
+    const key = socialKey(aId, bId);
+    npcSocialGraph[key] = clamp(Math.round((npcSocialGraph[key] || 50) + delta), 0, 100);
+  }
+
+  function npcRelationLabel(value) {
+    if (value >= 80) return "절친";
+    if (value >= 65) return "친구";
+    if (value >= 45) return "보통";
+    if (value >= 25) return "서먹";
+    return "불화";
+  }
+
+  const gossipQueue = [];
+
+  function spreadGossip(sourceNpcId, aboutNpcId, topic, sentiment) {
+    gossipQueue.push({ sourceNpcId, aboutNpcId, topic, sentiment, time: world.totalMinutes });
+    if (gossipQueue.length > 30) gossipQueue.shift();
+  }
+
+  function processGossip() {
+    if (gossipQueue.length === 0) return;
+    const g = gossipQueue[0];
+    const source = npcById(g.sourceNpcId);
+    if (!source) { gossipQueue.shift(); return; }
+
+    const nearby = npcs.filter(n => n.id !== g.sourceNpcId && n.id !== g.aboutNpcId && dist(source, n) < 6);
+    for (const listener of nearby) {
+      const change = g.sentiment === "positive" ? 2 : g.sentiment === "negative" ? -2 : 0;
+      if (change !== 0) adjustNpcRelation(listener.id, g.aboutNpcId, change);
+    }
+    gossipQueue.shift();
+  }
 
   const quest = {
     title: "이웃의 실타래",
@@ -687,6 +784,7 @@
       npc.favorLevel = Math.min(npc.favorLevel + 1, 4);
       npc.favorPoints = 0;
       addChat("System", `🎉 ${npc.name}과(와)의 관계: ${favorLevelNames[npc.favorLevel]}!`);
+      addNpcMemory(npc, "favor", `관계가 '${favorLevelNames[npc.favorLevel]}'(으)로 발전`);
     }
 
     addChat("System", `✅ '${req.title}' 완료! (호감도 +${req.reward.favorPoints})`);
@@ -864,6 +962,236 @@
 
   const inventory = {};
   for (const k of Object.keys(itemTypes)) inventory[k] = 0;
+  let coins = 10;
+
+  // ─── Economy: Shop System ───
+  const shopInventory = {
+    flower_red: { price: 3, stock: 5 },
+    flower_yellow: { price: 3, stock: 5 },
+    coffee: { price: 5, stock: 3 },
+    snack: { price: 4, stock: 4 },
+    letter: { price: 6, stock: 2 },
+    gem: { price: 15, stock: 1 },
+  };
+
+  function restockShop() {
+    for (const [k, v] of Object.entries(shopInventory)) {
+      v.stock = Math.min(v.stock + 1 + Math.floor(Math.random() * 2), k === "gem" ? 2 : 6);
+    }
+  }
+
+  function buyItem(itemKey) {
+    const shop = shopInventory[itemKey];
+    if (!shop) { addChat("System", "존재하지 않는 아이템입니다."); return false; }
+    if (shop.stock <= 0) { addChat("System", "재고가 없습니다."); return false; }
+    if (coins < shop.price) { addChat("System", `코인이 부족합니다. (보유: ${coins}코인, 필요: ${shop.price}코인)`); return false; }
+    coins -= shop.price;
+    shop.stock -= 1;
+    inventory[itemKey] = (inventory[itemKey] || 0) + 1;
+    const info = itemTypes[itemKey];
+    addChat("System", `${info.emoji} ${info.label} 구매! (-${shop.price}코인, 잔액: ${coins}코인)`);
+    return true;
+  }
+
+  function sellItem(itemKey) {
+    if ((inventory[itemKey] || 0) <= 0) { addChat("System", "해당 아이템이 없습니다."); return false; }
+    const shop = shopInventory[itemKey];
+    const sellPrice = Math.max(1, Math.floor((shop ? shop.price : 3) * 0.6));
+    inventory[itemKey] -= 1;
+    coins += sellPrice;
+    const info = itemTypes[itemKey];
+    addChat("System", `${info.emoji} ${info.label} 판매! (+${sellPrice}코인, 잔액: ${coins}코인)`);
+    return true;
+  }
+
+  function showShop() {
+    addChat("System", `🏪 상점 (보유: ${coins}코인)`);
+    for (const [k, v] of Object.entries(shopInventory)) {
+      const info = itemTypes[k];
+      addChat("System", `  ${info.emoji} ${info.label}: ${v.price}코인 (재고 ${v.stock})`);
+    }
+    addChat("System", "구매: '구매 아이템이름' / 판매: '판매 아이템이름'");
+  }
+
+  // ─── Seasons ───
+  const seasons = ["봄", "여름", "가을", "겨울"];
+
+  function currentSeason() {
+    const day = currentDay();
+    return seasons[Math.floor(day / 7) % 4];
+  }
+
+  let lastSeasonAnnounced = "";
+
+  function checkSeasonChange() {
+    const s = currentSeason();
+    if (s !== lastSeasonAnnounced) {
+      lastSeasonAnnounced = s;
+      const effects = {
+        "봄": "🌸 봄이 왔습니다! 꽃이 더 자주 피어납니다.",
+        "여름": "☀️ 여름입니다! NPC들이 활발하게 활동합니다.",
+        "가을": "🍂 가을입니다! 시장에 특별 상품이 등장합니다.",
+        "겨울": "❄️ 겨울입니다! NPC들이 실내에 머무르는 시간이 늘어납니다.",
+      };
+      addChat("System", effects[s] || `계절이 ${s}(으)로 바뀌었습니다.`);
+      if (s === "가을") {
+        shopInventory.gem.stock += 2;
+        shopInventory.snack.stock += 3;
+      }
+      restockShop();
+    }
+  }
+
+  // ─── Achievement System ───
+  const achievements = [
+    { id: "first_chat", title: "첫 대화", desc: "NPC와 처음 대화하기", icon: "💬", check: () => npcs.some(n => ensureMemoryFormat(n).conversationCount > 0) },
+    { id: "social_butterfly", title: "사교왕", desc: "5명 이상의 NPC와 대화하기", icon: "🦋", check: () => npcs.filter(n => ensureMemoryFormat(n).conversationCount > 0).length >= 5 },
+    { id: "gift_giver", title: "선물의 달인", desc: "총 10회 이상 선물하기", icon: "🎁", check: () => npcs.reduce((s, n) => s + ensureMemoryFormat(n).giftsReceived, 0) >= 10 },
+    { id: "best_friend", title: "소울메이트", desc: "NPC와 소울메이트 관계 달성", icon: "💖", check: () => npcs.some(n => n.favorLevel >= 4) },
+    { id: "quest_master", title: "퀘스트 마스터", desc: "퀘스트 20개 완료", icon: "⭐", check: () => questCount >= 20 },
+    { id: "explorer", title: "탐험가", desc: "발견 장소 10곳 이상 발견", icon: "🗺️", check: () => discoveries.filter(d => d.found).length >= 10 },
+    { id: "rich", title: "부자", desc: "코인 100개 이상 보유", icon: "💰", check: () => coins >= 100 },
+    { id: "mediator", title: "중재자", desc: "중재 퀘스트 완료", icon: "🕊️", check: () => questHistory.some(h => h.type === "mediate") },
+    { id: "night_owl", title: "올빼미", desc: "자정 이후에 발견 장소 찾기", icon: "🦉", check: () => discoveries.some(d => d.found && d.condition === "night") },
+    { id: "collector", title: "수집가", desc: "모든 종류의 아이템 보유", icon: "📦", check: () => Object.keys(itemTypes).every(k => (inventory[k] || 0) > 0) },
+    { id: "story_complete", title: "스토리텔러", desc: "스토리 아크 1개 완료", icon: "📖", check: () => storyArc.triggeredIds.length > 0 && !storyArc.active },
+    { id: "all_seasons", title: "사계절", desc: "4계절을 모두 경험하기", icon: "🌍", check: () => currentDay() >= 28 },
+  ];
+
+  const unlockedAchievements = new Set();
+
+  function checkAchievements() {
+    for (const ach of achievements) {
+      if (unlockedAchievements.has(ach.id)) continue;
+      try {
+        if (ach.check()) {
+          unlockedAchievements.add(ach.id);
+          addChat("System", `🏆 업적 달성: ${ach.icon} '${ach.title}' — ${ach.desc}`);
+          coins += 10;
+          addChat("System", `  보상: +10코인 (잔액: ${coins}코인)`);
+        }
+      } catch {}
+    }
+  }
+
+  // ─── Challenge Quests ───
+  const challengeTemplates = [
+    {
+      id: "speed_delivery",
+      title: "번개 배달",
+      desc: "45초 안에 3명의 NPC를 순서대로 방문하세요!",
+      timeLimit: 45_000,
+      reward: 20,
+      generate() {
+        const targets = npcs.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+        return targets.map(n => ({ npcId: n.id, name: n.name }));
+      },
+    },
+    {
+      id: "item_hunt",
+      title: "아이템 사냥",
+      desc: "60초 안에 아이템 3개를 주우세요!",
+      timeLimit: 60_000,
+      reward: 15,
+      generate() {
+        return { targetCount: 3 };
+      },
+    },
+    {
+      id: "social_sprint",
+      title: "소셜 스프린트",
+      desc: "90초 안에 4명의 NPC와 대화하세요!",
+      timeLimit: 90_000,
+      reward: 25,
+      generate() {
+        return { targetCount: 4 };
+      },
+    },
+  ];
+
+  const challenge = {
+    active: false,
+    id: null,
+    title: "",
+    endsAt: 0,
+    reward: 0,
+    data: null,
+    progress: 0,
+    target: 0,
+    talkedNpcs: null,
+  };
+
+  let nextChallengeAt = 0;
+
+  function startChallenge() {
+    const tmpl = challengeTemplates[Math.floor(Math.random() * challengeTemplates.length)];
+    const data = tmpl.generate();
+    challenge.active = true;
+    challenge.id = tmpl.id;
+    challenge.title = tmpl.title;
+    challenge.endsAt = nowMs() + tmpl.timeLimit;
+    challenge.reward = tmpl.reward;
+    challenge.data = data;
+    challenge.progress = 0;
+
+    if (tmpl.id === "speed_delivery") {
+      challenge.target = data.length;
+      challenge.talkedNpcs = new Set();
+    } else if (tmpl.id === "item_hunt") {
+      challenge.target = data.targetCount;
+    } else if (tmpl.id === "social_sprint") {
+      challenge.target = data.targetCount;
+      challenge.talkedNpcs = new Set();
+    }
+
+    addChat("System", `⚔️ 도전 퀘스트: ${tmpl.title}! — ${tmpl.desc}`);
+  }
+
+  function updateChallenge() {
+    if (!challenge.active) {
+      const now = nowMs();
+      if (now > nextChallengeAt && questCount >= 5) {
+        nextChallengeAt = now + 180_000 + Math.random() * 300_000;
+        if (Math.random() < 0.3) startChallenge();
+      }
+      return;
+    }
+
+    if (nowMs() > challenge.endsAt) {
+      addChat("System", `⏰ 도전 '${challenge.title}' 시간 초과!`);
+      challenge.active = false;
+      return;
+    }
+
+    if (challenge.progress >= challenge.target) {
+      coins += challenge.reward;
+      addChat("System", `🎉 도전 '${challenge.title}' 성공! +${challenge.reward}코인`);
+      challenge.active = false;
+    }
+  }
+
+  function challengeOnNpcTalk(npcId) {
+    if (!challenge.active) return;
+    if (challenge.id === "speed_delivery" && Array.isArray(challenge.data)) {
+      const nextIdx = challenge.progress;
+      if (nextIdx < challenge.data.length && challenge.data[nextIdx].npcId === npcId) {
+        challenge.progress += 1;
+      }
+    }
+    if (challenge.id === "social_sprint" && challenge.talkedNpcs) {
+      if (!challenge.talkedNpcs.has(npcId)) {
+        challenge.talkedNpcs.add(npcId);
+        challenge.progress = challenge.talkedNpcs.size;
+      }
+    }
+  }
+
+  function challengeOnItemPickup() {
+    if (!challenge.active) return;
+    if (challenge.id === "item_hunt") {
+      challenge.progress += 1;
+    }
+  }
 
   function nearestGroundItem(maxDist) {
     const now = nowMs();
@@ -892,6 +1220,7 @@
     const info = itemTypes[gi.type];
     addChat("System", `${info.emoji} ${info.label}을(를) 주웠습니다!${amount > 1 ? ` (x${amount})` : ""} (보유: ${inventory[gi.type]})`);
     tryCardDrop("item_pickup");
+    challengeOnItemPickup();
     return true;
   }
 
@@ -915,6 +1244,8 @@
       `이거 내가 좋아하는 건데! 고마워!`,
     ];
     addChat(npc.name, reactions[Math.floor(Math.random() * reactions.length)]);
+    addNpcMemory(npc, "gift", `${info.label}을(를) 선물 받음`, { item: type });
+    ensureMemoryFormat(npc).giftsReceived += 1;
     return true;
   }
 
@@ -1683,6 +2014,27 @@
   }
 
   function npcAmbientLine(npc) {
+    const mem = ensureMemoryFormat(npc);
+    if (mem.entries.length > 0 && Math.random() < 0.3) {
+      const memLines = [];
+      const giftEntries = mem.entries.filter((e) => e.type === "gift");
+      const questEntries = mem.entries.filter((e) => e.type === "quest");
+      if (giftEntries.length > 0) {
+        const last = giftEntries[giftEntries.length - 1];
+        memLines.push(`${last.metadata.item ? "그때 받은 선물… 아직 간직하고 있어." : "선물 고마웠어."}`);
+      }
+      if (questEntries.length > 0) {
+        memLines.push("같이 퀘스트 했던 거 기억나.");
+      }
+      if (npc.favorLevel >= 2) {
+        memLines.push("요즘 자주 만나니까 좋다.");
+      }
+      if (mem.conversationCount >= 5) {
+        memLines.push("우리 이제 꽤 많이 얘기했네.");
+      }
+      if (memLines.length > 0) return memLines[Math.floor(Math.random() * memLines.length)];
+    }
+
     const bySpecies = {
       human_a: ["오늘 햇빛 좋다.", "산책 코스 괜찮네."],
       human_b: ["카페 들를까?", "기분 전환이 되네."],
@@ -2146,6 +2498,26 @@
         };
       },
     },
+    {
+      type: "mediate",
+      tier: 2,
+      make(fromNpc, toNpc) {
+        const rel = getNpcRelation(fromNpc.id, toNpc.id);
+        if (rel >= 60) return null;
+        return {
+          title: `${fromNpc.name}와(과) ${toNpc.name} 중재`,
+          stages: [
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 사정을 들으세요.`, dialogue: `${toNpc.name}이랑 좀 서먹해졌어... 중간에서 좀 도와줄 수 있어?` },
+            { npcId: toNpc.id, objective: `${toNpc.name}에게도 이야기를 들으세요.`, dialogue: `${fromNpc.name} 이야기야? 음... 나도 좀 미안하긴 해.` },
+            { npcId: fromNpc.id, objective: `${fromNpc.name}에게 ${toNpc.name}의 마음을 전하세요.`, dialogue: `그랬구나... 내가 너무 성급했나봐.` },
+            { npcId: toNpc.id, objective: `${toNpc.name}에게 화해 소식을 전하세요.`, dialogue: `고마워! 다시 잘 지낼 수 있을 것 같아.` },
+          ],
+          onComplete() {
+            adjustNpcRelation(fromNpc.id, toNpc.id, 20);
+          },
+        };
+      },
+    },
   ];
 
   function relationKeyForNpc(npcId) {
@@ -2184,6 +2556,7 @@
         primaryNpc.favorLevel = Math.min(primaryNpc.favorLevel + 1, 4);
         primaryNpc.favorPoints = 0;
         addChat("System", `🎉 ${primaryNpc.name}과(와)의 관계: ${favorLevelNames[primaryNpc.favorLevel]}!`);
+        addNpcMemory(primaryNpc, "favor", `관계가 '${favorLevelNames[primaryNpc.favorLevel]}'(으)로 발전`);
       }
     }
 
@@ -2208,6 +2581,7 @@
             primaryNpc.favorLevel = Math.min(primaryNpc.favorLevel + 1, 4);
             primaryNpc.favorPoints = 0;
             addChat("System", `🎉 ${primaryNpc.name}과(와)의 관계: ${favorLevelNames[primaryNpc.favorLevel]}!`);
+            addNpcMemory(primaryNpc, "favor", `관계가 '${favorLevelNames[primaryNpc.favorLevel]}'(으)로 발전`);
           }
         }
         tryCardDrop("quest_complete", primaryNpc);
@@ -2218,7 +2592,19 @@
     if (questHistory.length > 5) questHistory.length = 5;
     questCount += 1;
 
-    addChat("System", `퀘스트 '${title}' 완료!`);
+    if (primaryNpc) {
+      addNpcMemory(primaryNpc, "quest", `'${quest.title}' 퀘스트를 함께 완료`, { questType });
+      ensureMemoryFormat(primaryNpc).questsShared += 1;
+    }
+
+    if (typeof quest._onComplete === "function") {
+      try { quest._onComplete(); } catch {}
+      quest._onComplete = null;
+    }
+
+    const coinReward = 5 + stageCount * 2 + (questType === "urgent" ? 5 : 0);
+    coins += coinReward;
+    addChat("System", `퀘스트 '${title}' 완료! (+${coinReward}코인)`);
     generateDynamicQuest();
   }
 
@@ -2296,6 +2682,7 @@
       quest.primaryNpcId = primaryNpc.id;
       quest.startedAt = nowMs();
       quest._stageCount = q.stages.length;
+      quest._onComplete = q.onComplete || null;
       addChat("System", `새 퀘스트: ${q.title}`);
       enrichQuestDialogue(type, primaryNpc, q.stages);
     }
@@ -2445,28 +2832,89 @@
     return "general";
   }
 
+  function analyzeSentiment(text) {
+    const t = text.toLowerCase();
+    if (/(사랑|최고|대단|멋져|잘했|응원|좋아해|고마워|감사|칭찬|존경|기쁘|행복|축하|thank|love|great|awesome|amazing|wonderful)/.test(t))
+      return { sentiment: "positive", intensity: 2 };
+    if (/(좋아|괜찮|재밌|반가|nice|good|cool|fun|like|glad)/.test(t))
+      return { sentiment: "positive", intensity: 1 };
+    if (/(싫어|짜증|별로|못생|바보|멍청|나빠|최악|꺼져|hate|ugly|stupid|worst|annoying|terrible|shut up)/.test(t))
+      return { sentiment: "negative", intensity: 2 };
+    if (/(음|글쎄|몰라|그냥|흠|hmm|meh|whatever|dunno)/.test(t))
+      return { sentiment: "neutral", intensity: 0 };
+    if (/\?|뭐|어떻게|왜|어디|누구|언제|what|how|why|where|who|when/.test(t))
+      return { sentiment: "curious", intensity: 1 };
+    return { sentiment: "neutral", intensity: 0 };
+  }
+
+  function applyConversationEffect(npc, playerMsg, npcReplyText) {
+    const { sentiment, intensity } = analyzeSentiment(playerMsg);
+    const relKey = relationKeyForNpc(npc.id);
+
+    if (sentiment === "positive") {
+      if (relKey) adjustRelation(relKey, intensity * 2);
+      npc.favorPoints += Math.round(intensity * 2 * cardEffectMultiplier("favor") * cardEffectMultiplier("allDouble"));
+      if (intensity >= 2) {
+        npc.mood = "happy";
+        npc.moodUntil = nowMs() + 20_000;
+      }
+    } else if (sentiment === "negative") {
+      if (relKey) adjustRelation(relKey, -intensity * 2);
+      npc.favorPoints = Math.max(0, npc.favorPoints - intensity);
+      npc.mood = "sad";
+      npc.moodUntil = nowMs() + 15_000;
+    } else if (sentiment === "curious") {
+      if (relKey) adjustRelation(relKey, 1);
+    }
+
+    if (npc.favorPoints >= 100) {
+      npc.favorLevel = Math.min(npc.favorLevel + 1, 4);
+      npc.favorPoints = 0;
+      addChat("System", `🎉 ${npc.name}과(와)의 관계: ${favorLevelNames[npc.favorLevel]}!`);
+      addNpcMemory(npc, "favor", `관계가 '${favorLevelNames[npc.favorLevel]}'(으)로 발전`);
+    }
+  }
+
   function npcReply(npc, text) {
     const topic = detectTopic(text);
-    npc.memory.unshift(topic);
-    if (npc.memory.length > 5) npc.memory.length = 5;
+    const mem = ensureMemoryFormat(npc);
+    const friendly = npc.favorLevel >= 2;
 
     if (topic === "positive") {
       if (npc.id === "heo") adjustRelation("playerToHeo", 2);
       if (npc.id === "kim") adjustRelation("playerToKim", 2);
-      return "고마워요. 당신의 행동이 이 동네 분위기를 조금씩 바꾸고 있어요.";
+      return friendly
+        ? "헤헤, 고마워! 너도 참 좋은 사람이야."
+        : "고마워요. 당신의 행동이 이 동네 분위기를 조금씩 바꾸고 있어요.";
     }
 
     if (topic === "quest") {
-      if (quest.done) return "이미 모두를 연결해줬어요. 훌륭했어요.";
-      return `현재 목표는 '${quest.objective}' 입니다.`;
+      if (quest.done) return friendly ? "이미 다 해냈잖아! 대단해." : "이미 모두를 연결해줬어요. 훌륭했어요.";
+      return friendly
+        ? `지금 목표는 '${quest.objective}'야. 힘내!`
+        : `현재 목표는 '${quest.objective}' 입니다.`;
     }
 
     if (topic === "world") {
-      return "이 세계는 루틴, 관계, 작은 이벤트로 움직여요. 계속 관찰해 보세요.";
+      return friendly
+        ? "이 세계는 루틴, 관계, 이벤트로 돌아가. 같이 돌아다녀 볼까?"
+        : "이 세계는 루틴, 관계, 작은 이벤트로 움직여요. 계속 관찰해 보세요.";
     }
 
     if (topic === "people") {
-      return "여기 사람들은 시간에 따라 달라져요. 시간대를 바꿔서 다시 말 걸어보세요.";
+      return friendly
+        ? "여기 사람들, 시간대마다 달라져. 다음에 같이 찾아보자!"
+        : "여기 사람들은 시간에 따라 달라져요. 시간대를 바꿔서 다시 말 걸어보세요.";
+    }
+
+    if (friendly && mem.conversationCount > 3) {
+      const friendlyLines = [
+        "오, 또 왔네! 반가워.",
+        "요즘 자주 보니까 좋다.",
+        "뭐 재밌는 거 없어?",
+        "심심했는데 잘 왔어!",
+      ];
+      return friendlyLines[Math.floor(Math.random() * friendlyLines.length)];
     }
 
     return npcSmallTalk(npc).replace(`${npc.name}: `, "");
@@ -2499,6 +2947,9 @@
         },
       },
       recentMessages: chats.slice(0, 6).reverse(),
+      memory: getNpcMemorySummary(npc),
+      tone: getMemoryBasedTone(npc),
+      socialContext: getNpcSocialContext(npc),
     };
 
     const controller = new AbortController();
@@ -2551,6 +3002,9 @@
         },
       },
       recentMessages: chats.slice(0, 6).reverse(),
+      memory: getNpcMemorySummary(npc),
+      tone: getMemoryBasedTone(npc),
+      socialContext: getNpcSocialContext(npc),
     };
 
     const controller = new AbortController();
@@ -2646,7 +3100,44 @@
       return;
     }
     if (/^(인벤|인벤토리|inventory|가방)$/i.test(msg.trim())) {
-      addChat("System", `인벤토리: ${inventorySummary()}`);
+      addChat("System", `인벤토리: ${inventorySummary()} | 💰 ${coins}코인`);
+      return;
+    }
+    if (/^(상점|가게|shop)$/i.test(msg.trim())) {
+      showShop();
+      return;
+    }
+    if (/^(업적|achievements?)$/i.test(msg.trim())) {
+      addChat("System", `🏆 업적 (${unlockedAchievements.size}/${achievements.length})`);
+      for (const ach of achievements) {
+        const done = unlockedAchievements.has(ach.id);
+        addChat("System", `  ${done ? ach.icon : "🔒"} ${ach.title}: ${ach.desc} ${done ? "✅" : ""}`);
+      }
+      return;
+    }
+    if (/^(도전|challenge)$/i.test(msg.trim())) {
+      if (challenge.active) {
+        const remaining = Math.max(0, Math.ceil((challenge.endsAt - nowMs()) / 1000));
+        addChat("System", `⚔️ 진행 중: ${challenge.title} (${challenge.progress}/${challenge.target}, 남은 시간: ${remaining}초)`);
+      } else {
+        addChat("System", "현재 진행 중인 도전이 없습니다.");
+      }
+      return;
+    }
+    const buyMatch = msg.trim().match(/^(구매|buy)\s+(.+)$/i);
+    if (buyMatch) {
+      const name = buyMatch[2].trim();
+      const entry = Object.entries(itemTypes).find(([, v]) => v.label === name);
+      if (entry) buyItem(entry[0]);
+      else addChat("System", `'${name}' 아이템을 찾을 수 없습니다.`);
+      return;
+    }
+    const sellMatch = msg.trim().match(/^(판매|sell)\s+(.+)$/i);
+    if (sellMatch) {
+      const name = sellMatch[2].trim();
+      const entry = Object.entries(itemTypes).find(([, v]) => v.label === name);
+      if (entry) sellItem(entry[0]);
+      else addChat("System", `'${name}' 아이템을 찾을 수 없습니다.`);
       return;
     }
     const removeMatch = msg.trim().match(/^(제거|삭제|remove)\s+(.+)$/i);
@@ -2684,6 +3175,12 @@
 
     const npc = target.npc;
     conversationFocusNpcId = npc.id;
+
+    if (handleStoryArcInteraction(npc, msg)) {
+      setChatSession(npc.id, 90000);
+      return;
+    }
+
     setChatSession(npc.id, 90000);
     if (chatSendEl) chatSendEl.disabled = true;
     if (chatInputEl) chatInputEl.disabled = true;
@@ -2748,6 +3245,17 @@
     }
     setChatSession(npc.id, 90000);
     if (reply && !streamedRendered) addChat(npc.name, reply);
+
+    if (reply) {
+      challengeOnNpcTalk(npc.id);
+      applyConversationEffect(npc, msg, reply);
+      const shortMsg = msg.length > 30 ? msg.slice(0, 30) + "…" : msg;
+      const shortReply = reply.length > 40 ? reply.slice(0, 40) + "…" : reply;
+      addNpcMemory(npc, "chat", `플레이어: "${shortMsg}" → 나: "${shortReply}"`);
+      const mem = ensureMemoryFormat(npc);
+      mem.conversationCount += 1;
+      mem.lastConversation = world.totalMinutes;
+    }
   }
 
   async function sendCardChat() {
@@ -2804,6 +3312,240 @@
       timedEvent.nextCheckAt = evNow + 60_000 + Math.random() * 120_000;
       if (Math.random() < 0.4) startTimedEvent();
     }
+
+    processGossip();
+    updateNpcSocialInteractions();
+    checkStoryArcTriggers();
+    checkStoryArcVisit();
+    checkSeasonChange();
+    checkAchievements();
+    updateChallenge();
+  }
+
+  // ─── Story Arc System ───
+  const storyArc = {
+    active: false,
+    id: null,
+    title: "",
+    chapter: 0,
+    chapters: [],
+    triggeredIds: [],
+  };
+
+  const storyArcTemplates = [
+    {
+      id: "rivalry",
+      title: "라이벌의 탄생",
+      condition() {
+        const pairs = [];
+        for (const a of npcs) {
+          for (const b of npcs) {
+            if (a.id >= b.id) continue;
+            if (getNpcRelation(a.id, b.id) < 30) pairs.push([a, b]);
+          }
+        }
+        return pairs.length > 0 ? pairs[0] : null;
+      },
+      generate([npcA, npcB]) {
+        return [
+          { type: "talk", npcId: npcA.id, text: `${npcB.name}... 그 사람이 요즘 나를 무시하는 것 같아. 뭐가 문제인지 알아봐줄래?`, objective: `${npcA.name}의 고민을 들으세요.` },
+          { type: "talk", npcId: npcB.id, text: `${npcA.name} 얘기? 난 그런 적 없는데... 오해가 있었나봐.`, objective: `${npcB.name}의 입장을 들으세요.` },
+          { type: "choice", text: "누구의 편을 들겠습니까?", options: [
+            { label: `${npcA.name} 편`, effect() { adjustNpcRelation(npcA.id, npcB.id, -5); const rk = relationKeyForNpc(npcA.id); if (rk) adjustRelation(rk, 5); } },
+            { label: `${npcB.name} 편`, effect() { adjustNpcRelation(npcA.id, npcB.id, -5); const rk = relationKeyForNpc(npcB.id); if (rk) adjustRelation(rk, 5); } },
+            { label: "중재하기", effect() { adjustNpcRelation(npcA.id, npcB.id, 15); } },
+          ], objective: "선택하세요." },
+          { type: "talk", npcId: npcA.id, text: "... 고마워. 네 덕분에 생각이 좀 정리됐어.", objective: `${npcA.name}에게 결과를 전하세요.` },
+        ];
+      },
+    },
+    {
+      id: "secret_admirer",
+      title: "비밀 편지",
+      condition() {
+        for (const n of npcs) {
+          if (n.favorLevel >= 2) return n;
+        }
+        return null;
+      },
+      generate(npc) {
+        const others = npcs.filter(o => o.id !== npc.id);
+        const admirer = others[Math.floor(Math.random() * others.length)];
+        return [
+          { type: "talk", npcId: npc.id, text: "오늘 아침 내 문 앞에 편지가 놓여 있었어... 누가 보냈는지 모르겠어.", objective: `${npc.name}의 이야기를 들으세요.` },
+          { type: "visit", pos: admirer.home || places.plaza, radius: 3, text: `단서를 따라가니 ${admirer.name}의 집 근처에 흔적이 있습니다.`, objective: "편지의 단서를 찾으세요." },
+          { type: "talk", npcId: admirer.id, text: `들켰구나... 사실 ${npc.name}에게 고마운 마음을 전하고 싶었어.`, objective: `${admirer.name}에게 진실을 확인하세요.` },
+          { type: "talk", npcId: npc.id, text: `${admirer.name}이(가)? 정말? 고마운 마음이 전해졌어.`, objective: `${npc.name}에게 알려주세요.`, onComplete() { adjustNpcRelation(npc.id, admirer.id, 15); } },
+        ];
+      },
+    },
+    {
+      id: "lost_item",
+      title: "잃어버린 보물",
+      condition() {
+        for (const n of npcs) {
+          const mem = ensureMemoryFormat(n);
+          if (mem.giftsReceived >= 3) return n;
+        }
+        return null;
+      },
+      generate(npc) {
+        const searchPlace = npc.work || npc.hobby || places.park;
+        return [
+          { type: "talk", npcId: npc.id, text: "큰일이야... 소중한 물건을 잃어버렸어. 혹시 같이 찾아줄 수 있어?", objective: `${npc.name}에게 이야기를 들으세요.` },
+          { type: "visit", pos: searchPlace, radius: 3, text: "이 근처에서 무언가를 발견했습니다!", objective: "물건의 단서를 찾으세요." },
+          { type: "visit", pos: places.park, radius: 2.5, text: "공원 벤치 아래에서 물건을 찾았습니다!", objective: "공원을 수색하세요." },
+          { type: "talk", npcId: npc.id, text: "찾아줘서 정말 고마워! 이건 나에게 정말 소중한 거야.", objective: `${npc.name}에게 돌려주세요.`, onComplete() { npc.favorPoints += 20; } },
+        ];
+      },
+    },
+    {
+      id: "community_festival",
+      title: "마을 축제 준비",
+      condition() {
+        return questCount >= 10 ? true : null;
+      },
+      generate() {
+        const helpers = npcs.slice(0, 3);
+        return [
+          { type: "talk", npcId: helpers[0].id, text: "마을 축제를 열고 싶어! 도와줄래? 먼저 장식에 쓸 꽃을 모아와줘.", objective: `${helpers[0].name}에게 축제 계획을 들으세요.` },
+          { type: "item", itemKey: "flower_red", npcId: helpers[0].id, text: "꽃 장식 준비 완료!", objective: "빨간 꽃을 가져다주세요." },
+          { type: "talk", npcId: helpers[1].id, text: "다음은 간식 준비! 맛있는 걸 좀 구해와줄래?", objective: `${helpers[1].name}에게 다음 임무를 받으세요.` },
+          { type: "item", itemKey: "snack", npcId: helpers[1].id, text: "간식 준비 완료! 이제 마지막!", objective: "간식을 가져다주세요." },
+          { type: "talk", npcId: helpers[2].id, text: "축제 준비 끝! 모두 모여라~!", objective: `${helpers[2].name}에게 마무리를 알리세요.`, onComplete() {
+            for (const n of npcs) { n.mood = "happy"; n.moodUntil = nowMs() + 60_000; }
+            addChat("System", "🎊 마을 축제가 시작되었습니다! 모든 NPC가 기뻐합니다!");
+            inventory.gem = (inventory.gem || 0) + 2;
+          }},
+        ];
+      },
+    },
+  ];
+
+  function checkStoryArcTriggers() {
+    if (storyArc.active) return;
+    for (const tmpl of storyArcTemplates) {
+      if (storyArc.triggeredIds.includes(tmpl.id)) continue;
+      const data = tmpl.condition();
+      if (data === null) continue;
+      storyArc.active = true;
+      storyArc.id = tmpl.id;
+      storyArc.title = tmpl.title;
+      storyArc.chapter = 0;
+      storyArc.chapters = tmpl.generate(data);
+      storyArc.triggeredIds.push(tmpl.id);
+      addChat("System", `📖 스토리: '${tmpl.title}' 시작!`);
+      updateStoryArcObjective();
+      return;
+    }
+  }
+
+  function updateStoryArcObjective() {
+    if (!storyArc.active) return;
+    const ch = storyArc.chapters[storyArc.chapter];
+    if (!ch) return;
+    if (ch.type === "choice") {
+      addChat("System", ch.text);
+      for (let i = 0; i < ch.options.length; i++) {
+        addChat("System", `  ${i + 1}. ${ch.options[i].label}`);
+      }
+      addChat("System", "채팅에 번호를 입력하세요.");
+    }
+  }
+
+  function advanceStoryArc() {
+    if (!storyArc.active) return;
+    const ch = storyArc.chapters[storyArc.chapter];
+    if (ch && typeof ch.onComplete === "function") {
+      try { ch.onComplete(); } catch {}
+    }
+    storyArc.chapter += 1;
+    if (storyArc.chapter >= storyArc.chapters.length) {
+      addChat("System", `📖 스토리 '${storyArc.title}' 완료!`);
+      inventory.gem = (inventory.gem || 0) + 1;
+      storyArc.active = false;
+      storyArc.chapters = [];
+      return;
+    }
+    updateStoryArcObjective();
+  }
+
+  function handleStoryArcInteraction(npc, msg) {
+    if (!storyArc.active) return false;
+    const ch = storyArc.chapters[storyArc.chapter];
+    if (!ch) return false;
+
+    if (ch.type === "talk" && ch.npcId === npc.id) {
+      addChat(npc.name, ch.text);
+      advanceStoryArc();
+      return true;
+    }
+
+    if (ch.type === "item" && ch.npcId === npc.id && ch.itemKey) {
+      if ((inventory[ch.itemKey] || 0) > 0) {
+        inventory[ch.itemKey] -= 1;
+        addChat(npc.name, ch.text);
+        advanceStoryArc();
+        return true;
+      }
+      addChat(npc.name, `${itemTypes[ch.itemKey].label}이(가) 필요해.`);
+      return true;
+    }
+
+    if (ch.type === "choice") {
+      const num = parseInt(msg.trim(), 10);
+      if (num >= 1 && num <= ch.options.length) {
+        const opt = ch.options[num - 1];
+        addChat("System", `'${opt.label}' 을(를) 선택했습니다.`);
+        if (typeof opt.effect === "function") try { opt.effect(); } catch {}
+        advanceStoryArc();
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function checkStoryArcVisit() {
+    if (!storyArc.active) return;
+    const ch = storyArc.chapters[storyArc.chapter];
+    if (!ch || ch.type !== "visit") return;
+    if (dist(player, ch.pos) <= (ch.radius || 3)) {
+      addChat("System", ch.text);
+      advanceStoryArc();
+    }
+  }
+
+  let nextNpcSocialAt = 0;
+
+  function updateNpcSocialInteractions() {
+    const now = nowMs();
+    if (now < nextNpcSocialAt) return;
+    nextNpcSocialAt = now + 8_000 + Math.random() * 12_000;
+
+    for (const a of npcs) {
+      for (const b of npcs) {
+        if (a.id >= b.id) continue;
+        if (dist(a, b) > 3.0) continue;
+        const rel = getNpcRelation(a.id, b.id);
+        if (rel >= 60 && Math.random() < 0.3) {
+          adjustNpcRelation(a.id, b.id, 1);
+        } else if (rel < 40 && Math.random() < 0.2) {
+          adjustNpcRelation(a.id, b.id, -1);
+        }
+        if (Math.random() < 0.15 && dist(player, a) < 8) {
+          const label = npcRelationLabel(rel);
+          const lines = rel >= 65
+            ? [`${b.name}이랑은 잘 지내고 있어.`, `${b.name}, 요즘 좋은 친구야.`]
+            : rel < 35
+              ? [`${b.name}이랑은 좀 서먹해...`, `${b.name}이랑 사이가 좀 그래.`]
+              : [`${b.name}이랑은 그냥 평범한 사이야.`];
+          const line = lines[Math.floor(Math.random() * lines.length)];
+          speechBubbles.push({ x: a.x, y: a.y, text: line, until: now + 3500, speaker: a.name });
+          spreadGossip(a.id, b.id, "relationship", rel >= 60 ? "positive" : rel < 35 ? "negative" : "neutral");
+        }
+      }
+    }
   }
 
   function saveState() {
@@ -2826,6 +3568,7 @@
         .map((n) => ({
           id: n.id, x: n.x, y: n.y, talkCooldown: n.talkCooldown,
           favorLevel: n.favorLevel, favorPoints: n.favorPoints,
+          memory: n.memory,
         })),
       inventory: { ...inventory },
       ownedCards: { ...ownedCards },
@@ -2834,6 +3577,11 @@
       discoveredIds: discoveries.filter(d => d.found).map(d => d.id),
       questHistory: questHistory.slice(),
       questCount,
+      npcSocialGraph: { ...npcSocialGraph },
+      storyArc: { active: storyArc.active, id: storyArc.id, title: storyArc.title, chapter: storyArc.chapter, triggeredIds: storyArc.triggeredIds.slice() },
+      coins,
+      shopInventory: Object.fromEntries(Object.entries(shopInventory).map(([k, v]) => [k, { ...v }])),
+      unlockedAchievements: [...unlockedAchievements],
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
@@ -2895,6 +3643,10 @@
           npc.talkCooldown = Math.max(0, savedNpc.talkCooldown || 0);
           if (savedNpc.favorLevel != null) npc.favorLevel = savedNpc.favorLevel;
           if (savedNpc.favorPoints != null) npc.favorPoints = savedNpc.favorPoints;
+          if (savedNpc.memory) {
+            npc.memory = savedNpc.memory;
+            ensureMemoryFormat(npc);
+          }
         }
       }
       if (state.inventory) {
@@ -2928,6 +3680,40 @@
         for (const id of state.discoveredIds) {
           const d = discoveries.find(dd => dd.id === id);
           if (d) d.found = true;
+        }
+      }
+      if (state.npcSocialGraph) {
+        for (const [k, v] of Object.entries(state.npcSocialGraph)) {
+          npcSocialGraph[k] = clamp(v, 0, 100);
+        }
+      }
+      if (state.coins != null) coins = Math.max(0, state.coins);
+      if (Array.isArray(state.unlockedAchievements)) {
+        for (const id of state.unlockedAchievements) unlockedAchievements.add(id);
+      }
+      if (state.shopInventory) {
+        for (const [k, v] of Object.entries(state.shopInventory)) {
+          if (shopInventory[k]) Object.assign(shopInventory[k], v);
+        }
+      }
+      if (state.storyArc) {
+        storyArc.active = !!state.storyArc.active;
+        storyArc.id = state.storyArc.id || null;
+        storyArc.title = state.storyArc.title || "";
+        storyArc.chapter = state.storyArc.chapter || 0;
+        storyArc.triggeredIds = Array.isArray(state.storyArc.triggeredIds) ? state.storyArc.triggeredIds : [];
+        if (storyArc.active && storyArc.id) {
+          const tmpl = storyArcTemplates.find(t => t.id === storyArc.id);
+          if (tmpl) {
+            const data = tmpl.condition();
+            if (data !== null) {
+              storyArc.chapters = tmpl.generate(data);
+            } else {
+              storyArc.active = false;
+            }
+          } else {
+            storyArc.active = false;
+          }
         }
       }
       refreshRemoveSelect();
@@ -4378,7 +5164,7 @@
     const weatherStr = weatherKo[weather.current] || "";
     const discoveredCount = discoveries.filter(d => d.found).length;
     uiTime.textContent = `시간: ${formatTime()}${weatherStr ? " " + weatherStr : ""} ${world.paused ? "(일시정지)" : ""} | 발견: ${discoveredCount}/${discoveries.length}`;
-    uiPlayer.textContent = `${player.name} | 가방: ${inventorySummary()} | 카드: ${cardCollectionSummary()}`;
+    uiPlayer.textContent = `${player.name} | 💰${coins} | 가방: ${inventorySummary()} | 카드: ${cardCollectionSummary()}`;
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     const stateKo = { idle: "대기", moving: "이동 중", chatting: "대화 중" };
@@ -4410,8 +5196,13 @@
 
     if (questBannerEl) {
       questBannerEl.hidden = false;
-      if (questBannerTitleEl) questBannerTitleEl.textContent = quest.title;
-      if (questBannerObjectiveEl) questBannerObjectiveEl.textContent = (quest.done && !quest.dynamic) ? "완료!" : quest.objective;
+      if (storyArc.active && storyArc.chapters[storyArc.chapter]) {
+        if (questBannerTitleEl) questBannerTitleEl.textContent = `📖 ${storyArc.title}`;
+        if (questBannerObjectiveEl) questBannerObjectiveEl.textContent = storyArc.chapters[storyArc.chapter].objective || "";
+      } else {
+        if (questBannerTitleEl) questBannerTitleEl.textContent = quest.title;
+        if (questBannerObjectiveEl) questBannerObjectiveEl.textContent = (quest.done && !quest.dynamic) ? "완료!" : quest.objective;
+      }
     }
 
     uiRel.textContent = `관계도: 허승준 ${relations.playerToHeo} / 김민수 ${relations.playerToKim} / 최민영 ${relations.playerToChoi} / 허승준↔김민수 ${relations.heoToKim}`;

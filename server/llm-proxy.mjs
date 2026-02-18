@@ -322,6 +322,22 @@ function buildPrompt(payload) {
     .map((m) => `${m.speaker || "Unknown"}: ${m.text || ""}`)
     .join("\n");
 
+  const memorySection = payload.memory
+    ? [
+        "",
+        "과거 기억:",
+        payload.memory,
+        "- 기억을 자연스럽게 활용하되, 목록처럼 나열하지 마세요.",
+        "- 플레이어와의 과거 교류를 은근히 언급하면 좋습니다.",
+      ]
+    : [];
+
+  const socialSection = payload.socialContext
+    ? ["", "NPC 인간관계:", payload.socialContext, "- 다른 NPC에 대해 물어보면 관계에 맞게 자연스럽게 답하세요."]
+    : [];
+
+  const toneHint = payload.tone || "정중한 존댓말로 대화하세요.";
+
   return [
     "당신은 오픈월드 시뮬레이션 게임의 NPC입니다.",
     `NPC 이름: ${npcName}`,
@@ -332,6 +348,9 @@ function buildPrompt(payload) {
     "- 답변은 1~3문장으로 간결하게.",
     "- AI 모델임을 언급하지 마세요.",
     "- 목표를 물어보면 월드 루틴/관계/퀘스트 힌트를 자연스럽게 설명하세요.",
+    `- 말투: ${toneHint}`,
+    ...memorySection,
+    ...socialSection,
     "",
     "월드 컨텍스트:",
     `- 시간: ${worldContext.time || "unknown"}`,
