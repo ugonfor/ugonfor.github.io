@@ -214,18 +214,18 @@
 
   const places = {
     plaza: { x: 20, y: 25 },
-    cafe: { x: 31, y: 11 },
-    office: { x: 36, y: 13 },
+    cafe: { x: 31.5, y: 12.5 },       // 건물 남쪽 문 앞
+    office: { x: 36, y: 14.5 },       // 건물 남쪽 문 앞
     park: { x: 10, y: 10 },
-    market: { x: 27, y: 31 },
-    homeA: { x: 9, y: 36 },
-    homeB: { x: 51, y: 31 },
-    homeC: { x: 39, y: 41 },
-    bakery: { x: 25, y: 28 },
-    florist: { x: 13, y: 15 },
-    library: { x: 11.5, y: 29 },
-    ksa_main: { x: 44.5, y: 9.5 },
-    ksa_dorm: { x: 44.5, y: 15 },
+    market: { x: 27, y: 33.5 },       // 건물 남쪽 문 앞
+    homeA: { x: 9, y: 37.5 },         // 건물 남쪽 문 앞
+    homeB: { x: 51, y: 32.5 },        // 건물 남쪽 문 앞
+    homeC: { x: 39, y: 42.5 },        // 건물 남쪽 문 앞
+    bakery: { x: 25, y: 29.5 },       // 건물 남쪽 문 앞
+    florist: { x: 13, y: 16.5 },      // 건물 남쪽 문 앞
+    library: { x: 11.5, y: 30.5 },    // 건물 남쪽 문 앞
+    ksa_main: { x: 44.5, y: 11.5 },   // 건물 남쪽 문 앞
+    ksa_dorm: { x: 44.5, y: 16.5 },   // 건물 남쪽 문 앞
   };
 
   const buildings = [
@@ -3940,6 +3940,10 @@
         }
         player.x = clamp(state.player.x ?? player.x, 1, world.width - 1);
         player.y = clamp(state.player.y ?? player.y, 1, world.height - 1);
+        if (!canStand(player.x, player.y)) {
+          player.x = places.plaza.x;
+          player.y = places.plaza.y;
+        }
       }
       if (state.relations) {
         Object.assign(relations, state.relations);
@@ -3967,6 +3971,11 @@
           if (!npc) continue;
           npc.x = clamp(savedNpc.x ?? npc.x, 1, world.width - 1);
           npc.y = clamp(savedNpc.y ?? npc.y, 1, world.height - 1);
+          // 건물 안에 끼인 NPC를 home 앞으로 이동
+          if (!canStand(npc.x, npc.y)) {
+            npc.x = npc.home.x;
+            npc.y = npc.home.y;
+          }
           npc.talkCooldown = Math.max(0, savedNpc.talkCooldown || 0);
           if (savedNpc.favorLevel != null) npc.favorLevel = savedNpc.favorLevel;
           if (savedNpc.favorPoints != null) npc.favorPoints = savedNpc.favorPoints;
