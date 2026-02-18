@@ -46,6 +46,13 @@ exclude:
   - README.md
   - LICENSE
   - minimal-light.gemspec
+  - server
+  - node_modules
+  - src
+  - vite.config.js
+  - package.json
+  - package-lock.json
+  - CLAUDE.md
 
 future: true
 
