@@ -3622,24 +3622,29 @@ import { GameRenderer } from './renderer/renderer.js';
 
       // 자율 기분 변화 (시간/날씨/성격 기반)
       if (nowMs() > npc.moodUntil && Math.random() < 0.001) {
-        const h = hourOfDay();
         const persona = npcPersonas[npc.id];
-        const personality = persona ? persona.personality : "";
-        const isSunny = weather.current === "clear";
-        const isRainy = weather.current === "rain" || weather.current === "storm";
-        const isMorning = h >= 7 && h < 11;
-        const isEvening = h >= 18 && h < 21;
-        // 성격에 따른 기분 경향
-        const cheerful = /(밝|에너지|사교|친절|활발)/.test(personality);
-        const melancholy = /(신중|침착|조용)/.test(personality);
-        if ((isSunny && isMorning) || cheerful) {
-          npc.mood = Math.random() < 0.6 ? "happy" : "neutral";
-        } else if (isRainy || (isEvening && melancholy)) {
-          npc.mood = Math.random() < 0.4 ? "sad" : "neutral";
+        // 도슨트는 항상 밝게
+        if (persona && persona.isDocent) {
+          npc.mood = "happy";
+          npc.moodUntil = nowMs() + 60_000;
         } else {
-          npc.mood = "neutral";
+          const h = hourOfDay();
+          const personality = persona ? persona.personality : "";
+          const isSunny = weather.current === "clear";
+          const isRainy = weather.current === "rain" || weather.current === "storm";
+          const isMorning = h >= 7 && h < 11;
+          const isEvening = h >= 18 && h < 21;
+          const cheerful = /(밝|에너지|사교|친절|활발)/.test(personality);
+          const melancholy = /(신중|침착|조용)/.test(personality);
+          if ((isSunny && isMorning) || cheerful) {
+            npc.mood = Math.random() < 0.6 ? "happy" : "neutral";
+          } else if (isRainy || (isEvening && melancholy)) {
+            npc.mood = Math.random() < 0.4 ? "sad" : "neutral";
+          } else {
+            npc.mood = "neutral";
+          }
+          npc.moodUntil = nowMs() + 30_000 + Math.random() * 60_000;
         }
-        npc.moodUntil = nowMs() + 30_000 + Math.random() * 60_000;
       }
 
       // 술래잡기 중인 NPC는 updateTagGame에서 이동 처리
@@ -3695,7 +3700,10 @@ import { GameRenderer } from './renderer/renderer.js';
       } else {
         npc.roamWait = 0.6 + Math.random() * 2.2;
         npc.state = "idle";
-        // 자세 결정
+        // 자세 결정 (도슨트는 항상 서 있음)
+        const isDocent = npcPersonas[npc.id] && npcPersonas[npc.id].isDocent;
+        if (isDocent) { npc.pose = "standing"; }
+        else {
         const h = hourOfDay();
         const atHome = dist(npc, npc.home) < 2;
         const closestBench = props
@@ -3715,6 +3723,7 @@ import { GameRenderer } from './renderer/renderer.js';
         } else {
           npc.pose = "standing";
         }
+        } // end !isDocent
       }
     }
   }
