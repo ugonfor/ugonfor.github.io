@@ -52,16 +52,16 @@ export class CharacterFactory {
     group.add(hair);
     group.userData.parts.hair = hair;
 
-    // --- Eyes ---
+    // --- Eyes (head의 자식으로 — head 이동 시 함께 이동) ---
     const eyeGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
     const eyeMat = this._toon('#1a1a1a');
     const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-0.08, 1.16, 0.18);
-    group.add(leftEye);
+    leftEye.position.set(-0.08, 0.01, 0.18);
+    head.add(leftEye);
     group.userData.parts.leftEye = leftEye;
     const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(0.08, 1.16, 0.18);
-    group.add(rightEye);
+    rightEye.position.set(0.08, 0.01, 0.18);
+    head.add(rightEye);
     group.userData.parts.rightEye = rightEye;
 
     // --- Body ---
@@ -146,27 +146,29 @@ export class CharacterFactory {
     if (!p) return;
     if (p.leftArm)  p.leftArm.rotation.x = 0;
     if (p.rightArm) p.rightArm.rotation.x = 0;
-    if (p.leftLeg)  p.leftLeg.rotation.x = 0;
-    if (p.rightLeg) p.rightLeg.rotation.x = 0;
-    if (p.head) p.head.rotation.x = 0;
-    if (p.head) p.head.rotation.z = 0;
+    if (p.leftLeg)  { p.leftLeg.rotation.x = 0; p.leftLeg.position.y = 0.55; }
+    if (p.rightLeg) { p.rightLeg.rotation.x = 0; p.rightLeg.position.y = 0.55; }
+    if (p.head) { p.head.rotation.x = 0; p.head.rotation.z = 0; p.head.position.y = 1.15; }
     if (p.body) p.body.position.y = 0.75;
+    if (p.hair) p.hair.position.y = 1.35;
     group.position.y = 0;
     group.userData._anim = 'idle';
   }
 
-  /** Sitting pose: bend legs forward, lower body */
+  /** Sitting pose: bend legs forward, lower body onto bench */
   animateSit(group) {
     const p = group.userData.parts;
     if (!p) return;
-    if (p.leftLeg)  p.leftLeg.rotation.x = -Math.PI / 2;
-    if (p.rightLeg) p.rightLeg.rotation.x = -Math.PI / 2;
-    if (p.leftArm)  p.leftArm.rotation.x = 0;
-    if (p.rightArm) p.rightArm.rotation.x = 0;
+    // 다리를 앞으로 꺾기
+    if (p.leftLeg)  { p.leftLeg.rotation.x = -Math.PI / 2; p.leftLeg.position.y = 0.35; }
+    if (p.rightLeg) { p.rightLeg.rotation.x = -Math.PI / 2; p.rightLeg.position.y = 0.35; }
+    if (p.leftArm)  { p.leftArm.rotation.x = -0.3; }  // 살짝 무릎 위에
+    if (p.rightArm) { p.rightArm.rotation.x = -0.3; }
+    // 몸통과 머리를 벤치 높이로
     if (p.body) p.body.position.y = 0.55;
     if (p.head) { p.head.position.y = 0.95; p.head.rotation.x = 0; p.head.rotation.z = 0; }
     if (p.hair) p.hair.position.y = 1.15;
-    group.position.y = -0.2;
+    group.position.y = -0.15;
     group.userData._anim = 'sit';
   }
 
