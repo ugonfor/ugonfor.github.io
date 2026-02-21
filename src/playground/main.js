@@ -1,5 +1,5 @@
 import { clamp, dist, shade, randomPastelColor, normalizePlayerName, bubbleText, inferPersonalityFromName, nowMs, socialKey, npcRelationLabel } from './utils/helpers.js';
-import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_KEY, AUTO_WALK_KEY, COUNTRY_LIST, CHAT_NEARBY_DISTANCE, ZOOM_MIN, ZOOM_MAX, DEFAULT_ZOOM, CONVERSATION_MIN_ZOOM, npcPersonas, palette, places, buildings, hotspots, props, speciesPool, WEATHER_TYPES, discoveries, favorLevelNames, itemTypes, groundItems, ITEM_RESPAWN_MS, shopInventory, seasons, cardDefs, interiorDefs } from './core/constants.js';
+import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_KEY, AUTO_WALK_KEY, COUNTRY_LIST, CHAT_NEARBY_DISTANCE, ZOOM_MIN, ZOOM_MAX, DEFAULT_ZOOM, CONVERSATION_MIN_ZOOM, npcPersonas, palette, places, buildings, hotspots, props, speciesPool, WEATHER_TYPES, discoveries, favorLevelNames, itemTypes, groundItems, ITEM_RESPAWN_MS, seasons, interiorDefs } from './core/constants.js';
 import { GameRenderer } from './renderer/renderer.js';
 
 (function () {
@@ -122,6 +122,8 @@ import { GameRenderer } from './renderer/renderer.js';
   let playerBubblePending = false;
   let ambientLlmPending = false;
   let npcChatLlmPending = false;
+  let npcProactiveGreetPending = false;
+  let nextNpcProactiveAt = 0;
   const autoWalk = {
     enabled: false,
     nextPickAt: 0,
@@ -157,7 +159,7 @@ import { GameRenderer } from './renderer/renderer.js';
   const world = {
     width: 60,
     height: 65,
-    totalMinutes: new Date().getHours() * 60 + new Date().getMinutes(),
+    totalMinutes: (() => { const s = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })); return s.getHours() * 60 + s.getMinutes(); })(),
     paused: false,
     baseTileW: 40,
     baseTileH: 20,
@@ -213,6 +215,7 @@ import { GameRenderer } from './renderer/renderer.js';
       work,
       hobby,
       state: "idle",
+      pose: "standing",   // standing, sitting, lying, waving
       talkCooldown: 0,
       memory: { entries: [], lastConversation: 0, conversationCount: 0, giftsReceived: 0, questsShared: 0 },
       personality,
@@ -395,12 +398,9 @@ import { GameRenderer } from './renderer/renderer.js';
     // 시간 초과 → 승리! (60초 생존)
     if (remaining <= 0) {
       tagGame.active = false;
-      const reward = 15;
-      coins += reward;
       targetNpc.favorPoints += 8;
-      addChat("System", `🎉 도망 성공! ${targetNpc.name}에게서 60초간 도망쳤습니다! (+${reward}코인)`);
-      addLog(`술래잡기 승리! +${reward}코인`);
-      tryCardDrop("timed_event", targetNpc);
+      addChat("System", `🎉 도망 성공! ${targetNpc.name}에게서 60초간 도망쳤습니다!`);
+      addLog(`술래잡기 승리!`);
       return;
     }
 
@@ -499,64 +499,6 @@ import { GameRenderer } from './renderer/renderer.js';
     once: {},
   };
 
-  const timedEvent = {
-    active: false,
-    type: "",
-    title: "",
-    description: "",
-    endsAt: 0,
-    npcId: null,
-    targetPlace: null,
-    reward: null,
-    nextCheckAt: 0,
-  };
-
-  const timedEventTemplates = [
-    {
-      type: "flash_sale",
-      make() {
-        const npc = npcs[Math.floor(Math.random() * npcs.length)];
-        const itemKey = Object.keys(itemTypes)[Math.floor(Math.random() * Object.keys(itemTypes).length)];
-        const info = itemTypes[itemKey];
-        return {
-          title: `${npc.name}의 긴급 요청`,
-          description: `${npc.name}이(가) ${info.label}을(를) 급히 찾고 있습니다!`,
-          duration: 120_000,
-          npcId: npc.id,
-          reward: { type: "relation", npcId: npc.id, amount: 15, itemNeeded: itemKey },
-        };
-      },
-    },
-    {
-      type: "gathering",
-      make() {
-        const placeNames = { plaza: "광장", cafe: "카페", park: "공원", market: "시장" };
-        const placeKeys = Object.keys(placeNames);
-        const pk = placeKeys[Math.floor(Math.random() * placeKeys.length)];
-        return {
-          title: `${placeNames[pk]} 모임`,
-          description: `${placeNames[pk]}에서 주민 모임이 열립니다! 가보세요.`,
-          duration: 90_000,
-          targetPlace: places[pk],
-          reward: { type: "items", items: ["gem", "snack"] },
-        };
-      },
-    },
-    {
-      type: "npc_emergency",
-      make() {
-        const npc = npcs[Math.floor(Math.random() * npcs.length)];
-        return {
-          title: `${npc.name} 긴급 상황`,
-          description: `${npc.name}이(가) 도움을 요청하고 있습니다! 빨리 찾아가세요.`,
-          duration: 100_000,
-          npcId: npc.id,
-          reward: { type: "relation", npcId: npc.id, amount: 20 },
-        };
-      },
-    },
-  ];
-
   // ─── Weather System ───
   const weather = {
     current: "clear",
@@ -573,17 +515,30 @@ import { GameRenderer } from './renderer/renderer.js';
   let discoveryNotifyTitle = "";
 
   // ─── Weather Update ───
+  // 서울 실시간 날씨 동기화
+  let weatherApiNextFetch = 0;
+  const WEATHER_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/weather") : "";
+
+  async function fetchSeoulWeather() {
+    if (!WEATHER_API_URL) return;
+    try {
+      const res = await fetch(WEATHER_API_URL);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.weather && data.weather !== weather.current) {
+        weather.next = data.weather;
+        weather.targetIntensity = data.weather === "clear" ? 0 : 0.5;
+        weather.transitionProgress = 0;
+      }
+    } catch { /* 실패 시 현재 날씨 유지 */ }
+  }
+
   function updateWeather(dt) {
     const now = nowMs();
-    if (now > weather.nextChangeAt) {
-      weather.next = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
-      weather.targetIntensity = weather.next === "clear" ? 0 : 0.3 + Math.random() * 0.7;
-      weather.nextChangeAt = now + 180000 + Math.random() * 300000;
-      weather.transitionProgress = 0;
-      if (weather.next !== "clear" && weather.next !== "cloudy") {
-        const weatherNames = { rain: "비", storm: "폭풍우", snow: "눈", fog: "안개" };
-        addLog(`날씨 변화: ${weatherNames[weather.next] || weather.next}이(가) 다가옵니다...`);
-      }
+    // 10분마다 서울 날씨 API 호출
+    if (now > weatherApiNextFetch) {
+      weatherApiNextFetch = now + 600_000;
+      fetchSeoulWeather();
     }
     if (weather.transitionProgress < 1) {
       weather.transitionProgress = Math.min(1, weather.transitionProgress + dt * 0.12);
@@ -698,7 +653,6 @@ import { GameRenderer } from './renderer/renderer.js';
       discoveryNotifyTitle = d.title;
       addLog(`🔍 발견! "${d.title}" — ${d.desc}`);
       addChat("System", `✨ 새로운 발견: ${d.title}!`);
-      tryCardDrop("quest_complete", null);
     }
   }
 
@@ -754,7 +708,7 @@ import { GameRenderer } from './renderer/renderer.js';
   }
 
   function completeFavor(npc, req) {
-    npc.favorPoints += Math.round(req.reward.favorPoints * cardEffectMultiplier("favor") * cardEffectMultiplier("allDouble"));
+    npc.favorPoints += Math.round(req.reward.favorPoints * 1 * 1);
     const relKey = Object.keys(relations).find((k) => k.toLowerCase().includes(npc.id.slice(0, 3)));
     if (relKey) adjustRelation(relKey, req.reward.relationBoost);
     for (const it of req.reward.items || []) {
@@ -767,189 +721,19 @@ import { GameRenderer } from './renderer/renderer.js';
     if (npc.favorPoints >= 100) {
       npc.favorLevel = Math.min(npc.favorLevel + 1, 4);
       npc.favorPoints = 0;
-      addChat("System", `🎉 ${npc.name}과(와)의 관계: ${favorLevelNames[npc.favorLevel]}!`);
       addNpcMemory(npc, "favor", `관계가 '${favorLevelNames[npc.favorLevel]}'(으)로 발전`);
     }
 
     addChat("System", `✅ '${req.title}' 완료! (호감도 +${req.reward.favorPoints})`);
-    tryCardDrop("quest_complete", npc);
-  }
-
-  const ownedCards = {};
-  const cardAlbum = {};
-  let cardNotifyUntil = 0;
-  let cardNotifyName = "";
-  let cardNotifyRarity = "";
-
-  function tryCardDrop(trigger, context) {
-    let chance = 0;
-    if (trigger === "quest_complete") chance = 0.25;
-    else if (trigger === "npc_interaction") chance = 0.06;
-    else if (trigger === "item_pickup") chance = 0.04;
-    else if (trigger === "timed_event") chance = 0.30;
-    else chance = 0.03;
-
-    if (Math.random() > chance) return;
-
-    const eligible = Object.entries(cardDefs).filter(([id, card]) => {
-      const rChance = card.rarity === "legendary" ? 0.02 : card.rarity === "epic" ? 0.12 : card.rarity === "rare" ? 0.25 : 0.5;
-      return Math.random() < rChance;
-    });
-    if (!eligible.length) return;
-
-    const [cardId, card] = eligible[Math.floor(Math.random() * eligible.length)];
-    ownedCards[cardId] = (ownedCards[cardId] || 0) + 1;
-
-    if (!cardAlbum[cardId]) {
-      cardAlbum[cardId] = nowMs();
-      addChat("System", `✨ 새 카드! [${card.emoji} ${card.name}] (${card.rarity}) — ${card.effect}`);
-      cardNotifyUntil = nowMs() + 3500;
-      cardNotifyName = card.name;
-      cardNotifyRarity = card.rarity;
-    } else {
-      addChat("System", `카드 획득: ${card.emoji} ${card.name} (x${ownedCards[cardId]})`);
-    }
-  }
-
-  function cardEffectMultiplier(key) {
-    let mult = 1.0;
-    for (const [cardId, count] of Object.entries(ownedCards)) {
-      if (count <= 0) continue;
-      const def = cardDefs[cardId];
-      if (!def) continue;
-      if (def.effectKey === key) mult += def.effectVal;
-    }
-    return mult;
-  }
-
-  function cardCollectionSummary() {
-    const total = Object.keys(cardDefs).length;
-    const owned = Object.keys(cardAlbum).length;
-    return `${owned}/${total}`;
-  }
-
-  function startTimedEvent() {
-    const template = timedEventTemplates[Math.floor(Math.random() * timedEventTemplates.length)];
-    const ev = template.make();
-    timedEvent.active = true;
-    timedEvent.type = template.type;
-    timedEvent.title = ev.title;
-    timedEvent.description = ev.description;
-    timedEvent.endsAt = nowMs() + ev.duration;
-    timedEvent.npcId = ev.npcId || null;
-    timedEvent.targetPlace = ev.targetPlace || null;
-    timedEvent.reward = ev.reward || null;
-    addChat("System", `⚡ 이벤트: ${ev.title} — ${ev.description}`);
-  }
-
-  function checkTimedEventCompletion() {
-    if (!timedEvent.active) return;
-    const now = nowMs();
-    if (now >= timedEvent.endsAt) {
-      addChat("System", `⏰ 이벤트 '${timedEvent.title}' 시간 초과!`);
-      timedEvent.active = false;
-      return;
-    }
-
-    // Cancel events whose target NPC was removed
-    if (timedEvent.npcId && !npcById(timedEvent.npcId)) {
-      addChat("System", `이벤트 '${timedEvent.title}' 대상 NPC가 없어 취소됩니다.`);
-      timedEvent.active = false;
-      return;
-    }
-
-    if (timedEvent.type === "flash_sale" && timedEvent.reward && timedEvent.reward.itemNeeded) {
-      const npc = npcById(timedEvent.npcId);
-      if (npc && dist(player, npc) < 2.0 && inventory[timedEvent.reward.itemNeeded] > 0) {
-        inventory[timedEvent.reward.itemNeeded] -= 1;
-        const relKey = Object.keys(relations).find((k) => k.toLowerCase().includes(npc.id.slice(0, 3)));
-        if (relKey) adjustRelation(relKey, timedEvent.reward.amount);
-        npc.mood = "happy";
-        npc.moodUntil = nowMs() + 40_000;
-        addChat(npc.name, "딱 필요했던 거야! 정말 고마워!");
-        addChat("System", `✅ 이벤트 '${timedEvent.title}' 완료! 관계도가 올랐습니다.`);
-        timedEvent.active = false;
-        tryCardDrop("timed_event");
-      }
-    }
-
-    if (timedEvent.type === "gathering" && timedEvent.targetPlace) {
-      if (dist(player, timedEvent.targetPlace) < 2.5) {
-        if (timedEvent.reward && timedEvent.reward.items) {
-          for (const it of timedEvent.reward.items) {
-            inventory[it] = (inventory[it] || 0) + 1;
-          }
-          const labels = timedEvent.reward.items.map((t) => itemTypes[t].emoji).join(" ");
-          addChat("System", `✅ 이벤트 '${timedEvent.title}' 완료! ${labels} 획득!`);
-        }
-        timedEvent.active = false;
-        tryCardDrop("timed_event");
-      }
-    }
-
-    if (timedEvent.type === "npc_emergency") {
-      const npc = npcById(timedEvent.npcId);
-      if (npc && dist(player, npc) < 2.0) {
-        const relKey = Object.keys(relations).find((k) => k.toLowerCase().includes(npc.id.slice(0, 3)));
-        if (relKey) adjustRelation(relKey, timedEvent.reward.amount);
-        npc.mood = "happy";
-        npc.moodUntil = nowMs() + 40_000;
-        addChat(npc.name, "와줘서 정말 고마워! 큰 도움이 됐어.");
-        addChat("System", `✅ 이벤트 '${timedEvent.title}' 완료!`);
-        timedEvent.active = false;
-        tryCardDrop("timed_event");
-      }
-    }
   }
 
   function itemRespawnMs(gi) {
-    if (gi.type === "gem") return Math.round(ITEM_RESPAWN_MS / cardEffectMultiplier("gemFind"));
+    if (gi.type === "gem") return Math.round(ITEM_RESPAWN_MS / 1);
     return ITEM_RESPAWN_MS;
   }
 
   const inventory = {};
   for (const k of Object.keys(itemTypes)) inventory[k] = 0;
-  let coins = 10;
-
-  // ─── Economy: Shop System ───
-  function restockShop() {
-    for (const [k, v] of Object.entries(shopInventory)) {
-      v.stock = Math.min(v.stock + 1 + Math.floor(Math.random() * 2), k === "gem" ? 2 : 6);
-    }
-  }
-
-  function buyItem(itemKey) {
-    const shop = shopInventory[itemKey];
-    if (!shop) { addChat("System", "존재하지 않는 아이템입니다."); return false; }
-    if (shop.stock <= 0) { addChat("System", "재고가 없습니다."); return false; }
-    if (coins < shop.price) { addChat("System", `코인이 부족합니다. (보유: ${coins}코인, 필요: ${shop.price}코인)`); return false; }
-    coins -= shop.price;
-    shop.stock -= 1;
-    inventory[itemKey] = (inventory[itemKey] || 0) + 1;
-    const info = itemTypes[itemKey];
-    addChat("System", `${info.emoji} ${info.label} 구매! (-${shop.price}코인, 잔액: ${coins}코인)`);
-    return true;
-  }
-
-  function sellItem(itemKey) {
-    if ((inventory[itemKey] || 0) <= 0) { addChat("System", "해당 아이템이 없습니다."); return false; }
-    const shop = shopInventory[itemKey];
-    const sellPrice = Math.max(1, Math.floor((shop ? shop.price : 3) * 0.6));
-    inventory[itemKey] -= 1;
-    coins += sellPrice;
-    const info = itemTypes[itemKey];
-    addChat("System", `${info.emoji} ${info.label} 판매! (+${sellPrice}코인, 잔액: ${coins}코인)`);
-    return true;
-  }
-
-  function showShop() {
-    addChat("System", `🏪 상점 (보유: ${coins}코인)`);
-    for (const [k, v] of Object.entries(shopInventory)) {
-      const info = itemTypes[k];
-      addChat("System", `  ${info.emoji} ${info.label}: ${v.price}코인 (재고 ${v.stock})`);
-    }
-    addChat("System", "구매: '구매 아이템이름' / 판매: '판매 아이템이름'");
-  }
 
   // ─── Seasons ───
   function currentSeason() {
@@ -970,168 +754,12 @@ import { GameRenderer } from './renderer/renderer.js';
         "겨울": "❄️ 겨울입니다! NPC들이 실내에 머무르는 시간이 늘어납니다.",
       };
       addChat("System", effects[s] || `계절이 ${s}(으)로 바뀌었습니다.`);
-      if (s === "가을") {
-        shopInventory.gem.stock += 2;
-        shopInventory.snack.stock += 3;
-      }
-      restockShop();
-    }
-  }
-
-  // ─── Achievement System ───
-  const achievements = [
-    { id: "first_chat", title: "첫 대화", desc: "NPC와 처음 대화하기", icon: "💬", check: () => npcs.some(n => ensureMemoryFormat(n).conversationCount > 0) },
-    { id: "social_butterfly", title: "사교왕", desc: "5명 이상의 NPC와 대화하기", icon: "🦋", check: () => npcs.filter(n => ensureMemoryFormat(n).conversationCount > 0).length >= 5 },
-    { id: "gift_giver", title: "선물의 달인", desc: "총 10회 이상 선물하기", icon: "🎁", check: () => npcs.reduce((s, n) => s + ensureMemoryFormat(n).giftsReceived, 0) >= 10 },
-    { id: "best_friend", title: "소울메이트", desc: "NPC와 소울메이트 관계 달성", icon: "💖", check: () => npcs.some(n => n.favorLevel >= 4) },
-    { id: "quest_master", title: "퀘스트 마스터", desc: "퀘스트 20개 완료", icon: "⭐", check: () => questCount >= 20 },
-    { id: "explorer", title: "탐험가", desc: "발견 장소 10곳 이상 발견", icon: "🗺️", check: () => discoveries.filter(d => d.found).length >= 10 },
-    { id: "rich", title: "부자", desc: "코인 100개 이상 보유", icon: "💰", check: () => coins >= 100 },
-    { id: "mediator", title: "중재자", desc: "중재 퀘스트 완료", icon: "🕊️", check: () => questHistory.some(h => h.type === "mediate") },
-    { id: "night_owl", title: "올빼미", desc: "자정 이후에 발견 장소 찾기", icon: "🦉", check: () => discoveries.some(d => d.found && d.condition === "night") },
-    { id: "collector", title: "수집가", desc: "모든 종류의 아이템 보유", icon: "📦", check: () => Object.keys(itemTypes).every(k => (inventory[k] || 0) > 0) },
-    { id: "story_complete", title: "스토리텔러", desc: "스토리 아크 1개 완료", icon: "📖", check: () => storyArc.triggeredIds.length > 0 && !storyArc.active },
-    { id: "all_seasons", title: "사계절", desc: "4계절을 모두 경험하기", icon: "🌍", check: () => currentDay() >= 28 },
-  ];
-
-  const unlockedAchievements = new Set();
-
-  function checkAchievements() {
-    for (const ach of achievements) {
-      if (unlockedAchievements.has(ach.id)) continue;
-      try {
-        if (ach.check()) {
-          unlockedAchievements.add(ach.id);
-          addChat("System", `🏆 업적 달성: ${ach.icon} '${ach.title}' — ${ach.desc}`);
-          coins += 10;
-          addChat("System", `  보상: +10코인 (잔액: ${coins}코인)`);
-        }
-      } catch {}
-    }
-  }
-
-  // ─── Challenge Quests ───
-  const challengeTemplates = [
-    {
-      id: "speed_delivery",
-      title: "번개 배달",
-      desc: "45초 안에 3명의 NPC를 순서대로 방문하세요!",
-      timeLimit: 45_000,
-      reward: 20,
-      generate() {
-        const targets = npcs.slice().sort(() => Math.random() - 0.5).slice(0, 3);
-        return targets.map(n => ({ npcId: n.id, name: n.name }));
-      },
-    },
-    {
-      id: "item_hunt",
-      title: "아이템 사냥",
-      desc: "60초 안에 아이템 3개를 주우세요!",
-      timeLimit: 60_000,
-      reward: 15,
-      generate() {
-        return { targetCount: 3 };
-      },
-    },
-    {
-      id: "social_sprint",
-      title: "소셜 스프린트",
-      desc: "90초 안에 4명의 NPC와 대화하세요!",
-      timeLimit: 90_000,
-      reward: 25,
-      generate() {
-        return { targetCount: 4 };
-      },
-    },
-  ];
-
-  const challenge = {
-    active: false,
-    id: null,
-    title: "",
-    endsAt: 0,
-    reward: 0,
-    data: null,
-    progress: 0,
-    target: 0,
-    talkedNpcs: null,
-  };
-
-  let nextChallengeAt = 0;
-
-  function startChallenge() {
-    const tmpl = challengeTemplates[Math.floor(Math.random() * challengeTemplates.length)];
-    const data = tmpl.generate();
-    challenge.active = true;
-    challenge.id = tmpl.id;
-    challenge.title = tmpl.title;
-    challenge.endsAt = nowMs() + tmpl.timeLimit;
-    challenge.reward = tmpl.reward;
-    challenge.data = data;
-    challenge.progress = 0;
-
-    if (tmpl.id === "speed_delivery") {
-      challenge.target = data.length;
-      challenge.talkedNpcs = new Set();
-    } else if (tmpl.id === "item_hunt") {
-      challenge.target = data.targetCount;
-    } else if (tmpl.id === "social_sprint") {
-      challenge.target = data.targetCount;
-      challenge.talkedNpcs = new Set();
-    }
-
-    addChat("System", `⚔️ 도전 퀘스트: ${tmpl.title}! — ${tmpl.desc}`);
-  }
-
-  function updateChallenge() {
-    if (!challenge.active) {
-      const now = nowMs();
-      if (now > nextChallengeAt && questCount >= 5) {
-        nextChallengeAt = now + 180_000 + Math.random() * 300_000;
-        if (Math.random() < 0.3) startChallenge();
-      }
-      return;
-    }
-
-    if (nowMs() > challenge.endsAt) {
-      addChat("System", `⏰ 도전 '${challenge.title}' 시간 초과!`);
-      challenge.active = false;
-      return;
-    }
-
-    if (challenge.progress >= challenge.target) {
-      coins += challenge.reward;
-      addChat("System", `🎉 도전 '${challenge.title}' 성공! +${challenge.reward}코인`);
-      challenge.active = false;
-    }
-  }
-
-  function challengeOnNpcTalk(npcId) {
-    if (!challenge.active) return;
-    if (challenge.id === "speed_delivery" && Array.isArray(challenge.data)) {
-      const nextIdx = challenge.progress;
-      if (nextIdx < challenge.data.length && challenge.data[nextIdx].npcId === npcId) {
-        challenge.progress += 1;
-      }
-    }
-    if (challenge.id === "social_sprint" && challenge.talkedNpcs) {
-      if (!challenge.talkedNpcs.has(npcId)) {
-        challenge.talkedNpcs.add(npcId);
-        challenge.progress = challenge.talkedNpcs.size;
-      }
-    }
-  }
-
-  function challengeOnItemPickup() {
-    if (!challenge.active) return;
-    if (challenge.id === "item_hunt") {
-      challenge.progress += 1;
     }
   }
 
   function nearestGroundItem(maxDist) {
     const now = nowMs();
-    const boostedDist = maxDist * cardEffectMultiplier("itemFind");
+    const boostedDist = maxDist * 1;
     let best = null;
     let bestD = Infinity;
     for (const gi of groundItems) {
@@ -1150,13 +778,11 @@ import { GameRenderer } from './renderer/renderer.js';
     if (!gi) return false;
     gi.pickedAt = nowMs();
     let amount = 1;
-    if (gi.type === "snack") amount = Math.round(amount * cardEffectMultiplier("snackDouble"));
-    amount = Math.round(amount * cardEffectMultiplier("allDouble"));
+    if (gi.type === "snack") amount = Math.round(amount * 1);
+    amount = Math.round(amount * 1);
     inventory[gi.type] = (inventory[gi.type] || 0) + amount;
     const info = itemTypes[gi.type];
     addChat("System", `${info.emoji} ${info.label}을(를) 주웠습니다!${amount > 1 ? ` (x${amount})` : ""} (보유: ${inventory[gi.type]})`);
-    tryCardDrop("item_pickup");
-    challengeOnItemPickup();
     return true;
   }
 
@@ -1425,10 +1051,6 @@ import { GameRenderer } from './renderer/renderer.js';
     if (focusedNpcId === npc.id) focusedNpcId = null;
     if (chatSession.npcId === npc.id) { chatSession.npcId = null; chatSession.expiresAt = 0; }
     delete npcPersonas[npc.id];
-    // Cancel timed event referencing this NPC
-    if (timedEvent.active && timedEvent.npcId === npc.id) {
-      timedEvent.active = false;
-    }
     // Cancel favor requests targeting this NPC
     for (const other of npcs) {
       if (other.activeRequest && other.activeRequest.targetNpcId === npc.id) {
@@ -1858,7 +1480,7 @@ import { GameRenderer } from './renderer/renderer.js';
   }
 
   function adjustRelation(key, delta) {
-    const boosted = delta * cardEffectMultiplier("relation") * cardEffectMultiplier("allDouble");
+    const boosted = delta * 1 * 1;
     relations[key] = clamp(Math.round((relations[key] || 50) + boosted), 0, 100);
   }
 
@@ -2238,6 +1860,30 @@ import { GameRenderer } from './renderer/renderer.js';
         });
     }
 
+    // NPC 선제적 말 걸기: 가까이 + 호감도 있으면 가끔 먼저 인사
+    if (!npcProactiveGreetPending && now > nextNpcProactiveAt && !conversationFocusNpcId) {
+      nextNpcProactiveAt = now + 20000 + Math.random() * 30000;
+      const close = npcs.filter(n => dist(n, player) < 3.5 && n.favorLevel >= 1 && !chatSessionActiveFor(n.id) && n.talkCooldown <= 0);
+      if (close.length && Math.random() < 0.15) {
+        const npc = close[Math.floor(Math.random() * close.length)];
+        npcProactiveGreetPending = true;
+        npc.pose = "waving";
+        llmReplyOrEmpty(npc, "(플레이어가 근처를 지나갑니다. 먼저 반갑게 말을 걸어주세요. 짧은 한마디.)")
+          .then((line) => {
+            if (line) {
+              addChat(npc.name, line);
+              upsertSpeechBubble(npc.id, line, 4000);
+              conversationFocusNpcId = npc.id;
+              setChatSession(npc.id, 15_000);
+            }
+          })
+          .finally(() => {
+            npcProactiveGreetPending = false;
+            setTimeout(() => { npc.pose = "standing"; }, 3000);
+          });
+      }
+    }
+
     maybeRunAutoConversation(now);
   }
 
@@ -2480,46 +2126,9 @@ import { GameRenderer } from './renderer/renderer.js';
     npc.roamTarget = randomPointNear(base, npc.roamRadius);
   }
 
-  function setQuestStage(stage, objective) {
-    quest.stage = stage;
-    quest.objective = objective;
-    if (stage >= 5) quest.done = true;
-  }
-
   function handleQuestNpcTalk(npc) {
     if (quest.done && quest.dynamic) return handleDynamicQuestProgress(npc);
     if (quest.done) return false;
-
-    if (quest.stage === 0 && npc.id === "heo") {
-      setQuestStage(1, "김민수에게 허승준의 메시지를 전달하세요.");
-      adjustRelation("playerToHeo", 6);
-      addChat("허승준", "김민수에게 이 메시지를 전해줄 수 있을까?");
-      return true;
-    }
-
-    if (quest.stage === 1 && npc.id === "kim") {
-      setQuestStage(2, "최민영을 만나 자세한 이야기를 들으세요.");
-      adjustRelation("playerToKim", 8);
-      adjustRelation("heoToKim", 10);
-      addChat("김민수", "고마워. 최민영이 더 자세히 알고 있어.");
-      return true;
-    }
-
-    if (quest.stage === 2 && npc.id === "choi") {
-      setQuestStage(3, "20시 이후에 공원 기념비를 조사하세요.");
-      adjustRelation("playerToChoi", 6);
-      addChat("최민영", "밤에 공원 기념비를 확인해봐.");
-      return true;
-    }
-
-    if (quest.stage === 4 && npc.id === "heo") {
-      setQuestStage(5, "완료");
-      adjustRelation("playerToHeo", 10);
-      addChat("허승준", "잘했어. 이제 이 동네가 더 연결된 느낌이야.");
-      generateDynamicQuest();
-      return true;
-    }
-
     return false;
   }
 
@@ -2762,17 +2371,15 @@ import { GameRenderer } from './renderer/renderer.js';
 
     const primaryNpc = npcById(primaryNpcId);
     if (primaryNpc) {
-      const boosted = Math.round(15 * cardEffectMultiplier("favor") * cardEffectMultiplier("allDouble"));
+      const boosted = Math.round(15 * 1 * 1);
       primaryNpc.favorPoints += boosted;
       if (primaryNpc.favorPoints >= 100) {
         primaryNpc.favorLevel = Math.min(primaryNpc.favorLevel + 1, 4);
         primaryNpc.favorPoints = 0;
-        addChat("System", `🎉 ${primaryNpc.name}과(와)의 관계: ${favorLevelNames[primaryNpc.favorLevel]}!`);
+        addNpcMemory(primaryNpc, "favor", `관계가 '${favorLevelNames[primaryNpc.favorLevel]}'(으)로 발전`);
         addNpcMemory(primaryNpc, "favor", `관계가 '${favorLevelNames[primaryNpc.favorLevel]}'(으)로 발전`);
       }
     }
-
-    tryCardDrop("quest_complete", primaryNpc || null);
 
     if (Math.random() < 0.5) {
       const itemKeys = Object.keys(itemTypes);
@@ -2788,15 +2395,14 @@ import { GameRenderer } from './renderer/renderer.js';
         addChat("System", `⚡ 긴급 배달 보너스! 빠른 완료 (${Math.round(elapsed)}초)`);
         if (relKey) adjustRelation(relKey, 5);
         if (primaryNpc) {
-          primaryNpc.favorPoints += Math.round(10 * cardEffectMultiplier("favor") * cardEffectMultiplier("allDouble"));
+          primaryNpc.favorPoints += Math.round(10 * 1 * 1);
           if (primaryNpc.favorPoints >= 100) {
             primaryNpc.favorLevel = Math.min(primaryNpc.favorLevel + 1, 4);
             primaryNpc.favorPoints = 0;
-            addChat("System", `🎉 ${primaryNpc.name}과(와)의 관계: ${favorLevelNames[primaryNpc.favorLevel]}!`);
+            addNpcMemory(primaryNpc, "favor", `관계가 '${favorLevelNames[primaryNpc.favorLevel]}'(으)로 발전`);
             addNpcMemory(primaryNpc, "favor", `관계가 '${favorLevelNames[primaryNpc.favorLevel]}'(으)로 발전`);
           }
         }
-        tryCardDrop("quest_complete", primaryNpc);
       }
     }
 
@@ -2814,9 +2420,7 @@ import { GameRenderer } from './renderer/renderer.js';
       quest._onComplete = null;
     }
 
-    const coinReward = 5 + stageCount * 2 + (questType === "urgent" ? 5 : 0);
-    coins += coinReward;
-    addChat("System", `퀘스트 '${title}' 완료! (+${coinReward}코인)`);
+    addChat("System", `퀘스트 '${title}' 완료!`);
     generateDynamicQuest();
   }
 
@@ -3012,12 +2616,10 @@ import { GameRenderer } from './renderer/renderer.js';
       addChat(name, "할 수 있는 것들을 알려드릴게요!");
       addChat(name, "🚶 WASD로 이동, Shift로 달리기");
       addChat(name, "💬 E키로 NPC와 대화 (채팅창에서 직접 대화도 가능)");
-      addChat(name, "📋 퀘스트를 수행하면 코인과 NPC 호감도를 얻어요");
-      addChat(name, "🏪 시장에서 아이템을 사고팔 수 있어요");
+      addChat(name, "📋 퀘스트를 수행하면 NPC 호감도를 얻어요");
       addChat(name, "🎁 NPC에게 선물하면 관계가 좋아져요");
       addChat(name, "🏃 놀이터에서 술래잡기! NPC에게서 도망치세요");
       addChat(name, "🗺️ 숨겨진 발견 장소들이 곳곳에 있어요");
-      addChat(name, "🃏 퀘스트 완료 시 카드를 수집할 수 있어요");
       return true;
     }
     if (choice === "3") {
@@ -3052,7 +2654,6 @@ import { GameRenderer } from './renderer/renderer.js';
     addChat("System", "채팅창에 번호를 입력하세요:");
     addChat("System", "1. 현재 퀘스트 확인");
     addChat("System", "2. 완료한 퀘스트 목록");
-    addChat("System", "3. 업적 확인");
     questBoardMenuActive = true;
   }
 
@@ -3094,17 +2695,6 @@ import { GameRenderer } from './renderer/renderer.js';
       }
       return true;
     }
-    if (choice === "3") {
-      addChat("System", `━━ 업적 (${unlockedAchievements.size}/${achievements.length}) ━━`);
-      for (const ach of achievements) {
-        const done = unlockedAchievements.has(ach.id);
-        const status = done ? "✅" : "🔒";
-        const title = done ? ach.title : "???";
-        const desc = done ? ach.desc : "아직 달성하지 못했습니다";
-        addChat("System", `  ${status} ${ach.icon} ${title} — ${desc}`);
-      }
-      return true;
-    }
     return false;
   }
 
@@ -3139,17 +2729,7 @@ import { GameRenderer } from './renderer/renderer.js';
     }
 
     if (hs.id === "parkMonument") {
-      if (quest.stage === 3) {
-        if (hourOfDay() >= 20 || hourOfDay() < 5) {
-          setQuestStage(4, "발견한 단서를 허승준에게 보고하세요.");
-          addLog("퀘스트 갱신: 기념비 단서를 허승준에게 전달하세요.");
-          addLog("기념비에 숨겨진 암호 메시지를 발견했습니다.");
-        } else {
-          addLog("단서는 밤(20시 이후)에만 나타납니다.");
-        }
-      } else {
-        addLog("기념비에 희미한 무늬가 새겨져 있습니다.");
-      }
+      addLog("기념비에 희미한 무늬가 새겨져 있습니다.");
       return true;
     }
 
@@ -3228,7 +2808,6 @@ import { GameRenderer } from './renderer/renderer.js';
           })();
           if (greetNpc.id === "heo") adjustRelation("playerToHeo", 1);
           if (greetNpc.id === "kim") adjustRelation("playerToKim", 1);
-          tryCardDrop("npc_interaction", greetNpc);
         }
       } else {
         addChat("System", `${near.npc.name}은(는) 잠시 바쁩니다.`);
@@ -3261,7 +2840,7 @@ import { GameRenderer } from './renderer/renderer.js';
 
     if (sentiment === "positive") {
       if (relKey) adjustRelation(relKey, intensity * 2);
-      npc.favorPoints += Math.round(intensity * 2 * cardEffectMultiplier("favor") * cardEffectMultiplier("allDouble"));
+      npc.favorPoints += Math.round(intensity * 2 * 1 * 1);
       if (intensity >= 2) {
         npc.mood = "happy";
         npc.moodUntil = nowMs() + 20_000;
@@ -3278,7 +2857,6 @@ import { GameRenderer } from './renderer/renderer.js';
     if (npc.favorPoints >= 100) {
       npc.favorLevel = Math.min(npc.favorLevel + 1, 4);
       npc.favorPoints = 0;
-      addChat("System", `🎉 ${npc.name}과(와)의 관계: ${favorLevelNames[npc.favorLevel]}!`);
       addNpcMemory(npc, "favor", `관계가 '${favorLevelNames[npc.favorLevel]}'(으)로 발전`);
     }
   }
@@ -3505,44 +3083,7 @@ import { GameRenderer } from './renderer/renderer.js';
       return;
     }
     if (/^(인벤|인벤토리|inventory|가방)$/i.test(msg.trim())) {
-      addChat("System", `인벤토리: ${inventorySummary()} | 💰 ${coins}코인`);
-      return;
-    }
-    if (/^(상점|가게|shop)$/i.test(msg.trim())) {
-      showShop();
-      return;
-    }
-    if (/^(업적|achievements?)$/i.test(msg.trim())) {
-      addChat("System", `🏆 업적 (${unlockedAchievements.size}/${achievements.length})`);
-      for (const ach of achievements) {
-        const done = unlockedAchievements.has(ach.id);
-        addChat("System", `  ${done ? ach.icon : "🔒"} ${ach.title}: ${ach.desc} ${done ? "✅" : ""}`);
-      }
-      return;
-    }
-    if (/^(도전|challenge)$/i.test(msg.trim())) {
-      if (challenge.active) {
-        const remaining = Math.max(0, Math.ceil((challenge.endsAt - nowMs()) / 1000));
-        addChat("System", `⚔️ 진행 중: ${challenge.title} (${challenge.progress}/${challenge.target}, 남은 시간: ${remaining}초)`);
-      } else {
-        addChat("System", "현재 진행 중인 도전이 없습니다.");
-      }
-      return;
-    }
-    const buyMatch = msg.trim().match(/^(구매|buy)\s+(.+)$/i);
-    if (buyMatch) {
-      const name = buyMatch[2].trim();
-      const entry = Object.entries(itemTypes).find(([, v]) => v.label === name);
-      if (entry) buyItem(entry[0]);
-      else addChat("System", `'${name}' 아이템을 찾을 수 없습니다.`);
-      return;
-    }
-    const sellMatch = msg.trim().match(/^(판매|sell)\s+(.+)$/i);
-    if (sellMatch) {
-      const name = sellMatch[2].trim();
-      const entry = Object.entries(itemTypes).find(([, v]) => v.label === name);
-      if (entry) sellItem(entry[0]);
-      else addChat("System", `'${name}' 아이템을 찾을 수 없습니다.`);
+      addChat("System", `인벤토리: ${inventorySummary()}`);
       return;
     }
     const removeMatch = msg.trim().match(/^(제거|삭제|remove)\s+(.+)$/i);
@@ -3578,11 +3119,6 @@ import { GameRenderer } from './renderer/renderer.js';
     if (!target.near) {
       moveNearNpcTarget(target.npc);
       addSystemToast(`${target.npc.name}에게 이동 중입니다. 가까이 가면 대화할 수 있습니다.`);
-      return;
-    }
-
-    if (handleStoryArcInteraction(npc, msg)) {
-      setChatSession(npc.id, 90000);
       return;
     }
 
@@ -3688,7 +3224,6 @@ import { GameRenderer } from './renderer/renderer.js';
     if (cleanReply) upsertSpeechBubble(npc.id, cleanReply, 4000);
 
     if (cleanReply) {
-      challengeOnNpcTalk(npc.id);
       applyConversationEffect(npc, msg, cleanReply);
       const shortMsg = msg.length > 30 ? msg.slice(0, 30) + "…" : msg;
       const shortReply = cleanReply.length > 40 ? cleanReply.slice(0, 40) + "…" : cleanReply;
@@ -3759,214 +3294,9 @@ import { GameRenderer } from './renderer/renderer.js';
       }
     }
 
-    const evNow = nowMs();
-    checkTimedEventCompletion();
-    if (!timedEvent.active && evNow > timedEvent.nextCheckAt) {
-      timedEvent.nextCheckAt = evNow + 60_000 + Math.random() * 120_000;
-      if (Math.random() < 0.4) startTimedEvent();
-    }
-
     processGossip();
     updateNpcSocialInteractions();
-    checkStoryArcTriggers();
-    checkStoryArcVisit();
     checkSeasonChange();
-    checkAchievements();
-    updateChallenge();
-  }
-
-  // ─── Story Arc System ───
-  const storyArc = {
-    active: false,
-    id: null,
-    title: "",
-    chapter: 0,
-    chapters: [],
-    triggeredIds: [],
-  };
-
-  const storyArcTemplates = [
-    {
-      id: "rivalry",
-      title: "라이벌의 탄생",
-      condition() {
-        const pairs = [];
-        for (const a of npcs) {
-          for (const b of npcs) {
-            if (a.id >= b.id) continue;
-            if (getNpcRelation(a.id, b.id) < 30) pairs.push([a, b]);
-          }
-        }
-        return pairs.length > 0 ? pairs[0] : null;
-      },
-      generate([npcA, npcB]) {
-        return [
-          { type: "talk", npcId: npcA.id, text: `${npcB.name}... 그 사람이 요즘 나를 무시하는 것 같아. 뭐가 문제인지 알아봐줄래?`, objective: `${npcA.name}의 고민을 들으세요.` },
-          { type: "talk", npcId: npcB.id, text: `${npcA.name} 얘기? 난 그런 적 없는데... 오해가 있었나봐.`, objective: `${npcB.name}의 입장을 들으세요.` },
-          { type: "choice", text: "누구의 편을 들겠습니까?", options: [
-            { label: `${npcA.name} 편`, effect() { adjustNpcRelation(npcA.id, npcB.id, -5); const rk = relationKeyForNpc(npcA.id); if (rk) adjustRelation(rk, 5); } },
-            { label: `${npcB.name} 편`, effect() { adjustNpcRelation(npcA.id, npcB.id, -5); const rk = relationKeyForNpc(npcB.id); if (rk) adjustRelation(rk, 5); } },
-            { label: "중재하기", effect() { adjustNpcRelation(npcA.id, npcB.id, 15); } },
-          ], objective: "선택하세요." },
-          { type: "talk", npcId: npcA.id, text: "... 고마워. 네 덕분에 생각이 좀 정리됐어.", objective: `${npcA.name}에게 결과를 전하세요.` },
-        ];
-      },
-    },
-    {
-      id: "secret_admirer",
-      title: "비밀 편지",
-      condition() {
-        for (const n of npcs) {
-          if (n.favorLevel >= 2) return n;
-        }
-        return null;
-      },
-      generate(npc) {
-        const others = npcs.filter(o => o.id !== npc.id);
-        const admirer = others[Math.floor(Math.random() * others.length)];
-        return [
-          { type: "talk", npcId: npc.id, text: "오늘 아침 내 문 앞에 편지가 놓여 있었어... 누가 보냈는지 모르겠어.", objective: `${npc.name}의 이야기를 들으세요.` },
-          { type: "visit", pos: admirer.home || places.plaza, radius: 3, text: `단서를 따라가니 ${admirer.name}의 집 근처에 흔적이 있습니다.`, objective: "편지의 단서를 찾으세요." },
-          { type: "talk", npcId: admirer.id, text: `들켰구나... 사실 ${npc.name}에게 고마운 마음을 전하고 싶었어.`, objective: `${admirer.name}에게 진실을 확인하세요.` },
-          { type: "talk", npcId: npc.id, text: `${admirer.name}이(가)? 정말? 고마운 마음이 전해졌어.`, objective: `${npc.name}에게 알려주세요.`, onComplete() { adjustNpcRelation(npc.id, admirer.id, 15); } },
-        ];
-      },
-    },
-    {
-      id: "lost_item",
-      title: "잃어버린 보물",
-      condition() {
-        for (const n of npcs) {
-          const mem = ensureMemoryFormat(n);
-          if (mem.giftsReceived >= 3) return n;
-        }
-        return null;
-      },
-      generate(npc) {
-        const searchPlace = npc.work || npc.hobby || places.park;
-        return [
-          { type: "talk", npcId: npc.id, text: "큰일이야... 소중한 물건을 잃어버렸어. 혹시 같이 찾아줄 수 있어?", objective: `${npc.name}에게 이야기를 들으세요.` },
-          { type: "visit", pos: searchPlace, radius: 3, text: "이 근처에서 무언가를 발견했습니다!", objective: "물건의 단서를 찾으세요." },
-          { type: "visit", pos: places.park, radius: 2.5, text: "공원 벤치 아래에서 물건을 찾았습니다!", objective: "공원을 수색하세요." },
-          { type: "talk", npcId: npc.id, text: "찾아줘서 정말 고마워! 이건 나에게 정말 소중한 거야.", objective: `${npc.name}에게 돌려주세요.`, onComplete() { npc.favorPoints += 20; } },
-        ];
-      },
-    },
-    {
-      id: "community_festival",
-      title: "마을 축제 준비",
-      condition() {
-        return questCount >= 10 ? true : null;
-      },
-      generate() {
-        const helpers = npcs.slice(0, 3);
-        return [
-          { type: "talk", npcId: helpers[0].id, text: "마을 축제를 열고 싶어! 도와줄래? 먼저 장식에 쓸 꽃을 모아와줘.", objective: `${helpers[0].name}에게 축제 계획을 들으세요.` },
-          { type: "item", itemKey: "flower_red", npcId: helpers[0].id, text: "꽃 장식 준비 완료!", objective: "빨간 꽃을 가져다주세요." },
-          { type: "talk", npcId: helpers[1].id, text: "다음은 간식 준비! 맛있는 걸 좀 구해와줄래?", objective: `${helpers[1].name}에게 다음 임무를 받으세요.` },
-          { type: "item", itemKey: "snack", npcId: helpers[1].id, text: "간식 준비 완료! 이제 마지막!", objective: "간식을 가져다주세요." },
-          { type: "talk", npcId: helpers[2].id, text: "축제 준비 끝! 모두 모여라~!", objective: `${helpers[2].name}에게 마무리를 알리세요.`, onComplete() {
-            for (const n of npcs) { n.mood = "happy"; n.moodUntil = nowMs() + 60_000; }
-            addChat("System", "🎊 마을 축제가 시작되었습니다! 모든 NPC가 기뻐합니다!");
-            inventory.gem = (inventory.gem || 0) + 2;
-          }},
-        ];
-      },
-    },
-  ];
-
-  function checkStoryArcTriggers() {
-    if (storyArc.active) return;
-    for (const tmpl of storyArcTemplates) {
-      if (storyArc.triggeredIds.includes(tmpl.id)) continue;
-      const data = tmpl.condition();
-      if (data === null) continue;
-      storyArc.active = true;
-      storyArc.id = tmpl.id;
-      storyArc.title = tmpl.title;
-      storyArc.chapter = 0;
-      storyArc.chapters = tmpl.generate(data);
-      storyArc.triggeredIds.push(tmpl.id);
-      addChat("System", `📖 스토리: '${tmpl.title}' 시작!`);
-      updateStoryArcObjective();
-      return;
-    }
-  }
-
-  function updateStoryArcObjective() {
-    if (!storyArc.active) return;
-    const ch = storyArc.chapters[storyArc.chapter];
-    if (!ch) return;
-    if (ch.type === "choice") {
-      addChat("System", ch.text);
-      for (let i = 0; i < ch.options.length; i++) {
-        addChat("System", `  ${i + 1}. ${ch.options[i].label}`);
-      }
-      addChat("System", "채팅에 번호를 입력하세요.");
-    }
-  }
-
-  function advanceStoryArc() {
-    if (!storyArc.active) return;
-    const ch = storyArc.chapters[storyArc.chapter];
-    if (ch && typeof ch.onComplete === "function") {
-      try { ch.onComplete(); } catch {}
-    }
-    storyArc.chapter += 1;
-    if (storyArc.chapter >= storyArc.chapters.length) {
-      addChat("System", `📖 스토리 '${storyArc.title}' 완료!`);
-      inventory.gem = (inventory.gem || 0) + 1;
-      storyArc.active = false;
-      storyArc.chapters = [];
-      return;
-    }
-    updateStoryArcObjective();
-  }
-
-  function handleStoryArcInteraction(npc, msg) {
-    if (!storyArc.active) return false;
-    const ch = storyArc.chapters[storyArc.chapter];
-    if (!ch) return false;
-
-    if (ch.type === "talk" && ch.npcId === npc.id) {
-      addChat(npc.name, ch.text);
-      advanceStoryArc();
-      return true;
-    }
-
-    if (ch.type === "item" && ch.npcId === npc.id && ch.itemKey) {
-      if ((inventory[ch.itemKey] || 0) > 0) {
-        inventory[ch.itemKey] -= 1;
-        addChat(npc.name, ch.text);
-        advanceStoryArc();
-        return true;
-      }
-      addChat(npc.name, `${itemTypes[ch.itemKey].label}이(가) 필요해.`);
-      return true;
-    }
-
-    if (ch.type === "choice") {
-      const num = parseInt(msg.trim(), 10);
-      if (num >= 1 && num <= ch.options.length) {
-        const opt = ch.options[num - 1];
-        addChat("System", `'${opt.label}' 을(를) 선택했습니다.`);
-        if (typeof opt.effect === "function") try { opt.effect(); } catch {}
-        advanceStoryArc();
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  function checkStoryArcVisit() {
-    if (!storyArc.active) return;
-    const ch = storyArc.chapters[storyArc.chapter];
-    if (!ch || ch.type !== "visit") return;
-    if (dist(player, ch.pos) <= (ch.radius || 3)) {
-      addChat("System", ch.text);
-      advanceStoryArc();
-    }
   }
 
   let nextNpcSocialAt = 0;
@@ -4030,17 +3360,11 @@ import { GameRenderer } from './renderer/renderer.js';
           currentScene: n.currentScene || "outdoor",
         })),
       inventory: { ...inventory },
-      ownedCards: { ...ownedCards },
-      cardAlbum: { ...cardAlbum },
       removedNpcIds: [...removedNpcIds],
       discoveredIds: discoveries.filter(d => d.found).map(d => d.id),
       questHistory: questHistory.slice(),
       questCount,
       npcSocialGraph: { ...npcSocialGraph },
-      storyArc: { active: storyArc.active, id: storyArc.id, title: storyArc.title, chapter: storyArc.chapter, triggeredIds: storyArc.triggeredIds.slice() },
-      coins,
-      shopInventory: Object.fromEntries(Object.entries(shopInventory).map(([k, v]) => [k, { ...v }])),
-      unlockedAchievements: [...unlockedAchievements],
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
@@ -4133,16 +3457,6 @@ import { GameRenderer } from './renderer/renderer.js';
           if (k in inventory) inventory[k] = Math.max(0, v || 0);
         }
       }
-      if (state.ownedCards) {
-        for (const [k, v] of Object.entries(state.ownedCards)) {
-          if (k in cardDefs) ownedCards[k] = Math.max(0, v || 0);
-        }
-      }
-      if (state.cardAlbum) {
-        for (const [k, v] of Object.entries(state.cardAlbum)) {
-          if (k in cardDefs) cardAlbum[k] = v;
-        }
-      }
       if (Array.isArray(state.removedNpcIds)) {
         for (const id of state.removedNpcIds) {
           if (!removedNpcIds.has(id)) {
@@ -4164,35 +3478,6 @@ import { GameRenderer } from './renderer/renderer.js';
       if (state.npcSocialGraph) {
         for (const [k, v] of Object.entries(state.npcSocialGraph)) {
           npcSocialGraph[k] = clamp(v, 0, 100);
-        }
-      }
-      if (state.coins != null) coins = Math.max(0, state.coins);
-      if (Array.isArray(state.unlockedAchievements)) {
-        for (const id of state.unlockedAchievements) unlockedAchievements.add(id);
-      }
-      if (state.shopInventory) {
-        for (const [k, v] of Object.entries(state.shopInventory)) {
-          if (shopInventory[k]) Object.assign(shopInventory[k], v);
-        }
-      }
-      if (state.storyArc) {
-        storyArc.active = !!state.storyArc.active;
-        storyArc.id = state.storyArc.id || null;
-        storyArc.title = state.storyArc.title || "";
-        storyArc.chapter = state.storyArc.chapter || 0;
-        storyArc.triggeredIds = Array.isArray(state.storyArc.triggeredIds) ? state.storyArc.triggeredIds : [];
-        if (storyArc.active && storyArc.id) {
-          const tmpl = storyArcTemplates.find(t => t.id === storyArc.id);
-          if (tmpl) {
-            const data = tmpl.condition();
-            if (data !== null) {
-              storyArc.chapters = tmpl.generate(data);
-            } else {
-              storyArc.active = false;
-            }
-          } else {
-            storyArc.active = false;
-          }
         }
       }
       refreshRemoveSelect();
@@ -4257,7 +3542,7 @@ import { GameRenderer } from './renderer/renderer.js';
     const runMul = keys.has("ShiftLeft") || keys.has("ShiftRight") || inputState.runHold ? 1.75 : 1;
     const walkMul = (player.moveTarget && player.moveTarget.autoWalk) ? 0.5 : 1;
     const weatherSlow = weather.current === "storm" ? 0.8 : weather.current === "snow" ? 0.88 : 1;
-    const spd = player.speed * runMul * walkMul * cardEffectMultiplier("speed") * weatherSlow;
+    const spd = player.speed * runMul * walkMul * 1 * weatherSlow;
     const tx = player.x + (dx / mag) * spd * dt;
     const ty = player.y + (dy / mag) * spd * dt;
 
@@ -4299,6 +3584,28 @@ import { GameRenderer } from './renderer/renderer.js';
 
     for (const npc of npcs) {
       if (npc.talkCooldown > 0) npc.talkCooldown -= dt;
+
+      // 자율 기분 변화 (시간/날씨/성격 기반)
+      if (nowMs() > npc.moodUntil && Math.random() < 0.001) {
+        const h = hourOfDay();
+        const persona = npcPersonas[npc.id];
+        const personality = persona ? persona.personality : "";
+        const isSunny = weather.current === "clear";
+        const isRainy = weather.current === "rain" || weather.current === "storm";
+        const isMorning = h >= 7 && h < 11;
+        const isEvening = h >= 18 && h < 21;
+        // 성격에 따른 기분 경향
+        const cheerful = /(밝|에너지|사교|친절|활발)/.test(personality);
+        const melancholy = /(신중|침착|조용)/.test(personality);
+        if ((isSunny && isMorning) || cheerful) {
+          npc.mood = Math.random() < 0.6 ? "happy" : "neutral";
+        } else if (isRainy || (isEvening && melancholy)) {
+          npc.mood = Math.random() < 0.4 ? "sad" : "neutral";
+        } else {
+          npc.mood = "neutral";
+        }
+        npc.moodUntil = nowMs() + 30_000 + Math.random() * 60_000;
+      }
 
       // 술래잡기 중인 NPC는 updateTagGame에서 이동 처리
       if (tagGame.active && npc.id === tagGame.targetNpcId) continue;
@@ -4345,6 +3652,7 @@ import { GameRenderer } from './renderer/renderer.js';
           npc.x = nx;
           npc.y = ny;
           npc.state = "moving";
+          npc.pose = "standing";
         } else {
           npc.roamTarget = null;
           npc.state = "idle";
@@ -4352,6 +3660,17 @@ import { GameRenderer } from './renderer/renderer.js';
       } else {
         npc.roamWait = 0.6 + Math.random() * 2.2;
         npc.state = "idle";
+        // 자세 결정: 벤치 근처면 앉기, 밤이면 가끔 눕기
+        const h = hourOfDay();
+        const nearBench = props.some(p => p.type === "bench" && dist(npc, p) < 1.5);
+        if (nearBench && Math.random() < 0.6) {
+          npc.pose = "sitting";
+          npc.roamWait = 3 + Math.random() * 5;
+        } else if (h >= 23 || h < 5) {
+          npc.pose = Math.random() < 0.3 ? "lying" : "standing";
+        } else {
+          npc.pose = "standing";
+        }
       }
     }
   }
@@ -6131,33 +5450,8 @@ import { GameRenderer } from './renderer/renderer.js';
         ctx.font = `${msz}px sans-serif`;
         ctx.fillText(moodEmoji, mp.x + 12, mp.y - world.zoom * 28);
       }
-      if (npc.favorLevel > 0) {
-        const hearts = "♥".repeat(Math.min(npc.favorLevel, 4));
-        ctx.font = `${Math.max(10, world.zoom * 3)}px sans-serif`;
-        ctx.fillStyle = "#ff6b8a";
-        ctx.fillText(hearts, mp.x - npc.favorLevel * 4, mp.y - world.zoom * 22);
-        ctx.fillStyle = "rgba(66, 52, 35, 0.92)";
-      }
     }
 
-    if (cardNotifyUntil > now) {
-      const rarityColors = { common: "#90a4ae", rare: "#42a5f5", epic: "#ab47bc", legendary: "#ff9800" };
-      const cText = `✨ ${cardNotifyName}`;
-      ctx.save();
-      ctx.font = "700 16px sans-serif";
-      const cw = ctx.measureText(cText).width + 24;
-      const cx = canvas.width * 0.5 - cw * 0.5;
-      const cy = 70;
-      ctx.fillStyle = rarityColors[cardNotifyRarity] || "#666";
-      ctx.globalAlpha = 0.9;
-      ctx.beginPath();
-      ctx.roundRect(cx, cy, cw, 28, 8);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = "#fff";
-      ctx.fillText(cText, cx + 12, cy + 20);
-      ctx.restore();
-    }
 
     drawDiscoverySparkles();
     drawSpeechBubbles();
@@ -6169,7 +5463,7 @@ import { GameRenderer } from './renderer/renderer.js';
     else if (nh < 5) nightAlpha = 0.24 + (5 - nh) * 0.02;
     else if (nh < 7) nightAlpha = (7 - nh) * 0.05;
     if (nightAlpha > 0) {
-      nightAlpha = Math.max(0, nightAlpha - (cardEffectMultiplier("nightVision") - 1) * 0.15);
+      nightAlpha = Math.max(0, nightAlpha - (1 - 1) * 0.15);
       ctx.save();
       ctx.fillStyle = `rgba(10, 10, 40, ${clamp(nightAlpha, 0, 0.35)})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -6235,32 +5529,6 @@ import { GameRenderer } from './renderer/renderer.js';
     }
   }
 
-  function drawTimedEventHud() {
-    if (!timedEvent.active) return;
-    const remaining = Math.max(0, timedEvent.endsAt - nowMs());
-    const secs = Math.ceil(remaining / 1000);
-    const mins = Math.floor(secs / 60);
-    const s = secs % 60;
-    const timeStr = `${mins}:${String(s).padStart(2, "0")}`;
-
-    const text = `⚡ ${timedEvent.title} — ${timeStr}`;
-    ctx.save();
-    ctx.font = "700 14px sans-serif";
-    const tw = ctx.measureText(text).width;
-    const bw = tw + 20;
-    const bh = 28;
-    const bx = canvas.width * 0.5 - bw * 0.5;
-    const by = 36;
-
-    const urgency = remaining < 30_000 ? 0.9 : 0.75;
-    ctx.fillStyle = `rgba(180, 40, 30, ${urgency})`;
-    ctx.beginPath();
-    ctx.roundRect(bx, by, bw, bh, 8);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.fillText(text, bx + 10, by + 19);
-    ctx.restore();
-  }
 
   function drawMinimap() {
     if (!mctx || !minimap) return;
@@ -6389,11 +5657,10 @@ import { GameRenderer } from './renderer/renderer.js';
 
   function updateUI() {
     if (systemToasts.length && systemToasts[0].until <= performance.now()) renderToasts();
-    const weatherKo = { clear: "", cloudy: "☁️흐림", rain: "🌧️비", storm: "⛈️폭풍", snow: "❄️눈", fog: "🌫️안개" };
-    const weatherStr = weatherKo[weather.current] || "";
-    const discoveredCount = discoveries.filter(d => d.found).length;
-    uiTime.textContent = `시간: ${formatTime()}${weatherStr ? " " + weatherStr : ""} ${world.paused ? "(일시정지)" : ""} | 발견: ${discoveredCount}/${discoveries.length}`;
-    uiPlayer.textContent = `${player.name} | 💰${coins} | 가방: ${inventorySummary()} | 카드: ${cardCollectionSummary()}`;
+    const weatherKo = { clear: "☀️", cloudy: "☁️", rain: "🌧️", storm: "⛈️", snow: "❄️", fog: "🌫️" };
+    const weatherIcon = weatherKo[weather.current] || "☀️";
+    uiTime.textContent = `${formatTime()} ${weatherIcon}${world.paused ? " (일시정지)" : ""}`;
+    uiPlayer.textContent = player.name;
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     const stateKo = { idle: "대기", moving: "이동 중", chatting: "대화 중" };
@@ -6438,11 +5705,7 @@ import { GameRenderer } from './renderer/renderer.js';
     }
 
     if (questBannerEl) {
-      if (storyArc.active && storyArc.chapters[storyArc.chapter]) {
-        questBannerEl.hidden = false;
-        if (questBannerTitleEl) questBannerTitleEl.textContent = `📖 ${storyArc.title}`;
-        if (questBannerObjectiveEl) questBannerObjectiveEl.textContent = storyArc.chapters[storyArc.chapter].objective || "";
-      } else if (quest.title && !quest.done) {
+      if (quest.title && !quest.done) {
         questBannerEl.hidden = false;
         if (questBannerTitleEl) questBannerTitleEl.textContent = quest.title;
         if (questBannerObjectiveEl) questBannerObjectiveEl.textContent = quest.objective;
@@ -6451,7 +5714,7 @@ import { GameRenderer } from './renderer/renderer.js';
       }
     }
 
-    uiRel.textContent = `관계도: 허승준 ${relations.playerToHeo} / 김민수 ${relations.playerToKim} / 최민영 ${relations.playerToChoi} / 허승준↔김민수 ${relations.heoToKim}`;
+    uiRel.textContent = "";
 
     const target = chatTargetNpc();
     const npcNear = target && target.near;
@@ -6607,7 +5870,6 @@ import { GameRenderer } from './renderer/renderer.js';
       if (!mobileMode || frameCount % 3 === 0) drawMinimap();
     } else {
       drawWorld();
-      drawTimedEventHud();
       drawTagGameHud();
       if (!mobileMode || frameCount % 3 === 0) drawMinimap();
     }

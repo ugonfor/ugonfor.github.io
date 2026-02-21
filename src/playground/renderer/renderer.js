@@ -252,24 +252,17 @@ export class GameRenderer {
             mesh.rotation.y = Math.atan2(ndx, ndy);
           }
 
-          // Animate by state + mood + proximity to furniture
+          // Animate by state + mood + pose
           const npcMood = (npc.moodUntil > performance.now()) ? npc.mood : 'neutral';
           const npcState = npc.state || 'idle';
-          if (!npcMoving && npcState === 'idle') {
-            const nearBench = this._isNearProp(npc.x, npc.y, this._benchPositions, 1.2);
-            const npcScene = npc.currentScene || 'outdoor';
-            const nearBed = npcScene !== 'outdoor' && this._isNearBed(npc.x, npc.y, npcScene, 1.5);
-            if (nearBed) {
-              this.characterFactory.animateLie(mesh);
-            } else if (nearBench) {
-              this.characterFactory.animateSit(mesh);
-            } else {
-              this.characterFactory.animateByState(mesh, npcState, npcMood, time, false);
-            }
+          const npcPose = npc.pose || 'standing';
+          if (!npcMoving) {
+            // Reset lie rotation if was lying and now standing
+            if (npcPose !== 'lying' && mesh.rotation.z !== 0) { mesh.rotation.z = 0; mesh.position.y = 0; }
+            this.characterFactory.animateByState(mesh, npcState, npcMood, time, false, npcPose);
           } else {
-            // Reset lie rotation if was lying
             if (mesh.rotation.z !== 0) { mesh.rotation.z = 0; mesh.position.y = 0; }
-            this.characterFactory.animateByState(mesh, npcState, npcMood, time, npcMoving);
+            this.characterFactory.animateByState(mesh, npcState, npcMood, time, true, 'standing');
           }
         }
       }

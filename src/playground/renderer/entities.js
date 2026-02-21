@@ -281,16 +281,30 @@ export class CharacterFactory {
   }
 
   /**
-   * Animate based on NPC state and mood.
+   * Animate based on NPC state, mood, and pose.
    * @param {THREE.Group} group
    * @param {string} state - 'idle' | 'moving' | 'chatting'
    * @param {string} mood - 'neutral' | 'happy' | 'sad'
    * @param {number} time - elapsed time
    * @param {boolean} isMoving - position changed this frame
+   * @param {string} [pose='standing'] - 'standing' | 'sitting' | 'lying' | 'waving'
    */
-  animateByState(group, state, mood, time, isMoving) {
+  animateByState(group, state, mood, time, isMoving, pose = 'standing') {
     if (isMoving) {
       this.animateWalk(group, time);
+      return;
+    }
+    // 자세에 따른 포즈
+    if (pose === 'sitting') {
+      this.animateSitting(group);
+      return;
+    }
+    if (pose === 'lying') {
+      this.animateLying(group);
+      return;
+    }
+    if (pose === 'waving') {
+      this.animateHappy(group, time);
       return;
     }
     if (state === 'chatting') {
