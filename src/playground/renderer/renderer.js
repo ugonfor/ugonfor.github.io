@@ -292,16 +292,19 @@ export class GameRenderer {
     // Map bubble IDs to entity world positions
     const mappedBubbles = [];
     if (speechBubbles && speechBubbles.length > 0) {
+      const curScene = this._currentScene || 'outdoor';
       for (const b of speechBubbles) {
         let bx = b.x, by = b.y;
         if (bx == null || by == null) {
-          // Look up position from entity ID
           if (b.id === "player" || b.id === player.name) {
             bx = player.x; by = player.y;
           } else {
             const npc = npcs && npcs.find(n => n.id === b.id);
-            if (npc) { bx = npc.x; by = npc.y; }
-            else continue;
+            if (!npc) continue;
+            // Only show bubbles from NPCs in the same scene
+            const npcScene = npc.currentScene || 'outdoor';
+            if (npcScene !== curScene) continue;
+            bx = npc.x; by = npc.y;
           }
         }
         mappedBubbles.push({ speakerId: b.id, text: b.text, until: b.until, x: bx, y: by });
