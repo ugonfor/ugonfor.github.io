@@ -130,6 +130,19 @@ export class GameRenderer {
       }
     }
 
+    // --- Cache sit/lie positions from props ---
+    this._benchPositions = props.filter(p => p.type === 'bench').map(p => ({ x: p.x, y: p.y }));
+    this._bedPositions = []; // populated from interiorDefs
+    for (const [id, def] of Object.entries(interiorDefs)) {
+      if (def.furniture) {
+        for (const f of def.furniture) {
+          if (f.type === 'bed' || f.type === 'bunk_bed') {
+            this._bedPositions.push({ x: f.x, y: f.y, scene: id });
+          }
+        }
+      }
+    }
+
     // --- Player ---
     this.playerMesh = this.characterFactory.createCharacter(
       player.species || 'human_a',
@@ -215,11 +228,12 @@ export class GameRenderer {
       for (const npc of npcs) {
         let mesh = this.entityMeshes.get(npc.id);
         if (!mesh) {
-          // Dynamically created NPC
           this._addNpcMesh(npc);
           mesh = this.entityMeshes.get(npc.id);
         }
         if (mesh) {
+          const prevNX = mesh.position.x;
+          const prevNZ = mesh.position.z;
           mesh.position.set(npc.x, 0, npc.y);
 
           // NPC visibility based on scene
@@ -228,18 +242,34 @@ export class GameRenderer {
             mesh.visible = npcScene === this._currentScene;
           }
 
-          // Face movement direction
-          if (npc.roamTarget || npc.state === 'walking') {
-            const tx = npc.roamTarget ? npc.roamTarget.x : npc.x;
-            const ty = npc.roamTarget ? npc.roamTarget.y : npc.y;
-            const dx = tx - npc.x;
-            const dy = ty - npc.y;
-            if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
-              mesh.rotation.y = Math.atan2(dx, dy);
+          // Detect movement
+          const ndx = npc.x - prevNX;
+          const ndy = npc.y - prevNZ;
+          const npcMoving = Math.abs(ndx) > 0.005 || Math.abs(ndy) > 0.005;
+
+          // Face direction if moving
+          if (npcMoving) {
+            mesh.rotation.y = Math.atan2(ndx, ndy);
+          }
+
+          // Animate by state + mood + proximity to furniture
+          const npcMood = (npc.moodUntil > performance.now()) ? npc.mood : 'neutral';
+          const npcState = npc.state || 'idle';
+          if (!npcMoving && npcState === 'idle') {
+            const nearBench = this._isNearProp(npc.x, npc.y, this._benchPositions, 1.2);
+            const npcScene = npc.currentScene || 'outdoor';
+            const nearBed = npcScene !== 'outdoor' && this._isNearBed(npc.x, npc.y, npcScene, 1.5);
+            if (nearBed) {
+              this.characterFactory.animateLie(mesh);
+            } else if (nearBench) {
+              this.characterFactory.animateSit(mesh);
+            } else {
+              this.characterFactory.animateByState(mesh, npcState, npcMood, time, false);
             }
-            this.characterFactory.animateWalk(mesh, time);
           } else {
-            this.characterFactory.animateIdle(mesh);
+            // Reset lie rotation if was lying
+            if (mesh.rotation.z !== 0) { mesh.rotation.z = 0; mesh.position.y = 0; }
+            this.characterFactory.animateByState(mesh, npcState, npcMood, time, npcMoving);
           }
         }
       }
@@ -387,6 +417,23 @@ export class GameRenderer {
     const h = this.canvas.clientHeight || this.canvas.height || 540;
     this.webglRenderer.setSize(w, h);
     this.cameraRig.resize(w / h || 960 / 540);
+  }
+
+  _isNearProp(x, y, positions, radius) {
+    for (const p of positions) {
+      const dx = x - p.x, dy = y - p.y;
+      if (dx * dx + dy * dy < radius * radius) return true;
+    }
+    return false;
+  }
+
+  _isNearBed(x, y, scene, radius) {
+    for (const b of this._bedPositions) {
+      if (b.scene !== scene) continue;
+      const dx = x - b.x, dy = y - b.y;
+      if (dx * dx + dy * dy < radius * radius) return true;
+    }
+    return false;
   }
 
   /**
