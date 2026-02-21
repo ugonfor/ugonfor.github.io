@@ -296,11 +296,11 @@ export class CharacterFactory {
     }
     // 자세에 따른 포즈
     if (pose === 'sitting') {
-      this.animateSitting(group);
+      this.animateSit(group);
       return;
     }
     if (pose === 'lying') {
-      this.animateLying(group);
+      this.animateLie(group);
       return;
     }
     if (pose === 'waving') {
