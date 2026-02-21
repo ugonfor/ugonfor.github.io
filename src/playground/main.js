@@ -2009,8 +2009,21 @@ import { GameRenderer } from './renderer/renderer.js';
     const interior = interiorDefs && interiorDefs[buildingId];
     if (!interior) return;
     npc.currentScene = buildingId;
-    npc.x = interior.spawnPoint.x;
-    npc.y = interior.spawnPoint.y;
+    // npcSpots 중 비어있는 자리에 배치 (겹침 방지)
+    if (interior.npcSpots && interior.npcSpots.length) {
+      const occupiedPositions = npcs
+        .filter(n => n.id !== npc.id && n.currentScene === buildingId)
+        .map(n => `${Math.round(n.x)},${Math.round(n.y)}`);
+      const freeSpot = interior.npcSpots.find(s =>
+        !occupiedPositions.includes(`${Math.round(s.x)},${Math.round(s.y)}`)
+      );
+      const spot = freeSpot || interior.npcSpots[Math.floor(Math.random() * interior.npcSpots.length)];
+      npc.x = spot.x;
+      npc.y = spot.y;
+    } else {
+      npc.x = interior.spawnPoint.x;
+      npc.y = interior.spawnPoint.y;
+    }
     npc.roamTarget = null;
     npc.roamWait = 1 + Math.random() * 2;
   }
