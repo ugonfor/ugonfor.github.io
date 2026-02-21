@@ -228,6 +228,7 @@ import { GameRenderer } from './renderer/renderer.js';
       nextLongTripAt: 8 + Math.random() * 14,
       mood: "neutral",
       moodUntil: 0,
+      needs: { hunger: Math.random() * 30, energy: 80 + Math.random() * 20, social: 50 + Math.random() * 30 },
       favorLevel: 0,
       favorPoints: 0,
       activeRequest: null,
@@ -1991,7 +1992,16 @@ import { GameRenderer } from './renderer/renderer.js';
 
   function targetFor(npc) {
     const h = hourOfDay();
-    if (h < 8) return npc.home;
+    const n = npc.needs;
+    // 욕구 기반 행동 결정
+    if (n.energy < 20) return npc.home;              // 피곤하면 집
+    if (n.hunger > 70) {                              // 배고프면 음식점
+      const eatPlaces = [places.cafe, places.bakery];
+      return eatPlaces[npc.id.charCodeAt(0) % eatPlaces.length];
+    }
+    if (n.social < 30) return places.plaza;           // 외로우면 광장
+    // 기본 시간 기반 스케줄
+    if (h < 7) return npc.home;
     if (h < 17) return npc.work;
     if (h < 21) return npc.hobby;
     return npc.home;

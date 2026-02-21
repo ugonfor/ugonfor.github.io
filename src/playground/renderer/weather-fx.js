@@ -56,13 +56,13 @@ export class WeatherFX {
       depthWrite: false,
       side: THREE.DoubleSide,
     }));
-    this._cloudPlane.position.set(30, 12, 32);
+    this._cloudPlane.position.set(37, 12, 37);
     this._cloudPlane.renderOrder = 998;
     this._cloudPlane.visible = false;
     scene.add(this._cloudPlane);
 
-    // Pre-allocate random offsets — cover entire map (60x65)
-    const spread = 65;
+    // Pre-allocate random offsets — cover entire map (75x75)
+    const spread = 80;
     this._rainSpread = [];
     for (let i = 0; i < rainCount; i++) {
       this._rainSpread.push(
@@ -100,7 +100,7 @@ export class WeatherFX {
     if (showCloud) {
       const targetOpacity = type === 'storm' ? 0.25 : type === 'rain' ? 0.15 : 0.1;
       this._cloudPlane.material.opacity += (targetOpacity - this._cloudPlane.material.opacity) * 0.05;
-      this._cloudPlane.position.set(30, 12, 32);
+      this._cloudPlane.position.set(37, 12, 37);
     }
 
     // Fog
@@ -124,8 +124,8 @@ export class WeatherFX {
     this._prevWeather = type;
 
     // Fix particles to world center, not camera — prevents "following player" effect
-    const cx = 30;  // world center x (worldWidth/2)
-    const cz = 32;  // world center z (worldHeight/2)
+    const cx = 37;  // world center x (worldWidth/2)
+    const cz = 37;  // world center z (worldHeight/2)
 
     // --- Rain ---
     if (showRain) {
