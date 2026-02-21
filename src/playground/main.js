@@ -1,9 +1,34 @@
 import { clamp, dist, shade, randomPastelColor, normalizePlayerName, bubbleText, inferPersonalityFromName, nowMs, socialKey, npcRelationLabel } from './utils/helpers.js';
-import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_KEY, AUTO_WALK_KEY, COUNTRY_LIST, CHAT_NEARBY_DISTANCE, ZOOM_MIN, ZOOM_MAX, DEFAULT_ZOOM, CONVERSATION_MIN_ZOOM, npcPersonas, palette, places, buildings, hotspots, props, speciesPool, WEATHER_TYPES, discoveries, favorLevelNames, itemTypes, groundItems, ITEM_RESPAWN_MS, shopInventory, seasons, cardDefs } from './core/constants.js';
+import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_KEY, AUTO_WALK_KEY, COUNTRY_LIST, CHAT_NEARBY_DISTANCE, ZOOM_MIN, ZOOM_MAX, DEFAULT_ZOOM, CONVERSATION_MIN_ZOOM, npcPersonas, palette, places, buildings, hotspots, props, speciesPool, WEATHER_TYPES, discoveries, favorLevelNames, itemTypes, groundItems, ITEM_RESPAWN_MS, shopInventory, seasons, cardDefs, interiorDefs } from './core/constants.js';
+import { GameRenderer } from './renderer/renderer.js';
 
 (function () {
+  const USE_3D = true;
   const canvas = document.getElementById("pg-world-canvas");
   if (!canvas) return;
+
+  // When 3D mode, create a WebGL canvas behind the 2D HUD canvas
+  let canvas3D = null;
+  if (USE_3D) {
+    canvas3D = document.createElement("canvas");
+    canvas3D.id = "pg-3d-canvas";
+    canvas3D.width = canvas.width || 960;
+    canvas3D.height = canvas.height || 540;
+    // Both canvases stack inside the stage (position: relative)
+    canvas3D.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;min-height:100dvh;z-index:0;display:block;";
+    canvas.parentElement.insertBefore(canvas3D, canvas);
+    // Make 2D canvas overlay on top (transparent bg for HUD only)
+    canvas.style.position = "absolute";
+    canvas.style.top = "0";
+    canvas.style.left = "0";
+    canvas.style.zIndex = "1";
+    canvas.style.backgroundColor = "transparent";
+    // Keep pointer events on the 2D canvas (it's on top and handles all input)
+    // Mouse/touch events still use game coord system, not Three.js raycasting yet
+  }
+
+  let gameRenderer3D = null;
+  let elapsedTime = 0;
 
   const ctx = canvas.getContext("2d");
   const uiTime = document.getElementById("pg-time");
@@ -95,6 +120,8 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
   let nextAutoConversationAt = 0;
   let autoConversationBusy = false;
   let playerBubblePending = false;
+  let ambientLlmPending = false;
+  let npcChatLlmPending = false;
   const autoWalk = {
     enabled: false,
     nextPickAt: 0,
@@ -128,15 +155,28 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
   };
 
   const world = {
-    width: 100,
-    height: 100,
-    totalMinutes: 8 * 60,
+    width: 60,
+    height: 65,
+    totalMinutes: new Date().getHours() * 60 + new Date().getMinutes(),
     paused: false,
     baseTileW: 40,
     baseTileH: 20,
     zoom: DEFAULT_ZOOM,
     cameraX: canvas.width / 2,
     cameraY: 130,
+  };
+
+  const sceneState = {
+    current: "outdoor",
+    savedOutdoorPos: null,
+    savedCameraPan: null,
+  };
+
+  const sceneFade = {
+    active: false,
+    alpha: 0,
+    direction: "in", // "in" = fade to black, "out" = fade from black
+    callback: null,
   };
 
   const panelState = {
@@ -186,6 +226,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       favorPoints: 0,
       activeRequest: null,
       lastRequestAt: 0,
+      currentScene: "outdoor",
     };
   }
 
@@ -251,6 +292,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     makeNpc("lee", "이진원", "#6fc7ba", places.ksa_dorm, places.ksa_main, places.cafe, "", "human_f"),
     makeNpc("park", "박지호", "#d88972", places.ksa_dorm, places.ksa_main, places.plaza, "", "human_g"),
     makeNpc("jang", "장동우", "#8e9be3", places.ksa_dorm, places.ksa_main, places.market, "", "human_h"),
+    makeNpc("guide", "유진", "#f0a0c0", places.infoCenter, places.infoCenter, places.infoCenter, "", "human_a"),
     makeNpc("yoo", "유효곤", "#5e88dd", places.ksa_dorm, places.ksa_main, places.park, "", "human_i"),
     // 마을 주민들
     makeNpc("baker", "한소영", "#e6a76f", places.bakery, places.bakery, places.market, "빵집 사장. 밝고 다정하며, 매일 새벽에 빵을 굽는다.", "human_d"),
@@ -304,16 +346,21 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
   }
 
   const quest = {
-    title: "이웃의 실타래",
+    title: "",
     stage: 0,
-    objective: "허승준에게 말을 걸어보세요. (KSA 본관 근처)",
-    done: false,
+    objective: "",
+    done: true,
+    dynamic: false,
   };
 
   const questHistory = [];
   let questCount = 0;
 
-  // ─── 술래잡기 미니게임 ───
+  // ─── 도슨트 환영 시스템 ───
+  let guideGreetingPhase = 0;    // 0: 대기, 1: 접근중, 2: 완료
+  let guideGreetingTimer = 0;
+
+  // ─── 술래잡기 미니게임 (역전: NPC가 술래, 플레이어가 도망) ───
   const tagGame = {
     active: false,
     targetNpcId: null,
@@ -321,6 +368,8 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     duration: 60_000, // 60초
     caught: false,
     cooldownUntil: 0,
+    _sprintUntil: 0,
+    _nextSprintAt: 0,
   };
 
   function startTagGame(npc) {
@@ -328,9 +377,11 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     tagGame.targetNpcId = npc.id;
     tagGame.startedAt = nowMs();
     tagGame.caught = false;
+    tagGame._sprintUntil = 0;
+    tagGame._nextSprintAt = nowMs() + 4000 + Math.random() * 3000;
     npc.roamTarget = null;
-    addChat("System", `🏃 술래잡기 시작! ${npc.name}을(를) 60초 안에 잡으세요!`);
-    addLog(`술래잡기: ${npc.name}을(를) 잡아라!`);
+    addChat("System", `🏃 도망쳐! ${npc.name}에게서 60초간 도망치세요!`);
+    addLog(`술래잡기: ${npc.name}에게서 도망쳐!`);
   }
 
   function updateTagGame(dt) {
@@ -338,52 +389,60 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     const elapsed = nowMs() - tagGame.startedAt;
     const remaining = tagGame.duration - elapsed;
 
-    // 시간 초과 → 패배
-    if (remaining <= 0) {
-      tagGame.active = false;
-      tagGame.cooldownUntil = nowMs() + 120_000;
-      addChat("System", "⏰ 시간 초과! 술래잡기에서 졌습니다.");
-      addLog("술래잡기 실패...");
-      return;
-    }
-
     const targetNpc = npcs.find(n => n.id === tagGame.targetNpcId);
     if (!targetNpc) { tagGame.active = false; return; }
 
-    // 잡았는지 확인
-    const dist = Math.hypot(player.x - targetNpc.x, player.y - targetNpc.y);
-    if (dist < 1.5) {
+    // 시간 초과 → 승리! (60초 생존)
+    if (remaining <= 0) {
       tagGame.active = false;
-      tagGame.caught = true;
-      tagGame.cooldownUntil = nowMs() + 120_000;
       const reward = 15;
       coins += reward;
       targetNpc.favorPoints += 8;
-      addChat("System", `🎉 잡았다! ${targetNpc.name}을(를) 잡았습니다! (+${reward}코인)`);
+      addChat("System", `🎉 도망 성공! ${targetNpc.name}에게서 60초간 도망쳤습니다! (+${reward}코인)`);
       addLog(`술래잡기 승리! +${reward}코인`);
       tryCardDrop("timed_event", targetNpc);
       return;
     }
 
-    // NPC 도망 AI: 플레이어 반대 방향 + 약간의 랜덤
-    const dx = targetNpc.x - player.x;
-    const dy = targetNpc.y - player.y;
-    const d = Math.hypot(dx, dy);
-    if (d > 0.1) {
-      // 도망 방향 = 플레이어 반대 + 랜덤 오프셋
-      const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 1.2;
-      const fleeSpeed = (targetNpc.speed + 1.5) * dt;
-      const nx = targetNpc.x + Math.cos(angle) * fleeSpeed;
-      const ny = targetNpc.y + Math.sin(angle) * fleeSpeed;
+    // NPC가 플레이어를 잡았는지 확인
+    const d = Math.hypot(player.x - targetNpc.x, player.y - targetNpc.y);
+    if (d < 1.5) {
+      tagGame.active = false;
+      tagGame.caught = true;
+      addChat("System", `😱 잡혔다! ${targetNpc.name}에게 잡혔습니다...`);
+      addLog("술래잡기 실패...");
+      return;
+    }
+
+    // NPC 추적 AI: 플레이어를 향해 이동
+    const dx = player.x - targetNpc.x;
+    const dy = player.y - targetNpc.y;
+    if (d > 0.3) {
+      // 스프린트 버스트: 3-7초마다 1.5초간 스프린트
+      const now = nowMs();
+      if (now > tagGame._nextSprintAt && now > tagGame._sprintUntil) {
+        tagGame._sprintUntil = now + 1500;
+        tagGame._nextSprintAt = now + 4000 + Math.random() * 3000;
+        upsertSpeechBubble(targetNpc.id, "💨", 1500);
+      }
+
+      const isSprinting = now < tagGame._sprintUntil;
+      // 기본 속도: 플레이어 걷기의 95% → 달리면 도망 가능
+      const chaseSpeed = player.speed * 0.95 * (isSprinting ? 1.3 : 1.0) * dt;
+
+      // 약간의 예측: 플레이어 이동 방향으로 보정
+      const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.3;
+      const nx = targetNpc.x + Math.cos(angle) * chaseSpeed;
+      const ny = targetNpc.y + Math.sin(angle) * chaseSpeed;
       if (canStand(nx, ny)) {
         targetNpc.x = nx;
         targetNpc.y = ny;
         targetNpc.state = "moving";
       } else {
-        // 벽에 부딪히면 다른 방향 시도
-        const altAngle = angle + Math.PI * 0.5 * (Math.random() > 0.5 ? 1 : -1);
-        const ax = targetNpc.x + Math.cos(altAngle) * fleeSpeed;
-        const ay = targetNpc.y + Math.sin(altAngle) * fleeSpeed;
+        // 벽 우회
+        const altAngle = angle + Math.PI * 0.4 * (Math.random() > 0.5 ? 1 : -1);
+        const ax = targetNpc.x + Math.cos(altAngle) * chaseSpeed;
+        const ay = targetNpc.y + Math.sin(altAngle) * chaseSpeed;
         if (canStand(ax, ay)) {
           targetNpc.x = ax;
           targetNpc.y = ay;
@@ -401,7 +460,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
 
     const targetNpc = npcs.find(n => n.id === tagGame.targetNpcId);
     const npcName = targetNpc ? targetNpc.name : "???";
-    const text = `🏃 술래잡기! ${npcName}을(를) 잡아라! — ${secs}초`;
+    const text = `🏃 도망쳐! ${npcName}에게서 도망! — ${secs}초`;
 
     ctx.save();
     ctx.font = "700 15px sans-serif";
@@ -409,8 +468,9 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     const tx = canvas.width * 0.5 - tw * 0.5;
     const ty = 38;
 
-    // 배경
-    ctx.fillStyle = secs <= 10 ? "rgba(220, 50, 50, 0.88)" : "rgba(50, 120, 200, 0.88)";
+    // 배경: 가까우면 빨간색, 멀면 초록색
+    const tagDist = targetNpc ? Math.hypot(player.x - targetNpc.x, player.y - targetNpc.y) : 99;
+    ctx.fillStyle = tagDist < 4 ? "rgba(220, 50, 50, 0.88)" : secs <= 10 ? "rgba(50, 180, 80, 0.88)" : "rgba(50, 120, 200, 0.88)";
     ctx.beginPath();
     ctx.roundRect(tx, ty, tw, 30, 8);
     ctx.fill();
@@ -421,8 +481,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
 
     // 거리 표시
     if (targetNpc) {
-      const dist = Math.hypot(player.x - targetNpc.x, player.y - targetNpc.y);
-      const distText = `거리: ${dist.toFixed(1)}`;
+      const distText = `거리: ${tagDist.toFixed(1)}`;
       ctx.font = "600 12px sans-serif";
       const dw = ctx.measureText(distText).width + 16;
       ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -694,17 +753,22 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
 
   function updateFavorRequests() {
     const now = nowMs();
+    // 동시 활성 부탁은 최대 2개
+    let activeCount = 0;
     for (const npc of npcs) {
       if (npc.activeRequest) {
         if (now > npc.activeRequest.expiresAt) {
           addChat("System", `⏰ '${npc.activeRequest.title}' 시간 초과!`);
           npc.activeRequest = null;
+        } else {
+          activeCount++;
         }
         continue;
       }
-      if (now < npc.lastRequestAt + 120_000) continue;
+      if (activeCount >= 2) continue;
+      if (now < npc.lastRequestAt + 300_000) continue;
       if (dist(player, npc) > 20) continue;
-      if (Math.random() > 0.008) continue;
+      if (Math.random() > 0.002) continue;
 
       const eligible = favorRequestTemplates.filter((t) => npc.favorLevel >= t.minLevel);
       if (!eligible.length) continue;
@@ -1496,6 +1560,9 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       if (world.cameraX === 0 || !Number.isFinite(world.cameraX)) world.cameraX = canvas.width * 0.5;
       if (world.cameraY === 0 || !Number.isFinite(world.cameraY)) world.cameraY = canvas.height * 0.24;
     }
+    if (gameRenderer3D) {
+      gameRenderer3D.resize();
+    }
   }
 
   function setPanelToggle(btn, active) {
@@ -1873,10 +1940,18 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
   }
 
   function roadTile(x, y) {
-    if (Math.abs(x - 20) <= 1.2) return true;
-    if (Math.abs(y - 25) <= 1.2) return true;
-    if (Math.abs(x - 45) <= 1.0 && y >= 10 && y <= 45) return true;
-    if (Math.abs(y - 45) <= 1.0 && x >= 8 && x <= 55) return true;
+    // Central Boulevard (north-south)
+    if (Math.abs(x - 25) <= 1.5 && y >= 5 && y <= 55) return true;
+    // Main Cross Street (east-west)
+    if (Math.abs(y - 25) <= 1.2 && x >= 8 && x <= 55) return true;
+    // Northern Alley (commercial)
+    if (Math.abs(y - 12) <= 0.8 && x >= 23 && x <= 45) return true;
+    // Southern Alley (residential)
+    if (Math.abs(y - 35) <= 0.8 && x >= 8 && x <= 50) return true;
+    // Market alley
+    if (Math.abs(y - 45) <= 0.8 && x >= 15 && x <= 40) return true;
+    // KSA connector
+    if (Math.abs(x - 42) <= 0.8 && y >= 12 && y <= 20) return true;
     return false;
   }
 
@@ -1890,11 +1965,122 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     return buildings.some((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
   }
 
-  function canStand(x, y) {
+  function canStandInScene(x, y, scene) {
+    if (scene !== "outdoor") {
+      const interior = interiorDefs && interiorDefs[scene];
+      if (!interior) return false;
+      if (x < 0.3 || y < 0.3 || x > interior.width - 0.3 || y > interior.height - 0.3) return false;
+      if (interior.collision) {
+        for (const c of interior.collision) {
+          if (x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h) return false;
+        }
+      }
+      return true;
+    }
     if (x < 1 || y < 1 || x > world.width - 1 || y > world.height - 1) return false;
     if (inBuilding(x, y)) return false;
     if (waterTile(x, y)) return false;
     return true;
+  }
+
+  function canStand(x, y) {
+    return canStandInScene(x, y, sceneState.current);
+  }
+
+  // ─── Door-to-Building ID Mapping ───
+  const doorToBuildingMap = {
+    cafeDoor: "cafe",
+    bakeryDoor: "bakery",
+    floristDoor: "florist",
+    libraryDoor: "library",
+    officeDoor: "office",
+    marketDoor: "market",
+    ksaMainDoor: "ksa_main",
+    ksaDormDoor: "ksa_dorm",
+    houseADoor: "houseA",
+    houseBDoor: "houseB",
+    houseCDoor: "houseC",
+  };
+
+  // ─── NPC Home/Work Building Mapping ───
+  const npcBuildingMap = {
+    heo: { home: "ksa_dorm", work: "ksa_main" },
+    kim: { home: "ksa_dorm", work: "ksa_main" },
+    choi: { home: "ksa_dorm", work: "ksa_main" },
+    jung: { home: "ksa_dorm", work: "ksa_main" },
+    seo: { home: "ksa_dorm", work: "ksa_main" },
+    lee: { home: "ksa_dorm", work: "ksa_main" },
+    park: { home: "ksa_dorm", work: "ksa_main" },
+    jang: { home: "ksa_dorm", work: "ksa_main" },
+    yoo: { home: "ksa_dorm", work: "ksa_main" },
+    guide: { home: null, work: null },
+    baker: { home: "bakery", work: "bakery" },
+    floristNpc: { home: "florist", work: "florist" },
+    librarian: { home: "library", work: "library" },
+    residentA: { home: "houseA", work: "market" },
+    residentB: { home: "houseB", work: "office" },
+    residentC: { home: "houseC", work: "bakery" },
+  };
+
+  function enterBuilding(buildingId) {
+    const interior = interiorDefs && interiorDefs[buildingId];
+    if (!interior) return;
+    sceneState.savedOutdoorPos = { x: player.x, y: player.y };
+    sceneState.savedCameraPan = { x: cameraPan.x, y: cameraPan.y };
+    sceneState.current = buildingId;
+    player.x = interior.spawnPoint.x;
+    player.y = interior.spawnPoint.y;
+    cameraPan.x = 0;
+    cameraPan.y = 0;
+    const bld = buildings.find(b => b.id === buildingId);
+    addLog(`${bld?.label || buildingId}에 들어왔습니다.`);
+  }
+
+  function exitBuilding() {
+    if (sceneState.current === "outdoor") return;
+    sceneState.current = "outdoor";
+    if (sceneState.savedOutdoorPos) {
+      player.x = sceneState.savedOutdoorPos.x;
+      player.y = sceneState.savedOutdoorPos.y;
+    }
+    if (sceneState.savedCameraPan) {
+      cameraPan.x = sceneState.savedCameraPan.x;
+      cameraPan.y = sceneState.savedCameraPan.y;
+    }
+    addLog("밖으로 나왔습니다.");
+  }
+
+  function startSceneFade(callback) {
+    sceneFade.active = true;
+    sceneFade.alpha = 0;
+    sceneFade.direction = "in";
+    sceneFade.callback = callback;
+  }
+
+  function updateSceneFade(dt) {
+    if (!sceneFade.active) return;
+    const speed = 4.0; // alpha per second
+    if (sceneFade.direction === "in") {
+      sceneFade.alpha = Math.min(1, sceneFade.alpha + speed * dt);
+      if (sceneFade.alpha >= 1) {
+        if (sceneFade.callback) sceneFade.callback();
+        sceneFade.callback = null;
+        sceneFade.direction = "out";
+      }
+    } else {
+      sceneFade.alpha = Math.max(0, sceneFade.alpha - speed * dt);
+      if (sceneFade.alpha <= 0) {
+        sceneFade.active = false;
+      }
+    }
+  }
+
+  function drawSceneFade() {
+    if (!sceneFade.active || sceneFade.alpha <= 0) return;
+    ctx.save();
+    ctx.fillStyle = `rgba(0, 0, 0, ${sceneFade.alpha})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
   }
 
   function randomStandPoint() {
@@ -1958,6 +2144,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
 
   function updateAutoWalk(now) {
     if (!autoWalk.enabled) return;
+    if (sceneState.current !== "outdoor") return;
     if (player.moveTarget && !player.moveTarget.autoWalk) return;
     if (now < autoWalk.nextPickAt && player.moveTarget && player.moveTarget.autoWalk) return;
 
@@ -2083,13 +2270,26 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     }
 
     if (now >= nextAmbientBubbleAt) {
-      nextAmbientBubbleAt = now + 6800 + Math.random() * 11000;
-      const near = npcs.filter((n) => dist(n, player) < 10 && !chatSessionActiveFor(n.id));
-      const pool = near.length ? near : npcs;
-      if (pool.length) {
-        const npc = pool[Math.floor(Math.random() * pool.length)];
-        const line = npcAmbientLine(npc);
-        upsertSpeechBubble(npc.id, line, 3400 + Math.random() * 2000);
+      nextAmbientBubbleAt = now + 8000 + Math.random() * 12000;
+      const visible = npcs.filter((n) => dist(n, player) < 15 && !chatSessionActiveFor(n.id));
+      if (visible.length) {
+        // 가장 가까운 NPC → LLM 혼잣말, 나머지 → "..."
+        visible.sort((a, b) => dist(a, player) - dist(b, player));
+        const closest = visible[0];
+        // 먼 NPC들에게 "..." 말풍선
+        for (let i = 1; i < Math.min(visible.length, 4); i++) {
+          if (Math.random() < 0.3) upsertSpeechBubble(visible[i].id, "...", 2500);
+        }
+        // 가장 가까운 NPC는 LLM으로 혼잣말
+        if (!ambientLlmPending) {
+          ambientLlmPending = true;
+          upsertSpeechBubble(closest.id, "...", 6000);
+          llmReplyOrEmpty(closest, "(혼잣말을 해주세요. 지금 시간, 날씨, 기분에 맞게 짧은 한마디. 10자 이내.)")
+            .then((line) => {
+              if (line) upsertSpeechBubble(closest.id, line, 4000);
+            })
+            .finally(() => { ambientLlmPending = false; });
+        }
       }
     }
 
@@ -2111,6 +2311,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
 
   function nearestNpc(maxDist) {
     const items = npcs
+      .filter((npc) => (npc.currentScene || "outdoor") === sceneState.current)
       .map((npc) => ({ npc, d: dist(player, npc) }))
       .filter((item) => item.d <= maxDist)
       .sort((a, b) => a.d - b.d);
@@ -2180,6 +2381,15 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
   }
 
   function nearestHotspot(maxDist) {
+    if (sceneState.current !== "outdoor") {
+      const interior = interiorDefs && interiorDefs[sceneState.current];
+      if (interior && interior.exitPoint) {
+        const exitHs = { id: "interiorExit", x: interior.exitPoint.x, y: interior.exitPoint.y, label: "나가기" };
+        const d = dist(player, exitHs);
+        return d <= maxDist ? exitHs : null;
+      }
+      return null;
+    }
     const items = hotspots
       .map((h) => ({ h, d: dist(player, h) }))
       .filter((item) => item.d <= maxDist)
@@ -2195,6 +2405,50 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     return npc.home;
   }
 
+  // Returns building ID if NPC should be inside a building right now, null otherwise
+  function npcDesiredBuilding(npc) {
+    if (!interiorDefs) return null;
+    const mapping = npcBuildingMap[npc.id];
+    if (!mapping) return null;
+    const h = hourOfDay();
+    // Sleep at home (22:00 - 07:00)
+    if ((h >= 22 || h < 7) && mapping.home && interiorDefs[mapping.home]) {
+      return mapping.home;
+    }
+    // Work (08:00 - 16:00)
+    if (h >= 8 && h < 16 && mapping.work && interiorDefs[mapping.work]) {
+      return mapping.work;
+    }
+    return null;
+  }
+
+  function npcEnterBuilding(npc, buildingId) {
+    const interior = interiorDefs && interiorDefs[buildingId];
+    if (!interior) return;
+    npc.currentScene = buildingId;
+    npc.x = interior.spawnPoint.x;
+    npc.y = interior.spawnPoint.y;
+    npc.roamTarget = null;
+    npc.roamWait = 1 + Math.random() * 2;
+  }
+
+  function npcExitBuilding(npc) {
+    if ((npc.currentScene || "outdoor") === "outdoor") return;
+    const buildingId = npc.currentScene;
+    npc.currentScene = "outdoor";
+    // Place NPC at the building's door (outdoor coordinates)
+    const doorHs = hotspots.find(hs => doorToBuildingMap[hs.id] === buildingId);
+    if (doorHs) {
+      npc.x = doorHs.x;
+      npc.y = doorHs.y;
+    } else {
+      npc.x = npc.home.x;
+      npc.y = npc.home.y;
+    }
+    npc.roamTarget = null;
+    npc.roamWait = 0.5 + Math.random();
+  }
+
   function randomPointNear(base, radius) {
     for (let i = 0; i < 14; i += 1) {
       const ang = Math.random() * Math.PI * 2;
@@ -2207,6 +2461,72 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
   }
 
   function pickNpcRoamTarget(npc) {
+    // ─── Indoor NPC roaming ───
+    const npcScene = npc.currentScene || "outdoor";
+    if (npcScene !== "outdoor") {
+      const interior = interiorDefs && interiorDefs[npcScene];
+      if (interior) {
+        // Check if NPC should leave the building
+        const desired = npcDesiredBuilding(npc);
+        if (desired !== npcScene) {
+          // Time to leave - head to exit point
+          if (interior.exitPoint) {
+            const d = dist(npc, interior.exitPoint);
+            if (d < 0.5) {
+              npcExitBuilding(npc);
+              return;
+            }
+            npc.roamTarget = { x: interior.exitPoint.x, y: interior.exitPoint.y };
+          } else {
+            npcExitBuilding(npc);
+          }
+          return;
+        }
+        // Roam to npcSpots or random indoor point
+        if (interior.npcSpots && interior.npcSpots.length > 0) {
+          const spot = interior.npcSpots[Math.floor(Math.random() * interior.npcSpots.length)];
+          npc.roamTarget = { x: spot.x, y: spot.y };
+        } else {
+          const rx = 1 + Math.random() * (interior.width - 2);
+          const ry = 1 + Math.random() * (interior.height - 2);
+          npc.roamTarget = { x: rx, y: ry };
+        }
+        return;
+      }
+    }
+
+    // ─── Outdoor: check if NPC should enter a building ───
+    if (npcScene === "outdoor" && interiorDefs) {
+      const desired = npcDesiredBuilding(npc);
+      if (desired && interiorDefs[desired]) {
+        // Find the door hotspot for this building
+        const doorId = Object.entries(doorToBuildingMap).find(([, bid]) => bid === desired);
+        if (doorId) {
+          const doorHs = hotspots.find(hs => hs.id === doorId[0]);
+          if (doorHs) {
+            const d = dist(npc, doorHs);
+            if (d < 0.8) {
+              npcEnterBuilding(npc, desired);
+              return;
+            }
+            npc.roamTarget = { x: doorHs.x, y: doorHs.y };
+            return;
+          }
+        }
+      }
+    }
+
+    // 도슨트 NPC: 환영 접근 중이면 플레이어에게, 아니면 안내소 고정
+    const persona = npcPersonas[npc.id];
+    if (persona && persona.isDocent) {
+      if (guideGreetingPhase === 1) {
+        npc.roamTarget = { x: player.x, y: player.y };
+      } else {
+        npc.roamTarget = randomPointNear(places.infoCenter, 1.5);
+      }
+      return;
+    }
+
     const placesList = [places.plaza, places.cafe, places.office, places.park, places.market, places.bakery, places.florist, places.library, places.ksa_main];
     const nowHour = hourOfDay() + minuteOfDay() / 60;
     const anchor = targetFor(npc);
@@ -2548,8 +2868,8 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       }
     }
 
-    questHistory.unshift({ type: questType, primaryNpcId });
-    if (questHistory.length > 5) questHistory.length = 5;
+    questHistory.unshift({ type: questType, primaryNpcId, title, completedAt: nowMs() });
+    if (questHistory.length > 50) questHistory.length = 50;
     questCount += 1;
 
     if (primaryNpc) {
@@ -2695,9 +3015,188 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     return false;
   }
 
+  // ─── 도슨트 환영 업데이트 ───
+  function updateGuideGreeting(dt) {
+    if (guideGreetingPhase === 2) return;
+    const guideNpc = npcs.find(n => n.id === "guide");
+    if (!guideNpc) { guideGreetingPhase = 2; return; }
+
+    if (guideGreetingPhase === 0) {
+      guideGreetingTimer += dt;
+      if (guideGreetingTimer >= 3) {
+        guideGreetingPhase = 1;
+        guideNpc.roamTarget = { x: player.x, y: player.y };
+        guideNpc.roamWait = 0;
+      }
+      return;
+    }
+
+    if (guideGreetingPhase === 1) {
+      // 가이드가 플레이어에게 접근 중 — 타겟을 계속 갱신
+      if (!guideNpc.roamTarget || dist(guideNpc.roamTarget, player) > 2) {
+        guideNpc.roamTarget = { x: player.x, y: player.y };
+      }
+      if (dist(guideNpc, player) < 2.5) {
+        guideGreetingPhase = 2;
+        addChat(guideNpc.name, "안녕하세요! 이 마을에 오신 걸 환영해요. 저는 안내원 유진이에요.");
+        addChat(guideNpc.name, "궁금한 게 있으면 광장 근처 📋 안내소로 오세요!");
+        addChat(guideNpc.name, "저기 보이는 📜 게시판에서 퀘스트와 업적도 확인할 수 있어요.");
+        addLog("🎀 안내원 유진이 인사를 건넸습니다.");
+        guideNpc.roamTarget = null;
+        guideNpc.roamWait = 3;
+      }
+    }
+  }
+
+  // ─── 도슨트 안내소 시스템 ───
+  function showDocentMenu() {
+    const guideNpc = npcs.find(n => n.id === "guide");
+    const guideName = guideNpc ? guideNpc.name : "안내원";
+    addChat(guideName, "안녕하세요! 안내소에 오신 걸 환영합니다. 무엇이 궁금하세요?");
+    addChat("System", "━━ 안내소 메뉴 ━━");
+    addChat("System", "채팅창에 번호를 입력하세요:");
+    addChat("System", "1. 이 마을은 뭐하는 곳이야?");
+    addChat("System", "2. 여기서 뭘 할 수 있어?");
+    addChat("System", "3. 주변 NPC를 소개해줘");
+    addChat("System", "4. 장소를 알려줘");
+    docentMenuActive = true;
+  }
+
+  let docentMenuActive = false;
+  let questBoardMenuActive = false;
+
+  function handleDocentChoice(choice) {
+    const guideNpc = npcs.find(n => n.id === "guide");
+    const name = guideNpc ? guideNpc.name : "안내원";
+    docentMenuActive = false;
+
+    if (choice === "1") {
+      addChat(name, "여기는 Hyogon Ryu의 개인 홈페이지 속 Playground예요!");
+      addChat(name, "AI NPC들이 살아가는 작은 오픈 월드입니다.");
+      addChat(name, "NPC들과 대화하고, 퀘스트를 수행하고, 마을을 탐험해보세요.");
+      return true;
+    }
+    if (choice === "2") {
+      addChat(name, "할 수 있는 것들을 알려드릴게요!");
+      addChat(name, "🚶 WASD로 이동, Shift로 달리기");
+      addChat(name, "💬 E키로 NPC와 대화 (채팅창에서 직접 대화도 가능)");
+      addChat(name, "📋 퀘스트를 수행하면 코인과 NPC 호감도를 얻어요");
+      addChat(name, "🏪 시장에서 아이템을 사고팔 수 있어요");
+      addChat(name, "🎁 NPC에게 선물하면 관계가 좋아져요");
+      addChat(name, "🏃 놀이터에서 술래잡기! NPC에게서 도망치세요");
+      addChat(name, "🗺️ 숨겨진 발견 장소들이 곳곳에 있어요");
+      addChat(name, "🃏 퀘스트 완료 시 카드를 수집할 수 있어요");
+      return true;
+    }
+    if (choice === "3") {
+      addChat(name, "현재 마을에 있는 주민들을 소개할게요!");
+      for (const npc of npcs) {
+        if (npc.id === "guide") continue;
+        const persona = npcPersonas[npc.id];
+        const desc = persona ? persona.personality : "알 수 없음";
+        const levelName = favorLevelNames[npc.favorLevel] || "낯선 사이";
+        addChat(name, `• ${npc.name} — ${desc} (${levelName})`);
+      }
+      return true;
+    }
+    if (choice === "4") {
+      addChat(name, "주요 장소들을 알려드릴게요!");
+      addChat(name, "☕ 카페 — NPC들이 쉬러 오는 곳");
+      addChat(name, "🏢 사무실 — 낮에 NPC들이 일하는 곳");
+      addChat(name, "🏪 시장 — 아이템 거래소");
+      addChat(name, "🌳 공원 — 기념비와 발견 장소가 있어요");
+      addChat(name, "🏫 KSA 본관/기숙사 — 학생 NPC들의 생활 공간");
+      addChat(name, "📚 도서관, 🍞 빵집, 🌸 꽃집 — 마을 시설들");
+      addChat(name, "🏃 놀이터 — 술래잡기 미니게임!");
+      addChat(name, "📋 안내소 — 바로 여기! 언제든 다시 오세요");
+      return true;
+    }
+    return false;
+  }
+
+  // ─── 퀘스트 게시판 시스템 ───
+  function showQuestBoardMenu() {
+    addChat("System", "📜 ━━ 마을 게시판 ━━");
+    addChat("System", "채팅창에 번호를 입력하세요:");
+    addChat("System", "1. 현재 퀘스트 확인");
+    addChat("System", "2. 완료한 퀘스트 목록");
+    addChat("System", "3. 업적 확인");
+    questBoardMenuActive = true;
+  }
+
+  function handleQuestBoardChoice(choice) {
+    questBoardMenuActive = false;
+
+    if (choice === "1") {
+      addChat("System", "━━ 현재 퀘스트 ━━");
+      if (quest.done && !quest.dynamic) {
+        addChat("System", "진행 중인 퀘스트가 없습니다. NPC와 대화하면 새 퀘스트가 생길 수 있어요!");
+      } else {
+        const stageInfo = quest.dynamic && quest.dynamicStages
+          ? ` (${quest.stage + 1}/${quest.dynamicStages.length}단계)`
+          : ` (${quest.stage}단계)`;
+        addChat("System", `📋 ${quest.title}${stageInfo}`);
+        addChat("System", `   목표: ${quest.objective}`);
+        if (quest.dynamic && quest.dynamicStages) {
+          const pct = Math.round((quest.stage / quest.dynamicStages.length) * 100);
+          addChat("System", `   진행도: ${"█".repeat(Math.floor(pct / 10))}${"░".repeat(10 - Math.floor(pct / 10))} ${pct}%`);
+        }
+      }
+      return true;
+    }
+    if (choice === "2") {
+      addChat("System", `━━ 완료한 퀘스트 (${questCount}개) ━━`);
+      if (questHistory.length === 0) {
+        addChat("System", "아직 완료한 퀘스트가 없습니다.");
+      } else {
+        const questTypeIcons = { deliver: "📦", explore: "🗺️", social: "💬", observe: "🔭", fetch: "🎒", chain: "🔗", investigate: "🔍", gift_quest: "🎁", nightwatch: "🌙", urgent: "⚡", mediate: "🕊️" };
+        const show = questHistory.slice(0, 10);
+        for (const h of show) {
+          const icon = questTypeIcons[h.type] || "📋";
+          const title = h.title || h.type;
+          addChat("System", `  ${icon} ${title}`);
+        }
+        if (questHistory.length > 10) {
+          addChat("System", `  ... 외 ${questHistory.length - 10}개`);
+        }
+      }
+      return true;
+    }
+    if (choice === "3") {
+      addChat("System", `━━ 업적 (${unlockedAchievements.size}/${achievements.length}) ━━`);
+      for (const ach of achievements) {
+        const done = unlockedAchievements.has(ach.id);
+        const status = done ? "✅" : "🔒";
+        const title = done ? ach.title : "???";
+        const desc = done ? ach.desc : "아직 달성하지 못했습니다";
+        addChat("System", `  ${status} ${ach.icon} ${title} — ${desc}`);
+      }
+      return true;
+    }
+    return false;
+  }
+
   function handleHotspotInteraction() {
     const hs = nearestHotspot(1.3);
     if (!hs) return false;
+
+    // Interior exit
+    if (hs.id === "interiorExit") {
+      startSceneFade(() => exitBuilding());
+      return true;
+    }
+
+    // Door hotspots → enter building
+    const buildingId = doorToBuildingMap[hs.id];
+    if (buildingId) {
+      if (interiorDefs && interiorDefs[buildingId]) {
+        startSceneFade(() => enterBuilding(buildingId));
+      } else {
+        const bld = buildings.find(b => b.id === buildingId);
+        addLog(`${bld?.label || buildingId}을(를) 확인했습니다.`);
+      }
+      return true;
+    }
 
     if (hs.id === "exitGate") {
       addLog("플레이그라운드를 떠나는 중... 소개 페이지로 돌아갑니다.");
@@ -2722,50 +3221,43 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       return true;
     }
 
-    if (hs.id === "cafeDoor") {
-      addLog("카페를 확인했습니다. NPC들의 루틴이 여기서 동기화되는 것 같습니다.");
-      adjustRelation("playerToChoi", 1);
-      return true;
-    }
-
     if (hs.id === "marketBoard") {
       addLog("게시판: '야시장은 20시에 광장 근처에서 시작됩니다.'");
       return true;
     }
 
+    if (hs.id === "infoCenter") {
+      showDocentMenu();
+      return true;
+    }
+
+    if (hs.id === "questBoard") {
+      showQuestBoardMenu();
+      return true;
+    }
+
     if (hs.id === "minigameZone") {
+      if (sceneState.current !== "outdoor") {
+        addLog("실내에서는 술래잡기를 할 수 없습니다.");
+        return true;
+      }
       if (tagGame.active) {
         addLog("이미 술래잡기 진행 중!");
         return true;
       }
-      if (nowMs() < tagGame.cooldownUntil) {
-        const wait = Math.ceil((tagGame.cooldownUntil - nowMs()) / 1000);
-        addLog(`술래잡기 쿨다운 중... ${wait}초 후 다시 도전하세요.`);
-        return true;
-      }
-      // 근처 NPC 중 랜덤 하나를 상대로 선택
-      const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < 25);
+      // 근처 NPC 중 랜덤 하나를 상대로 선택 (도슨트 제외)
+      const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < 25 && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
       if (candidates.length === 0) {
         addLog("주변에 술래잡기할 NPC가 없습니다. NPC가 가까이 올 때 다시 시도하세요.");
         return true;
       }
       const target = candidates[Math.floor(Math.random() * candidates.length)];
-      addChat("System", `🏃 놀이터에서 술래잡기! ${target.name}을(를) 60초 안에 잡으세요!`);
+      addChat("System", `🏃 놀이터에서 술래잡기! ${target.name}이(가) 술래! 60초간 도망치세요!`);
       startTagGame(target);
       return true;
     }
 
     return false;
-  }
-
-  function npcSmallTalk(npc) {
-    const lines = [
-      `${npc.name}: ${formatTime()}의 분위기는 조금 다르게 느껴져.`,
-      `${npc.name}: 오늘은 루틴을 최대한 지키려고 해.`,
-      `${npc.name}: 나중에 광장에서 다시 보자.`,
-      `${npc.name}: 작은 이벤트가 계획을 계속 바꾸네.`,
-    ];
-    return lines[(hourOfDay() + npc.name.length) % lines.length];
   }
 
   function interact() {
@@ -2786,14 +3278,25 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
 
       if (near.npc.talkCooldown <= 0) {
         near.npc.talkCooldown = 3.5;
-        if (near.npc.activeRequest && checkFavorCompletion(near.npc)) {
+        // 도슨트 NPC는 항상 안내소 메뉴 표시
+        if (npcPersonas[near.npc.id] && npcPersonas[near.npc.id].isDocent) {
+          showDocentMenu();
+        } else if (near.npc.activeRequest && checkFavorCompletion(near.npc)) {
           // favor quest handled
         } else if (!handleQuestNpcTalk(near.npc)) {
-          const greeting = npcSmallTalk(near.npc).replace(`${near.npc.name}: `, "");
-          addChat(near.npc.name, greeting);
-          if (near.npc.id === "heo") adjustRelation("playerToHeo", 1);
-          if (near.npc.id === "kim") adjustRelation("playerToKim", 1);
-          tryCardDrop("npc_interaction", near.npc);
+          // AI NPC: LLM으로 인사 생성
+          const greetNpc = near.npc;
+          (async () => {
+            try {
+              const reply = await llmReplyOrEmpty(greetNpc, "(플레이어가 E키로 말을 걸었습니다. 짧게 인사해주세요.)");
+              addChat(greetNpc.name, reply || "나 말하는 법을 까먹은 거 같아...");
+            } catch {
+              addChat(greetNpc.name, "나 말하는 법을 까먹은 거 같아...");
+            }
+          })();
+          if (greetNpc.id === "heo") adjustRelation("playerToHeo", 1);
+          if (greetNpc.id === "kim") adjustRelation("playerToKim", 1);
+          tryCardDrop("npc_interaction", greetNpc);
         }
       } else {
         addChat("System", `${near.npc.name}은(는) 잠시 바쁩니다.`);
@@ -2805,32 +3308,23 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     addChat("System", "근처에 대화 가능한 NPC가 없습니다.");
   }
 
-  function detectTopic(text) {
-    const t = text.toLowerCase();
-    if (/(quest|help|task|mission|퀘스트|도움|임무|미션)/.test(t)) return "quest";
-    if (/(허승준|김민수|최민영|정욱진|서창근|이진원|박지호|장동우)/.test(t)) return "people";
-    if (/(world|town|city|simulation|ai|월드|도시|시뮬|시뮬레이션)/.test(t)) return "world";
-    if (/(thanks|thank you|great|good|고마워|감사|좋아)/.test(t)) return "positive";
-    return "general";
-  }
-
-  function analyzeSentiment(text) {
-    const t = text.toLowerCase();
-    if (/(사랑|최고|대단|멋져|잘했|응원|좋아해|고마워|감사|칭찬|존경|기쁘|행복|축하|thank|love|great|awesome|amazing|wonderful)/.test(t))
+  // NPC의 LLM 응답에서 감정 추론 (AI가 맥락을 이해하고 답했으므로 응답 분석이 더 정확)
+  function inferSentimentFromReply(replyText) {
+    const t = replyText.toLowerCase();
+    if (/(고마워|반가|좋은|기뻐|재밌|행복|최고|사랑|감동|응원|좋아해|함께|친구|헤헤|ㅎㅎ|감사|축하|대단|멋져)/.test(t))
       return { sentiment: "positive", intensity: 2 };
-    if (/(좋아|괜찮|재밌|반가|nice|good|cool|fun|like|glad)/.test(t))
+    if (/(응|맞아|그래|좋아|괜찮|그럴게|알겠|오|와)/.test(t))
       return { sentiment: "positive", intensity: 1 };
-    if (/(싫어|짜증|별로|못생|바보|멍청|나빠|최악|꺼져|hate|ugly|stupid|worst|annoying|terrible|shut up)/.test(t))
+    if (/(싫|짜증|그만|화나|실망|별로|최악|됐어|하지\s?마|무례)/.test(t))
       return { sentiment: "negative", intensity: 2 };
-    if (/(음|글쎄|몰라|그냥|흠|hmm|meh|whatever|dunno)/.test(t))
-      return { sentiment: "neutral", intensity: 0 };
-    if (/\?|뭐|어떻게|왜|어디|누구|언제|what|how|why|where|who|when/.test(t))
+    if (/(\?|뭐|어떻게|왜|정말|진짜|궁금)/.test(t))
       return { sentiment: "curious", intensity: 1 };
     return { sentiment: "neutral", intensity: 0 };
   }
 
   function applyConversationEffect(npc, playerMsg, npcReplyText) {
-    const { sentiment, intensity } = analyzeSentiment(playerMsg);
+    // LLM 응답 텍스트에서 감정 추론
+    const { sentiment, intensity } = inferSentimentFromReply(npcReplyText);
     const relKey = relationKeyForNpc(npc.id);
 
     if (sentiment === "positive") {
@@ -2855,51 +3349,6 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       addChat("System", `🎉 ${npc.name}과(와)의 관계: ${favorLevelNames[npc.favorLevel]}!`);
       addNpcMemory(npc, "favor", `관계가 '${favorLevelNames[npc.favorLevel]}'(으)로 발전`);
     }
-  }
-
-  function npcReply(npc, text) {
-    const topic = detectTopic(text);
-    const mem = ensureMemoryFormat(npc);
-    const friendly = npc.favorLevel >= 2;
-
-    if (topic === "positive") {
-      if (npc.id === "heo") adjustRelation("playerToHeo", 2);
-      if (npc.id === "kim") adjustRelation("playerToKim", 2);
-      return friendly
-        ? "헤헤, 고마워! 너도 참 좋은 사람이야."
-        : "고마워요. 당신의 행동이 이 동네 분위기를 조금씩 바꾸고 있어요.";
-    }
-
-    if (topic === "quest") {
-      if (quest.done) return friendly ? "이미 다 해냈잖아! 대단해." : "이미 모두를 연결해줬어요. 훌륭했어요.";
-      return friendly
-        ? `지금 목표는 '${quest.objective}'야. 힘내!`
-        : `현재 목표는 '${quest.objective}' 입니다.`;
-    }
-
-    if (topic === "world") {
-      return friendly
-        ? "이 세계는 루틴, 관계, 이벤트로 돌아가. 같이 돌아다녀 볼까?"
-        : "이 세계는 루틴, 관계, 작은 이벤트로 움직여요. 계속 관찰해 보세요.";
-    }
-
-    if (topic === "people") {
-      return friendly
-        ? "여기 사람들, 시간대마다 달라져. 다음에 같이 찾아보자!"
-        : "여기 사람들은 시간에 따라 달라져요. 시간대를 바꿔서 다시 말 걸어보세요.";
-    }
-
-    if (friendly && mem.conversationCount > 3) {
-      const friendlyLines = [
-        "오, 또 왔네! 반가워.",
-        "요즘 자주 보니까 좋다.",
-        "뭐 재밌는 거 없어?",
-        "심심했는데 잘 왔어!",
-      ];
-      return friendlyLines[Math.floor(Math.random() * friendlyLines.length)];
-    }
-
-    return npcSmallTalk(npc).replace(`${npc.name}: `, "");
   }
 
   async function requestLlmNpcReply(npc, userMessage) {
@@ -2932,6 +3381,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       memory: getNpcMemorySummary(npc),
       tone: getMemoryBasedTone(npc),
       socialContext: getNpcSocialContext(npc),
+      favorLevel: npc.favorLevel || 0,
     };
 
     const controller = new AbortController();
@@ -2987,6 +3437,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       memory: getNpcMemorySummary(npc),
       tone: getMemoryBasedTone(npc),
       socialContext: getNpcSocialContext(npc),
+      favorLevel: npc.favorLevel || 0,
     };
 
     const controller = new AbortController();
@@ -3070,6 +3521,22 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
   }
 
   async function sendChatMessage(msg) {
+    // 도슨트 안내소 메뉴 처리
+    if (docentMenuActive && /^[1-4]$/.test(msg.trim())) {
+      addChat("You", msg.trim());
+      if (!handleDocentChoice(msg.trim())) {
+        addChat("System", "1~4 중에서 선택해주세요.");
+      }
+      return;
+    }
+    // 퀘스트 게시판 메뉴 처리
+    if (questBoardMenuActive && /^[1-3]$/.test(msg.trim())) {
+      addChat("You", msg.trim());
+      if (!handleQuestBoardChoice(msg.trim())) {
+        addChat("System", "1~3 중에서 선택해주세요.");
+      }
+      return;
+    }
     if (/^(선물|gift|줘|give)$/i.test(msg.trim())) {
       const target = chatTargetNpc();
       if (target && target.near) {
@@ -3090,8 +3557,6 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       }
       if (tagGame.active) {
         addChat("System", "이미 술래잡기 진행 중입니다!");
-      } else if (nowMs() < tagGame.cooldownUntil) {
-        addChat("System", "술래잡기 쿨다운 중... 잠시 후 다시 도전하세요.");
       } else {
         const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < 25);
         if (!candidates.length) {
@@ -3099,7 +3564,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
         } else {
           const target = candidates[Math.floor(Math.random() * candidates.length)];
           addChat("You", "좋아, 술래잡기 하자!");
-          addChat(target.name, "잡아봐~! 🏃💨");
+          addChat(target.name, "잡으러 간다~! 👹");
           conversationFocusNpcId = null;
           if (isMobileViewport()) mobileChatOpen = false;
           startTagGame(target);
@@ -3177,6 +3642,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     const npc = target.npc;
     conversationFocusNpcId = npc.id;
     addNpcChat(npc.id, "You", msg);
+    upsertSpeechBubble("player", msg, 3000);
     if (!target.near) {
       moveNearNpcTarget(target.npc);
       addSystemToast(`${target.npc.name}에게 이동 중입니다. 가까이 가면 대화할 수 있습니다.`);
@@ -3242,7 +3708,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
           llmAvailable = false;
           lastLlmModel = "local";
           lastLlmError = (err2 && err2.message ? String(err2.message) : "") || (err && err.message ? String(err.message) : "unknown");
-          reply = npcReply(npc, msg);
+          reply = "나 말하는 법을 까먹은 거 같아...";
         }
       }
     } finally {
@@ -3251,17 +3717,65 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       if (chatInputEl) chatInputEl.focus();
     }
     setChatSession(npc.id, 90000);
-    if (reply && !streamedRendered) addNpcChat(npc.id, npc.name, reply);
 
-    if (reply) {
+    // NPC 응답에서 [부탁:종류:대상] 태그 파싱
+    let cleanReply = reply;
+    const favorTagMatch = reply.match(/\[부탁:(\w+):(\w+)\]/);
+    if (favorTagMatch) {
+      cleanReply = reply.replace(/\s*\[부탁:\w+:\w+\]\s*/, "").trim();
+      const reqType = favorTagMatch[1];
+      const reqTarget = favorTagMatch[2];
+      // 기존 activeRequest가 없을 때만 부탁 생성
+      if (!npc.activeRequest) {
+        if (reqType === "bring_item" && itemTypes[reqTarget]) {
+          npc.activeRequest = {
+            type: "bring_item",
+            title: `${npc.name}의 부탁`,
+            description: `${itemTypes[reqTarget].label}을(를) 가져다 주세요.`,
+            itemNeeded: reqTarget,
+            expiresAt: nowMs() + 300_000,
+            reward: { favorPoints: 20, relationBoost: 8, items: [] },
+          };
+        } else if (reqType === "deliver") {
+          const targetNpc = npcs.find(n => n.id === reqTarget);
+          if (targetNpc) {
+            npc.activeRequest = {
+              type: "deliver_to",
+              title: `${targetNpc.name}에게 전달`,
+              description: `${targetNpc.name}에게 가서 말을 전해주세요.`,
+              targetNpcId: targetNpc.id,
+              expiresAt: nowMs() + 300_000,
+              reward: { favorPoints: 25, relationBoost: 10, items: [] },
+            };
+          }
+        }
+      }
+    }
+
+    if (cleanReply && !streamedRendered) addNpcChat(npc.id, npc.name, cleanReply);
+    if (cleanReply) upsertSpeechBubble(npc.id, cleanReply, 4000);
+
+    if (cleanReply) {
       challengeOnNpcTalk(npc.id);
-      applyConversationEffect(npc, msg, reply);
+      applyConversationEffect(npc, msg, cleanReply);
       const shortMsg = msg.length > 30 ? msg.slice(0, 30) + "…" : msg;
-      const shortReply = reply.length > 40 ? reply.slice(0, 40) + "…" : reply;
+      const shortReply = cleanReply.length > 40 ? cleanReply.slice(0, 40) + "…" : cleanReply;
       addNpcMemory(npc, "chat", `플레이어: "${shortMsg}" → 나: "${shortReply}"`);
       const mem = ensureMemoryFormat(npc);
       mem.conversationCount += 1;
       mem.lastConversation = world.totalMinutes;
+
+      // NPC가 대화를 마무리하면 자동으로 세션 종료
+      const farewellPattern = /(안녕|잘\s?가|다음에|나중에|바이|bye|또\s?봐|가\s?볼게|이만|할\s?일|다시\s?보자|그럼\s?이만|갈게)/i;
+      if (farewellPattern.test(cleanReply)) {
+        setTimeout(() => {
+          if (conversationFocusNpcId === npc.id) {
+            conversationFocusNpcId = null;
+            chatSession.npcId = null;
+            chatSession.expiresAt = 0;
+          }
+        }, 2500);
+      }
     }
   }
 
@@ -3568,6 +4082,11 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
         x: player.x,
         y: player.y,
       },
+      sceneState: {
+        current: sceneState.current,
+        savedOutdoorPos: sceneState.savedOutdoorPos,
+        savedCameraPan: sceneState.savedCameraPan,
+      },
       relations,
       quest,
       npcs: npcs
@@ -3576,6 +4095,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
           id: n.id, x: n.x, y: n.y, talkCooldown: n.talkCooldown,
           favorLevel: n.favorLevel, favorPoints: n.favorPoints,
           memory: n.memory,
+          currentScene: n.currentScene || "outdoor",
         })),
       inventory: { ...inventory },
       ownedCards: { ...ownedCards },
@@ -3625,6 +4145,11 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
           player.y = places.plaza.y;
         }
       }
+      if (state.sceneState) {
+        sceneState.current = state.sceneState.current || "outdoor";
+        sceneState.savedOutdoorPos = state.sceneState.savedOutdoorPos || null;
+        sceneState.savedCameraPan = state.sceneState.savedCameraPan || null;
+      }
       if (state.relations) {
         Object.assign(relations, state.relations);
       }
@@ -3649,12 +4174,18 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
         for (const savedNpc of state.npcs) {
           const npc = npcs.find((n) => n.id === savedNpc.id);
           if (!npc) continue;
-          npc.x = clamp(savedNpc.x ?? npc.x, 1, world.width - 1);
-          npc.y = clamp(savedNpc.y ?? npc.y, 1, world.height - 1);
-          // 건물 안에 끼인 NPC를 home 앞으로 이동
-          if (!canStand(npc.x, npc.y)) {
-            npc.x = npc.home.x;
-            npc.y = npc.home.y;
+          if (savedNpc.currentScene) npc.currentScene = savedNpc.currentScene;
+          const npcLoadScene = npc.currentScene || "outdoor";
+          if (npcLoadScene === "outdoor") {
+            npc.x = clamp(savedNpc.x ?? npc.x, 1, world.width - 1);
+            npc.y = clamp(savedNpc.y ?? npc.y, 1, world.height - 1);
+            if (!canStandInScene(npc.x, npc.y, "outdoor")) {
+              npc.x = npc.home.x;
+              npc.y = npc.home.y;
+            }
+          } else {
+            npc.x = savedNpc.x ?? npc.x;
+            npc.y = savedNpc.y ?? npc.y;
           }
           npc.talkCooldown = Math.max(0, savedNpc.talkCooldown || 0);
           if (savedNpc.favorLevel != null) npc.favorLevel = savedNpc.favorLevel;
@@ -3801,8 +4332,16 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     if (canStand(tx, player.y)) player.x = tx;
     if (canStand(player.x, ty)) player.y = ty;
 
-    player.x = clamp(player.x, 1, world.width - 1);
-    player.y = clamp(player.y, 1, world.height - 1);
+    if (sceneState.current !== "outdoor") {
+      const interior = interiorDefs && interiorDefs[sceneState.current];
+      if (interior) {
+        player.x = clamp(player.x, 0.3, interior.width - 0.3);
+        player.y = clamp(player.y, 0.3, interior.height - 0.3);
+      }
+    } else {
+      player.x = clamp(player.x, 1, world.width - 1);
+      player.y = clamp(player.y, 1, world.height - 1);
+    }
 
     if (player.moveTarget) {
       const td = Math.hypot(player.moveTarget.x - player.x, player.moveTarget.y - player.y);
@@ -3862,14 +4401,15 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       }
 
       const t = npc.roamTarget || targetFor(npc);
-      const dx = t.x - npc.x;
-      const dy = t.y - npc.y;
-      const d = Math.hypot(dx, dy);
+      const tdx = t.x - npc.x;
+      const tdy = t.y - npc.y;
+      const td = Math.hypot(tdx, tdy);
 
-      if (d > 0.12) {
-        const nx = npc.x + (dx / d) * npc.speed * dt;
-        const ny = npc.y + (dy / d) * npc.speed * dt;
-        if (canStand(nx, ny)) {
+      if (td > 0.12) {
+        const nx = npc.x + (tdx / td) * npc.speed * dt;
+        const ny = npc.y + (tdy / td) * npc.speed * dt;
+        const npcScene = npc.currentScene || "outdoor";
+        if (canStandInScene(nx, ny, npcScene)) {
           npc.x = nx;
           npc.y = ny;
           npc.state = "moving";
@@ -3892,10 +4432,12 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     if (moving.length < 2) return;
 
     const a = moving[Math.floor(Math.random() * moving.length)];
+    const aScene = a.currentScene || "outdoor";
     let b = null;
     let best = Infinity;
     for (const cand of moving) {
       if (cand.id === a.id) continue;
+      if ((cand.currentScene || "outdoor") !== aScene) continue;
       const d = dist(a, cand);
       if (d < best) {
         best = d;
@@ -3904,13 +4446,31 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     }
     if (!b || best > 2.3) return;
 
-    a.roamWait = Math.max(a.roamWait, 1.4 + Math.random() * 1.2);
-    b.roamWait = Math.max(b.roamWait, 1.4 + Math.random() * 1.2);
+    a.roamWait = Math.max(a.roamWait, 3 + Math.random() * 2);
+    b.roamWait = Math.max(b.roamWait, 3 + Math.random() * 2);
     a.state = "chatting";
     b.state = "chatting";
-    upsertSpeechBubble(a.id, npcAmbientLine(a), 2800);
-    upsertSpeechBubble(b.id, npcAmbientLine(b), 2800);
-    addLog(`${a.name}과 ${b.name}이 잠시 대화합니다.`);
+
+    // 플레이어 근처면 LLM으로 대화, 멀면 "..." 말풍선
+    const playerNearby = dist(player, a) < 12 || dist(player, b) < 12;
+    if (playerNearby && !npcChatLlmPending) {
+      npcChatLlmPending = true;
+      upsertSpeechBubble(a.id, "...", 5000);
+      upsertSpeechBubble(b.id, "...", 5000);
+      llmReplyOrEmpty(a, `(${b.name}에게 짧게 말을 거세요. 10자 이내 한마디.)`)
+        .then((lineA) => {
+          if (lineA) upsertSpeechBubble(a.id, lineA, 4000);
+          return llmReplyOrEmpty(b, `(${a.name}이(가) "${lineA || '...'}"라고 했습니다. 짧게 대답하세요. 10자 이내.)`);
+        })
+        .then((lineB) => {
+          if (lineB) upsertSpeechBubble(b.id, lineB, 4000);
+        })
+        .finally(() => { npcChatLlmPending = false; });
+      addLog(`${a.name}과 ${b.name}이 대화합니다.`);
+    } else {
+      upsertSpeechBubble(a.id, "...", 2800);
+      upsertSpeechBubble(b.id, "...", 2800);
+    }
   }
 
   function updateConversationCamera() {
@@ -4078,260 +4638,276 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     const pB = project(b.x + b.w, b.y, b.z);
     const pC = project(b.x + b.w, b.y + b.h, b.z);
     const pD = project(b.x, b.y + b.h, b.z);
-
+    const baseA = project(b.x, b.y, 0);
     const baseB = project(b.x + b.w, b.y, 0);
     const baseC = project(b.x + b.w, b.y + b.h, 0);
     const baseD = project(b.x, b.y + b.h, 0);
+    const zz = world.zoom;
+    const tH = world.baseTileH * zz;
+    const isHouse = b.id === "houseA" || b.id === "houseB" || b.id === "houseC";
+    const isKsa = b.id === "ksa_main" || b.id === "ksa_dorm";
 
     const roofColor = b.roof || shade(b.color, -16);
-    const signColor = b.id === "cafe" ? "#ffefc7" : (b.id === "office" ? "#e4efff" : "#ffe6bd");
     const signText = b.label;
 
+    // ── Right wall ──
     ctx.fillStyle = shade(b.color, -8);
     ctx.beginPath();
-    ctx.moveTo(pB.x, pB.y);
-    ctx.lineTo(baseB.x, baseB.y);
-    ctx.lineTo(baseC.x, baseC.y);
-    ctx.lineTo(pC.x, pC.y);
-    ctx.closePath();
-    ctx.fill();
-
+    ctx.moveTo(pB.x, pB.y); ctx.lineTo(baseB.x, baseB.y);
+    ctx.lineTo(baseC.x, baseC.y); ctx.lineTo(pC.x, pC.y);
+    ctx.closePath(); ctx.fill();
+    // Brick/panel lines
+    ctx.strokeStyle = "rgba(0,0,0,0.06)"; ctx.lineWidth = 0.5;
+    for (let i = 1; i < Math.max(2, Math.round(b.h * 1.5)); i++) {
+      const t = i / Math.max(2, Math.round(b.h * 1.5));
+      ctx.beginPath();
+      ctx.moveTo(baseB.x + (baseC.x - baseB.x) * t, baseB.y + (baseC.y - baseB.y) * t);
+      ctx.lineTo(pB.x + (pC.x - pB.x) * t, pB.y + (pC.y - pB.y) * t);
+      ctx.stroke();
+    }
+    // ── Left wall ──
     ctx.fillStyle = shade(b.color, -16);
     ctx.beginPath();
-    ctx.moveTo(pD.x, pD.y);
-    ctx.lineTo(baseD.x, baseD.y);
-    ctx.lineTo(baseC.x, baseC.y);
-    ctx.lineTo(pC.x, pC.y);
-    ctx.closePath();
-    ctx.fill();
-
+    ctx.moveTo(pD.x, pD.y); ctx.lineTo(baseD.x, baseD.y);
+    ctx.lineTo(baseC.x, baseC.y); ctx.lineTo(pC.x, pC.y);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.05)"; ctx.lineWidth = 0.5;
+    for (let i = 1; i < Math.max(2, Math.round(b.w * 1.5)); i++) {
+      const t = i / Math.max(2, Math.round(b.w * 1.5));
+      ctx.beginPath();
+      ctx.moveTo(baseD.x + (baseC.x - baseD.x) * t, baseD.y + (baseC.y - baseD.y) * t);
+      ctx.lineTo(pD.x + (pC.x - pD.x) * t, pD.y + (pC.y - pD.y) * t);
+      ctx.stroke();
+    }
+    // ── Top face ──
     ctx.fillStyle = b.color;
     ctx.beginPath();
-    ctx.moveTo(pA.x, pA.y);
-    ctx.lineTo(pB.x, pB.y);
-    ctx.lineTo(pC.x, pC.y);
-    ctx.lineTo(pD.x, pD.y);
-    ctx.closePath();
-    ctx.fill();
+    ctx.moveTo(pA.x, pA.y); ctx.lineTo(pB.x, pB.y);
+    ctx.lineTo(pC.x, pC.y); ctx.lineTo(pD.x, pD.y);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(78,62,42,0.3)"; ctx.lineWidth = 1; ctx.stroke();
 
-    ctx.strokeStyle = "rgba(78, 62, 42, 0.35)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    const roofHeight = world.baseTileH * world.zoom * 0.62;
-    const roofPeak = { x: (pA.x + pB.x) * 0.5, y: Math.min(pA.y, pB.y) - roofHeight };
-    ctx.fillStyle = roofColor;
-    ctx.beginPath();
-    ctx.moveTo(pA.x, pA.y);
-    ctx.lineTo(roofPeak.x, roofPeak.y);
-    ctx.lineTo(pB.x, pB.y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "rgba(74, 57, 36, 0.42)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    if (b.id === "market") {
-      ctx.fillStyle = "#ff6a6a";
+    // ── Roof (varied by building type) ──
+    const rh = tH * 0.7;
+    if (isHouse) {
+      // Gable roof (both sides visible)
+      const ridgeA = { x: (pA.x + pD.x) * 0.5, y: (pA.y + pD.y) * 0.5 - rh };
+      const ridgeB = { x: (pB.x + pC.x) * 0.5, y: (pB.y + pC.y) * 0.5 - rh };
+      ctx.fillStyle = roofColor;
       ctx.beginPath();
-      ctx.moveTo(pA.x + 2, pA.y + 1);
-      ctx.lineTo(pB.x - 2, pB.y + 1);
-      ctx.lineTo((pB.x + pC.x) * 0.5, (pB.y + pC.y) * 0.5);
-      ctx.lineTo((pA.x + pD.x) * 0.5, (pA.y + pD.y) * 0.5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.5)";
-      for (let i = 0; i < 5; i += 1) {
-        const t = i / 4;
-        const x1 = pA.x + (pB.x - pA.x) * t;
-        const y1 = pA.y + (pB.y - pA.y) * t;
-        const x2 = (pA.x + pD.x) * 0.5 + ((pB.x + pC.x) * 0.5 - (pA.x + pD.x) * 0.5) * t;
-        const y2 = (pA.y + pD.y) * 0.5 + ((pB.y + pC.y) * 0.5 - (pA.y + pD.y) * 0.5) * t;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
+      ctx.moveTo(pA.x, pA.y); ctx.lineTo(ridgeA.x, ridgeA.y);
+      ctx.lineTo(ridgeB.x, ridgeB.y); ctx.lineTo(pB.x, pB.y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(60,40,20,0.3)"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = shade(roofColor, -10);
+      ctx.beginPath();
+      ctx.moveTo(pD.x, pD.y); ctx.lineTo(ridgeA.x, ridgeA.y);
+      ctx.lineTo(ridgeB.x, ridgeB.y); ctx.lineTo(pC.x, pC.y);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = shade(b.color, -4);
+      ctx.beginPath();
+      ctx.moveTo(pB.x, pB.y); ctx.lineTo(ridgeB.x, ridgeB.y); ctx.lineTo(pC.x, pC.y);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "rgba(90,60,30,0.5)"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(ridgeA.x, ridgeA.y); ctx.lineTo(ridgeB.x, ridgeB.y); ctx.stroke();
+      // Chimney
+      const chX = ridgeB.x - 4 * zz; const chY = ridgeB.y;
+      ctx.fillStyle = "#8a5a44";
+      ctx.beginPath(); ctx.roundRect(chX - 2.5 * zz, chY - 2 * zz, 5 * zz, 10 * zz, 1); ctx.fill();
+      ctx.fillStyle = "#7a4a38";
+      ctx.beginPath(); ctx.roundRect(chX - 3 * zz, chY - 2.5 * zz, 6 * zz, 2 * zz, 1); ctx.fill();
+      const hr = hourOfDay();
+      if (hr >= 18 || hr < 8) {
+        ctx.fillStyle = "rgba(200,200,200,0.2)";
+        ctx.beginPath(); ctx.ellipse(chX, chY - 5 * zz, 3, 5, 0, 0, Math.PI * 2); ctx.fill();
       }
-    }
-    // 빵집 어닝
-    if (b.id === "bakery") {
-      ctx.fillStyle = "#f4a460";
+    } else if (isKsa) {
+      // Flat institutional roof with parapet
+      const ph = tH * 0.15;
+      const ppA = { x: pA.x, y: pA.y - ph }; const ppB = { x: pB.x, y: pB.y - ph };
+      const ppC = { x: pC.x, y: pC.y - ph }; const ppD = { x: pD.x, y: pD.y - ph };
+      ctx.fillStyle = shade(roofColor, 5);
       ctx.beginPath();
-      ctx.moveTo(pA.x + 2, pA.y + 1);
-      ctx.lineTo(pB.x - 2, pB.y + 1);
-      ctx.lineTo((pB.x + pC.x) * 0.5, (pB.y + pC.y) * 0.5);
-      ctx.lineTo((pA.x + pD.x) * 0.5, (pA.y + pD.y) * 0.5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.3)";
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 4; i++) {
-        const t = i / 3;
+      ctx.moveTo(pA.x, pA.y); ctx.lineTo(ppA.x, ppA.y);
+      ctx.lineTo(ppB.x, ppB.y); ctx.lineTo(pB.x, pB.y);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = shade(roofColor, -5);
+      ctx.beginPath();
+      ctx.moveTo(pB.x, pB.y); ctx.lineTo(ppB.x, ppB.y);
+      ctx.lineTo(ppC.x, ppC.y); ctx.lineTo(pC.x, pC.y);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = shade(roofColor, 10);
+      ctx.beginPath();
+      ctx.moveTo(ppA.x, ppA.y); ctx.lineTo(ppB.x, ppB.y);
+      ctx.lineTo(ppC.x, ppC.y); ctx.lineTo(ppD.x, ppD.y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(60,40,20,0.25)"; ctx.lineWidth = 1; ctx.stroke();
+    } else if (b.id === "market") {
+      // Hip roof (red)
+      const peakY = Math.min(pA.y, pB.y) - rh * 0.8;
+      const midAB = { x: (pA.x + pB.x) * 0.5, y: peakY };
+      const midDC = { x: (pD.x + pC.x) * 0.5, y: (pD.y + pC.y) * 0.5 - rh * 0.4 };
+      ctx.fillStyle = "#c0392b";
+      ctx.beginPath(); ctx.moveTo(pA.x, pA.y); ctx.lineTo(midAB.x, midAB.y); ctx.lineTo(pB.x, pB.y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#a93226";
+      ctx.beginPath(); ctx.moveTo(pB.x, pB.y); ctx.lineTo(midAB.x, midAB.y); ctx.lineTo(midDC.x, midDC.y); ctx.lineTo(pC.x, pC.y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#922b21";
+      ctx.beginPath(); ctx.moveTo(pD.x, pD.y); ctx.lineTo(midAB.x, midAB.y); ctx.lineTo(midDC.x, midDC.y); ctx.lineTo(pC.x, pC.y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1.2;
+      for (let i = 0; i < 5; i++) {
+        const t = i / 4;
         ctx.beginPath();
         ctx.moveTo(pA.x + (pB.x - pA.x) * t, pA.y + (pB.y - pA.y) * t);
-        ctx.lineTo((pA.x + pD.x) * 0.5 + ((pB.x + pC.x) * 0.5 - (pA.x + pD.x) * 0.5) * t,
-          (pA.y + pD.y) * 0.5 + ((pB.y + pC.y) * 0.5 - (pA.y + pD.y) * 0.5) * t);
-        ctx.stroke();
+        ctx.lineTo(midAB.x, midAB.y); ctx.stroke();
       }
-    }
-    // 꽃집 꽃 장식
-    if (b.id === "florist") {
-      const fc = ["#ff6b9d", "#ffd93d", "#6bcf7f"];
-      for (let i = 0; i < 3; i++) {
-        const fx = pA.x + (pB.x - pA.x) * (0.25 + i * 0.25);
-        const fy = pA.y + (pB.y - pA.y) * (0.25 + i * 0.25) - 4;
-        ctx.fillStyle = fc[i];
-        for (let p = 0; p < 4; p++) {
-          const a = (p / 4) * Math.PI * 2;
-          ctx.beginPath();
-          ctx.arc(fx + Math.cos(a) * 2.5, fy + Math.sin(a) * 2.5, 1.8, 0, Math.PI * 2);
-          ctx.fill();
+    } else if (b.id === "library") {
+      // Classical pediment
+      const pedH = rh * 0.9;
+      const peak = { x: (pA.x + pB.x) * 0.5, y: Math.min(pA.y, pB.y) - pedH };
+      ctx.fillStyle = roofColor;
+      ctx.beginPath(); ctx.moveTo(pA.x - 2, pA.y); ctx.lineTo(peak.x, peak.y); ctx.lineTo(pB.x + 2, pB.y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(60,40,20,0.35)"; ctx.lineWidth = 1; ctx.stroke();
+      const backPk = { x: (pC.x + pD.x) * 0.5, y: (pC.y + pD.y) * 0.5 - pedH * 0.3 };
+      ctx.fillStyle = shade(roofColor, -10);
+      ctx.beginPath(); ctx.moveTo(pB.x + 2, pB.y); ctx.lineTo(peak.x, peak.y); ctx.lineTo(backPk.x, backPk.y); ctx.lineTo(pC.x, pC.y); ctx.closePath(); ctx.fill(); ctx.stroke();
+      // Cornice
+      ctx.fillStyle = shade(b.color, 10);
+      const cH = 2 * zz;
+      ctx.beginPath(); ctx.moveTo(pA.x - 3, pA.y); ctx.lineTo(pB.x + 3, pB.y); ctx.lineTo(pB.x + 3, pB.y + cH); ctx.lineTo(pA.x - 3, pA.y + cH); ctx.closePath(); ctx.fill();
+    } else if (b.id === "cafe" || b.id === "bakery" || b.id === "florist") {
+      // Gambrel/mansard roof
+      const midH = rh * 0.55; const topH = rh * 0.3;
+      const mA = { x: pA.x + (pD.x - pA.x) * 0.15, y: pA.y + (pD.y - pA.y) * 0.15 - midH };
+      const mB = { x: pB.x + (pC.x - pB.x) * 0.15, y: pB.y + (pC.y - pB.y) * 0.15 - midH };
+      ctx.fillStyle = roofColor;
+      ctx.beginPath(); ctx.moveTo(pA.x, pA.y); ctx.lineTo(mA.x, mA.y); ctx.lineTo(mB.x, mB.y); ctx.lineTo(pB.x, pB.y); ctx.closePath(); ctx.fill();
+      const ridge = { x: (mA.x + mB.x) * 0.5, y: (mA.y + mB.y) * 0.5 - topH };
+      ctx.fillStyle = shade(roofColor, 8);
+      ctx.beginPath(); ctx.moveTo(mA.x, mA.y); ctx.lineTo(ridge.x, ridge.y); ctx.lineTo(mB.x, mB.y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = shade(roofColor, -8);
+      const sideBack = { x: pC.x + (pD.x - pC.x) * 0.1, y: pC.y + (pD.y - pC.y) * 0.1 - midH * 0.3 };
+      ctx.beginPath(); ctx.moveTo(pB.x, pB.y); ctx.lineTo(mB.x, mB.y); ctx.lineTo(ridge.x, ridge.y); ctx.lineTo(sideBack.x, sideBack.y); ctx.lineTo(pC.x, pC.y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(60,40,20,0.25)"; ctx.lineWidth = 1; ctx.stroke();
+      if (b.id === "florist") {
+        const fc = ["#ff6b9d", "#ffd93d", "#6bcf7f", "#c77dff"];
+        for (let i = 0; i < 4; i++) {
+          const t = 0.15 + i * 0.22;
+          const fx = pA.x + (pB.x - pA.x) * t; const fy = pA.y + (pB.y - pA.y) * t - 3;
+          ctx.fillStyle = "#7a5a3a";
+          ctx.beginPath(); ctx.roundRect(fx - 3, fy, 6, 3, 1); ctx.fill();
+          ctx.fillStyle = fc[i];
+          ctx.beginPath(); ctx.arc(fx, fy - 2, 2.5, 0, Math.PI * 2); ctx.fill();
         }
       }
-    }
-    // 주택 굴뚝
-    if (b.id === "houseA" || b.id === "houseB" || b.id === "houseC") {
-      const chX = roofPeak.x + 8 * world.zoom;
-      const chY = roofPeak.y;
-      ctx.fillStyle = "#8a5a44";
+    } else if (b.id === "office") {
+      // Modern flat roof with accent stripe
+      const rtH = tH * 0.12;
+      ctx.fillStyle = shade(roofColor, 10);
       ctx.beginPath();
-      ctx.roundRect(chX - 3 * world.zoom, chY, 6 * world.zoom, 12 * world.zoom, 1);
-      ctx.fill();
-      const h = hourOfDay();
-      if (h >= 18 || h < 8) {
-        ctx.fillStyle = "rgba(200,200,200,0.25)";
-        ctx.beginPath();
-        ctx.ellipse(chX, chY - 4, 4, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
+      ctx.moveTo(pA.x - 1, pA.y - rtH); ctx.lineTo(pB.x + 1, pB.y - rtH);
+      ctx.lineTo(pC.x + 1, pC.y - rtH); ctx.lineTo(pD.x - 1, pD.y - rtH);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(60,40,20,0.2)"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = shade(b.color, -20);
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y); ctx.lineTo(pB.x, pB.y);
+      ctx.lineTo(pB.x, pB.y + 2 * zz); ctx.lineTo(pA.x, pA.y + 2 * zz);
+      ctx.closePath(); ctx.fill();
+    }
+
+    // ── Windows (varied) ──
+    if (isKsa || b.id === "office") {
+      // Grid windows
+      const rows = b.id === "ksa_main" ? 3 : 2;
+      const cols = Math.max(2, Math.round(b.w * 0.8));
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const tCol = (c + 0.5) / cols; const tRow = 0.25 + r * 0.25;
+          const rwx = baseB.x + (baseC.x - baseB.x) * tCol; const rwy = baseB.y + (baseC.y - baseB.y) * tCol;
+          const rwTx = pB.x + (pC.x - pB.x) * tCol; const rwTy = pB.y + (pC.y - pB.y) * tCol;
+          const wx = rwx + (rwTx - rwx) * tRow; const wy = rwy + (rwTy - rwy) * tRow;
+          ctx.fillStyle = "rgba(200,230,255,0.75)";
+          ctx.strokeStyle = "rgba(60,40,20,0.3)"; ctx.lineWidth = 0.6;
+          ctx.beginPath(); ctx.roundRect(wx - 2.5 * zz, wy - 2 * zz, 5 * zz, 4 * zz, 1); ctx.fill(); ctx.stroke();
+          ctx.strokeStyle = "rgba(80,60,40,0.15)"; ctx.lineWidth = 0.4;
+          ctx.beginPath(); ctx.moveTo(wx, wy - 2 * zz); ctx.lineTo(wx, wy + 2 * zz); ctx.stroke();
+        }
+      }
+    } else if (b.id === "library") {
+      // Tall arched windows
+      for (let i = 0; i < 2; i++) {
+        const t = 0.3 + i * 0.4;
+        const rwx = baseB.x + (baseC.x - baseB.x) * t; const rwy = baseB.y + (baseC.y - baseB.y) * t;
+        const rwTx = pB.x + (pC.x - pB.x) * t; const rwTy = pB.y + (pC.y - pB.y) * t;
+        const wx = rwx + (rwTx - rwx) * 0.4; const wy = rwy + (rwTy - rwy) * 0.4;
+        ctx.fillStyle = "rgba(210,235,255,0.8)";
+        ctx.strokeStyle = "rgba(60,40,20,0.35)"; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.roundRect(wx - 2.5 * zz, wy - 4 * zz, 5 * zz, 8 * zz, [2.5 * zz, 2.5 * zz, 0, 0]); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = "rgba(80,60,40,0.2)"; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(wx, wy - 4 * zz); ctx.lineTo(wx, wy + 4 * zz); ctx.stroke();
+      }
+    } else {
+      // Standard windows with cross frames
+      const leftMid = { x: (pD.x + pA.x) * 0.5, y: (pD.y + pA.y) * 0.5 };
+      const rightMid = { x: (pC.x + pB.x) * 0.5, y: (pC.y + pB.y) * 0.5 };
+      const winY = (pA.y + pD.y) * 0.5;
+      const wW = isHouse ? 5 * zz : 6 * zz; const wH = isHouse ? 4 * zz : 5 * zz;
+      ctx.fillStyle = isHouse ? "rgba(255,240,200,0.7)" : "rgba(220,240,255,0.8)";
+      ctx.strokeStyle = "rgba(60,40,20,0.35)"; ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.roundRect(leftMid.x - wW * 0.5, winY - wH * 0.5, wW, wH, 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(rightMid.x - wW * 0.5, winY - wH * 0.5, wW, wH, 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "rgba(80,60,40,0.2)"; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(leftMid.x, winY - wH * 0.5); ctx.lineTo(leftMid.x, winY + wH * 0.5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(leftMid.x - wW * 0.5, winY); ctx.lineTo(leftMid.x + wW * 0.5, winY); ctx.stroke();
+      if (isHouse) {
+        ctx.fillStyle = shade(b.color, -25);
+        ctx.fillRect(leftMid.x - wW * 0.5 - 2 * zz, winY - wH * 0.5, 1.5 * zz, wH);
+        ctx.fillRect(leftMid.x + wW * 0.5 + 0.5 * zz, winY - wH * 0.5, 1.5 * zz, wH);
       }
     }
 
+    // ── Door ──
     const doorX = (baseD.x + baseC.x) * 0.5;
     const doorY = (baseD.y + baseC.y) * 0.5;
-    const doorW = 8 * world.zoom;
-    const doorH = 12 * world.zoom;
-    ctx.fillStyle = "#9f7650";
-    ctx.strokeStyle = "rgba(76, 57, 39, 0.45)";
-    ctx.lineWidth = 0.9;
-    ctx.beginPath();
-    ctx.roundRect(doorX - doorW * 0.5, doorY - doorH * 0.8, doorW, doorH, 3);
-    ctx.fill();
-    ctx.stroke();
-
-    const winW = 7 * world.zoom;
-    const winH = 5 * world.zoom;
-    const leftWinX = (pD.x + pA.x) * 0.5;
-    const rightWinX = (pC.x + pB.x) * 0.5;
-    const winY = (pA.y + pD.y) * 0.5;
-    ctx.fillStyle = "rgba(224, 248, 255, 0.86)";
-    ctx.strokeStyle = "rgba(76, 60, 40, 0.4)";
-    ctx.beginPath();
-    ctx.roundRect(leftWinX - winW * 0.5, winY - winH * 0.5, winW, winH, 2);
-    ctx.roundRect(rightWinX - winW * 0.5, winY - winH * 0.5, winW, winH, 2);
-    ctx.fill();
-    ctx.stroke();
-
-    const signCx = (pA.x + pB.x + pC.x + pD.x) * 0.25;
-    const signCy = (pA.y + pB.y + pC.y + pD.y) * 0.25 + world.zoom * 1.2;
-    const signW = Math.max(48, signText.length * world.zoom * 6.2);
-    const signH = 15 * world.zoom;
-    ctx.fillStyle = signColor;
-    ctx.strokeStyle = "rgba(80, 61, 41, 0.6)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(signCx - signW * 0.5, signCy - signH * 0.5, signW, signH, 6);
-    ctx.fill();
-    ctx.stroke();
-
-    if (b.id === "cafe") {
-      const cupX = signCx - signW * 0.32;
-      const cupY = signCy;
-      ctx.strokeStyle = "rgba(95, 66, 35, 0.85)";
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.roundRect(cupX - 4.8, cupY - 3.6, 8.2, 6.2, 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(cupX + 4.8, cupY - 0.8, 2.2, -Math.PI / 2, Math.PI / 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cupX - 2.3, cupY - 5.5);
-      ctx.quadraticCurveTo(cupX - 0.7, cupY - 8.4, cupX + 0.9, cupY - 5.5);
-      ctx.stroke();
-    } else if (b.id === "office") {
-      const bx = signCx - signW * 0.33;
-      const by = signCy - 3.9;
-      ctx.fillStyle = "rgba(82, 113, 169, 0.9)";
-      ctx.fillRect(bx, by, 9.6, 7.6);
-      ctx.fillStyle = "rgba(228, 240, 255, 0.95)";
-      ctx.fillRect(bx + 2, by + 2, 1.4, 1.4);
-      ctx.fillRect(bx + 5, by + 2, 1.4, 1.4);
-      ctx.fillRect(bx + 2, by + 4.3, 1.4, 1.4);
-      ctx.fillRect(bx + 5, by + 4.3, 1.4, 1.4);
-    } else if (b.id === "bakery") {
-      const bx = signCx - signW * 0.32;
-      const by = signCy;
-      ctx.fillStyle = "rgba(210,150,90,0.9)";
-      ctx.beginPath(); ctx.roundRect(bx - 5, by - 3, 10, 6, 3); ctx.fill();
-    } else if (b.id === "florist") {
-      const fx = signCx - signW * 0.32;
-      const fy = signCy;
-      ctx.fillStyle = "#ff6b9d";
-      for (let p = 0; p < 5; p++) {
-        const a = (p / 5) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.arc(fx + Math.cos(a) * 3, fy + Math.sin(a) * 3, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.fillStyle = "#ffd93d";
-      ctx.beginPath(); ctx.arc(fx, fy, 1.5, 0, Math.PI * 2); ctx.fill();
-    } else if (b.id === "library") {
-      const bx = signCx - signW * 0.32;
-      const by = signCy;
-      ctx.fillStyle = "rgba(100,130,180,0.9)";
-      ctx.beginPath(); ctx.roundRect(bx - 5, by - 4, 10, 8, 1); ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.6)";
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(bx - 4, by - 1); ctx.lineTo(bx + 4, by - 1);
-      ctx.moveTo(bx - 4, by + 1); ctx.lineTo(bx + 4, by + 1);
-      ctx.stroke();
-    } else if (b.id === "ksa_main") {
-      const tx = signCx - signW * 0.32;
-      ctx.fillStyle = "rgba(70,52,34,0.85)";
-      ctx.font = "bold 8px sans-serif";
-      ctx.fillText("KSA", tx - 6, signCy + 3);
-    } else if (b.id === "ksa_dorm" || b.id === "houseA" || b.id === "houseB" || b.id === "houseC") {
-      const hx = signCx - signW * 0.32;
-      const hy = signCy;
-      ctx.fillStyle = "rgba(160,110,70,0.8)";
-      ctx.beginPath();
-      ctx.moveTo(hx, hy - 5);
-      ctx.lineTo(hx - 5, hy - 1);
-      ctx.lineTo(hx + 5, hy - 1);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath(); ctx.roundRect(hx - 3, hy - 1, 6, 5, 0.5); ctx.fill();
-    } else {
-      const bx = signCx - signW * 0.33;
-      const by = signCy - 1.8;
-      ctx.fillStyle = "rgba(206, 132, 48, 0.92)";
-      ctx.fillRect(bx, by, 10, 4.4);
-      ctx.fillStyle = "rgba(116, 77, 30, 0.78)";
-      ctx.fillRect(bx + 2.2, by - 1.6, 1.5, 6);
-      ctx.fillRect(bx + 5.2, by - 1.6, 1.5, 6);
+    const doorW = isHouse ? 7 * zz : 8 * zz;
+    const doorH = isHouse ? 11 * zz : 13 * zz;
+    ctx.fillStyle = isHouse ? "#7a5a3a" : "#9f7650";
+    ctx.strokeStyle = "rgba(60,40,20,0.4)"; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.roundRect(doorX - doorW * 0.5, doorY - doorH * 0.8, doorW, doorH, isHouse ? [3, 3, 0, 0] : 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "rgba(200,180,100,0.8)";
+    ctx.beginPath(); ctx.arc(doorX + doorW * 0.2, doorY - doorH * 0.3, 1.2 * zz, 0, Math.PI * 2); ctx.fill();
+    if (b.id === "cafe" || b.id === "market") {
+      ctx.fillStyle = "rgba(200,230,255,0.4)";
+      ctx.beginPath(); ctx.roundRect(doorX - doorW * 0.35, doorY - doorH * 0.7, doorW * 0.7, doorH * 0.5, 2); ctx.fill();
     }
 
-    ctx.fillStyle = "rgba(70, 52, 34, 0.92)";
-    ctx.font = `700 ${Math.max(14, Math.round(world.zoom * 5.2))}px sans-serif`;
-    ctx.fillText(signText, signCx - signW * 0.16, signCy + world.zoom * 1.35);
+    // ── Sign ──
+    const signCx = (pA.x + pB.x + pC.x + pD.x) * 0.25;
+    const signCy = (pA.y + pB.y + pC.y + pD.y) * 0.25 + zz * 1.5;
+    const signW = Math.max(48, signText.length * zz * 6.2);
+    const signH = 14 * zz;
+    const signColors = {
+      cafe: "#ffefc7", office: "#e4efff", market: "#fff0e0",
+      bakery: "#fff5e0", florist: "#ffe8f0", library: "#e8f0ff",
+      ksa_main: "#f0ebe0", ksa_dorm: "#ede8d8",
+      houseA: "#f5ead8", houseB: "#eaeaea", houseC: "#f2e4d4",
+    };
+    ctx.fillStyle = signColors[b.id] || "#ffe6bd";
+    ctx.shadowColor = "rgba(0,0,0,0.15)"; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2;
+    ctx.beginPath(); ctx.roundRect(signCx - signW * 0.5, signCy - signH * 0.5, signW, signH, 6); ctx.fill();
+    ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = "rgba(80,61,41,0.5)"; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.fillStyle = "rgba(60,42,24,0.92)";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `700 ${Math.max(13, Math.round(zz * 5))}px sans-serif`;
+    ctx.fillText(signText, signCx, signCy);
+    ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
 
-    const cx = (pA.x + pC.x) * 0.5;
-    const cy = (pA.y + pC.y) * 0.5 - 6;
-    ctx.fillStyle = "rgba(255,255,255,0.2)";
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, 16, 5, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // ── Subtle top glow ──
+    const hCx = (pA.x + pC.x) * 0.5;
+    const hCy = (pA.y + pC.y) * 0.5 - 6;
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    ctx.beginPath(); ctx.ellipse(hCx, hCy, 14, 4, 0, 0, Math.PI * 2); ctx.fill();
   }
 
   function drawEntitySprite(ctx2d, species, color, isPlayer) {
@@ -4618,6 +5194,39 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
         c.stroke();
         return;
       }
+      if (type === "questboard") {
+        // 기둥 2개
+        c.fillStyle = "#8b6842";
+        c.fillRect(cx - 14, baseY - 36, 3, 36);
+        c.fillRect(cx + 11, baseY - 36, 3, 36);
+        // 게시판 본체
+        const bbg = c.createLinearGradient(cx, baseY - 38, cx, baseY - 14);
+        bbg.addColorStop(0, "#d4a96a");
+        bbg.addColorStop(1, "#b8904e");
+        c.fillStyle = bbg;
+        c.beginPath(); c.roundRect(cx - 16, baseY - 38, 32, 24, 3); c.fill();
+        // 테두리
+        c.strokeStyle = "#7a5530";
+        c.lineWidth = 1.5;
+        c.beginPath(); c.roundRect(cx - 16, baseY - 38, 32, 24, 3); c.stroke();
+        // 종이 메모들
+        c.fillStyle = "#fff8e7";
+        c.fillRect(cx - 12, baseY - 35, 10, 8);
+        c.fillStyle = "#f0e8d0";
+        c.fillRect(cx + 1, baseY - 34, 10, 9);
+        c.fillStyle = "#fff0d0";
+        c.fillRect(cx - 10, baseY - 24, 8, 6);
+        c.fillStyle = "#e8f0e0";
+        c.fillRect(cx + 3, baseY - 22, 8, 6);
+        // 핀
+        c.fillStyle = "#e05050";
+        c.beginPath(); c.arc(cx - 7, baseY - 35, 1.5, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#4080e0";
+        c.beginPath(); c.arc(cx + 6, baseY - 34, 1.5, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#50c050";
+        c.beginPath(); c.arc(cx - 6, baseY - 24, 1.5, 0, Math.PI * 2); c.fill();
+        return;
+      }
       if (type === "fountain") {
         c.fillStyle = "#a8d4f0";
         c.beginPath();
@@ -4639,6 +5248,230 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
         c.fill();
         return;
       }
+      // ─── Interior Furniture Sprites ───
+      if (type === "table_round") {
+        c.fillStyle = "rgba(120,80,40,0.2)";
+        c.beginPath(); c.ellipse(cx, baseY + 2, 16, 6, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#a0724a";
+        c.beginPath(); c.ellipse(cx, baseY - 6, 14, 8, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#b8855a";
+        c.beginPath(); c.ellipse(cx, baseY - 8, 12, 6, 0, 0, Math.PI * 2); c.fill();
+        return;
+      }
+      if (type === "table_rect") {
+        c.fillStyle = "rgba(120,80,40,0.2)";
+        c.beginPath(); c.roundRect(cx - 16, baseY - 1, 32, 8, 2); c.fill();
+        c.fillStyle = "#a0724a";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 8, 28, 10, 2); c.fill();
+        c.fillStyle = "#b8855a";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 10, 28, 6, 2); c.fill();
+        return;
+      }
+      if (type === "chair") {
+        c.fillStyle = "#8b6842";
+        c.beginPath(); c.roundRect(cx - 6, baseY - 4, 12, 4, 1); c.fill();
+        c.fillStyle = "#7a5a38";
+        c.beginPath(); c.roundRect(cx - 6, baseY - 14, 12, 10, 2); c.fill();
+        return;
+      }
+      if (type === "counter") {
+        c.fillStyle = "#8b6842";
+        c.beginPath(); c.roundRect(cx - 20, baseY - 10, 40, 12, 2); c.fill();
+        c.fillStyle = "#a0784e";
+        c.beginPath(); c.roundRect(cx - 20, baseY - 14, 40, 6, 2); c.fill();
+        return;
+      }
+      if (type === "bookshelf") {
+        c.fillStyle = "#5a3e28";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 36, 28, 36, 2); c.fill();
+        c.strokeStyle = "#4a3020";
+        c.lineWidth = 1;
+        for (let sy = baseY - 30; sy < baseY - 4; sy += 8) {
+          c.beginPath(); c.moveTo(cx - 12, sy); c.lineTo(cx + 12, sy); c.stroke();
+        }
+        const bookColors = ["#e05050", "#4080e0", "#50c050", "#e0a030", "#8050c0"];
+        for (let sy = baseY - 28; sy < baseY - 4; sy += 8) {
+          for (let bx = cx - 11; bx < cx + 10; bx += 5) {
+            c.fillStyle = bookColors[Math.floor(Math.abs(bx + sy)) % bookColors.length];
+            c.fillRect(bx, sy, 3, 6);
+          }
+        }
+        return;
+      }
+      if (type === "oven") {
+        c.fillStyle = "#888";
+        c.beginPath(); c.roundRect(cx - 12, baseY - 16, 24, 16, 4); c.fill();
+        c.fillStyle = "#666";
+        c.beginPath(); c.roundRect(cx - 10, baseY - 14, 20, 10, 2); c.fill();
+        c.fillStyle = "rgba(255, 140, 50, 0.5)";
+        c.beginPath(); c.roundRect(cx - 8, baseY - 12, 16, 6, 2); c.fill();
+        return;
+      }
+      if (type === "flower_display") {
+        c.fillStyle = "#8b6842";
+        c.beginPath(); c.roundRect(cx - 8, baseY - 8, 16, 8, 2); c.fill();
+        const flowerColors = ["#ff6b8a", "#ffd54f", "#ff95b7", "#9be06f"];
+        for (let i = 0; i < 4; i++) {
+          c.fillStyle = flowerColors[i];
+          c.beginPath(); c.arc(cx - 5 + i * 3.5, baseY - 14 - Math.random() * 4, 3, 0, Math.PI * 2); c.fill();
+        }
+        c.fillStyle = "#59ac45";
+        c.fillRect(cx - 1, baseY - 16, 2, 8);
+        return;
+      }
+      if (type === "bed") {
+        c.fillStyle = "#d4a574";
+        c.beginPath(); c.roundRect(cx - 16, baseY - 8, 32, 10, 2); c.fill();
+        c.fillStyle = "#7aaae0";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 10, 28, 8, 2); c.fill();
+        c.fillStyle = "#e8e8e8";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 12, 10, 6, 2); c.fill();
+        return;
+      }
+      if (type === "desk") {
+        c.fillStyle = "#a0724a";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 8, 28, 8, 2); c.fill();
+        c.fillStyle = "#b8855a";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 10, 28, 4, 2); c.fill();
+        c.fillStyle = "#333";
+        c.beginPath(); c.roundRect(cx - 4, baseY - 16, 8, 6, 1); c.fill();
+        return;
+      }
+      if (type === "sofa") {
+        c.fillStyle = "#9070b0";
+        c.beginPath(); c.roundRect(cx - 18, baseY - 10, 36, 12, 4); c.fill();
+        c.fillStyle = "#a080c0";
+        c.beginPath(); c.roundRect(cx - 16, baseY - 8, 32, 6, 3); c.fill();
+        c.fillStyle = "#7a60a0";
+        c.beginPath(); c.roundRect(cx - 18, baseY - 16, 4, 8, 2); c.fill();
+        c.beginPath(); c.roundRect(cx + 14, baseY - 16, 4, 8, 2); c.fill();
+        return;
+      }
+      if (type === "plant_pot") {
+        c.fillStyle = "#c08050";
+        c.beginPath(); c.roundRect(cx - 5, baseY - 6, 10, 6, 2); c.fill();
+        c.fillStyle = "#59ac45";
+        c.beginPath(); c.arc(cx, baseY - 12, 6, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#7fd369";
+        c.beginPath(); c.arc(cx - 3, baseY - 14, 4, 0, Math.PI * 2); c.fill();
+        return;
+      }
+      if (type === "blackboard") {
+        c.fillStyle = "#2d4a2d";
+        c.beginPath(); c.roundRect(cx - 18, baseY - 24, 36, 20, 2); c.fill();
+        c.strokeStyle = "#c9a358";
+        c.lineWidth = 1.5;
+        c.beginPath(); c.roundRect(cx - 18, baseY - 24, 36, 20, 2); c.stroke();
+        c.strokeStyle = "rgba(255,255,255,0.3)";
+        c.lineWidth = 0.8;
+        c.beginPath(); c.moveTo(cx - 12, baseY - 18); c.lineTo(cx + 10, baseY - 18); c.stroke();
+        c.beginPath(); c.moveTo(cx - 14, baseY - 12); c.lineTo(cx + 8, baseY - 12); c.stroke();
+        return;
+      }
+      if (type === "display_case") {
+        c.fillStyle = "rgba(180, 220, 240, 0.6)";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 20, 28, 20, 3); c.fill();
+        c.strokeStyle = "rgba(100, 160, 200, 0.8)";
+        c.lineWidth = 1.2;
+        c.beginPath(); c.roundRect(cx - 14, baseY - 20, 28, 20, 3); c.stroke();
+        c.strokeStyle = "rgba(100, 160, 200, 0.4)";
+        c.beginPath(); c.moveTo(cx - 12, baseY - 10); c.lineTo(cx + 12, baseY - 10); c.stroke();
+        return;
+      }
+      if (type === "fridge") {
+        c.fillStyle = "#e8e8e8";
+        c.beginPath(); c.roundRect(cx - 8, baseY - 28, 16, 28, 2); c.fill();
+        c.strokeStyle = "#ccc";
+        c.lineWidth = 1;
+        c.beginPath(); c.moveTo(cx - 6, baseY - 12); c.lineTo(cx + 6, baseY - 12); c.stroke();
+        c.fillStyle = "#aaa";
+        c.fillRect(cx + 4, baseY - 24, 2, 6);
+        c.fillRect(cx + 4, baseY - 10, 2, 4);
+        return;
+      }
+      if (type === "fireplace") {
+        c.fillStyle = "#8a8a8a";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 20, 28, 20, 3); c.fill();
+        c.fillStyle = "#5a5a5a";
+        c.beginPath(); c.roundRect(cx - 10, baseY - 16, 20, 12, 2); c.fill();
+        c.fillStyle = "rgba(255, 120, 30, 0.6)";
+        c.beginPath(); c.arc(cx - 3, baseY - 10, 4, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(cx + 3, baseY - 10, 4, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "rgba(255, 200, 50, 0.5)";
+        c.beginPath(); c.arc(cx, baseY - 12, 3, 0, Math.PI * 2); c.fill();
+        return;
+      }
+      if (type === "shelf") {
+        c.fillStyle = "#6a4e32";
+        c.beginPath(); c.roundRect(cx - 16, baseY - 28, 32, 28, 2); c.fill();
+        c.strokeStyle = "#5a3e28"; c.lineWidth = 1;
+        for (let sy = baseY - 22; sy < baseY - 2; sy += 7) {
+          c.beginPath(); c.moveTo(cx - 14, sy); c.lineTo(cx + 14, sy); c.stroke();
+        }
+        const prodColors = ["#e8a040", "#e05050", "#50a0e0", "#e8d040"];
+        for (let sy = baseY - 21; sy < baseY - 2; sy += 7) {
+          for (let bx = cx - 12; bx < cx + 12; bx += 6) {
+            c.fillStyle = prodColors[Math.floor(Math.abs(bx + sy)) % prodColors.length];
+            c.fillRect(bx, sy, 4, 5);
+          }
+        }
+        return;
+      }
+      if (type === "checkout_counter") {
+        c.fillStyle = "#8b6842";
+        c.beginPath(); c.roundRect(cx - 16, baseY - 10, 32, 12, 2); c.fill();
+        c.fillStyle = "#a0784e";
+        c.beginPath(); c.roundRect(cx - 16, baseY - 14, 32, 6, 2); c.fill();
+        c.fillStyle = "#444";
+        c.beginPath(); c.roundRect(cx + 4, baseY - 18, 8, 6, 1); c.fill();
+        return;
+      }
+      if (type === "whiteboard") {
+        c.fillStyle = "#f0f0f0";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 28, 28, 22, 2); c.fill();
+        c.strokeStyle = "#bbb"; c.lineWidth = 1.5;
+        c.beginPath(); c.roundRect(cx - 14, baseY - 28, 28, 22, 2); c.stroke();
+        c.strokeStyle = "rgba(50,120,200,0.3)"; c.lineWidth = 0.8;
+        c.beginPath(); c.moveTo(cx - 8, baseY - 22); c.lineTo(cx + 8, baseY - 22); c.stroke();
+        c.beginPath(); c.moveTo(cx - 10, baseY - 16); c.lineTo(cx + 6, baseY - 16); c.stroke();
+        return;
+      }
+      if (type === "water_cooler") {
+        c.fillStyle = "#d0e8f0";
+        c.beginPath(); c.roundRect(cx - 5, baseY - 22, 10, 22, 2); c.fill();
+        c.fillStyle = "rgba(100,180,220,0.5)";
+        c.beginPath(); c.roundRect(cx - 4, baseY - 20, 8, 8, 3); c.fill();
+        c.fillStyle = "#ccc";
+        c.beginPath(); c.roundRect(cx - 3, baseY - 6, 6, 4, 1); c.fill();
+        return;
+      }
+      if (type === "bunk_bed") {
+        c.fillStyle = "#8b6842";
+        c.beginPath(); c.roundRect(cx - 14, baseY - 30, 28, 30, 2); c.fill();
+        c.fillStyle = "#7aaae0";
+        c.beginPath(); c.roundRect(cx - 12, baseY - 28, 24, 10, 1); c.fill();
+        c.beginPath(); c.roundRect(cx - 12, baseY - 12, 24, 10, 1); c.fill();
+        c.fillStyle = "#e8e8e8";
+        c.beginPath(); c.roundRect(cx - 12, baseY - 28, 8, 6, 1); c.fill();
+        c.beginPath(); c.roundRect(cx - 12, baseY - 12, 8, 6, 1); c.fill();
+        return;
+      }
+      if (type === "vending_machine") {
+        c.fillStyle = "#d04040";
+        c.beginPath(); c.roundRect(cx - 8, baseY - 28, 16, 28, 2); c.fill();
+        c.fillStyle = "rgba(200,220,240,0.5)";
+        c.beginPath(); c.roundRect(cx - 6, baseY - 26, 12, 14, 1); c.fill();
+        c.fillStyle = "#333";
+        c.beginPath(); c.roundRect(cx - 4, baseY - 8, 8, 4, 1); c.fill();
+        return;
+      }
+      if (type === "podium") {
+        c.fillStyle = "#6a4e32";
+        c.beginPath(); c.roundRect(cx - 10, baseY - 16, 20, 16, 2); c.fill();
+        c.fillStyle = "#7a5e42";
+        c.beginPath(); c.roundRect(cx - 12, baseY - 18, 24, 4, 2); c.fill();
+        return;
+      }
     });
   }
 
@@ -4656,6 +5489,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       bench: { w: 32, h: 20, y: 12 },
       rock: { w: 24, h: 16, y: 10 },
       signpost: { w: 20, h: 30, y: 26 },
+      questboard: { w: 32, h: 40, y: 34 },
       fountain: { w: 42, h: 40, y: 32 },
     };
     const cfg = scaleMap[prop.type];
@@ -5045,7 +5879,188 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     ctx.restore();
   }
 
+  // ─── Interior Rendering Functions ───
+  function drawInteriorGround() {
+    const interior = interiorDefs && interiorDefs[sceneState.current];
+    if (!interior) return;
+    const iw = interior.width;
+    const ih = interior.height;
+    const baseColor = interior.floorColor || "#d4b89a";
+
+    // Warm background fill
+    ctx.fillStyle = shade(baseColor, -20);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Checkerboard floor tiles
+    for (let y = 0; y < ih; y++) {
+      for (let x = 0; x < iw; x++) {
+        const isLight = (x + y) % 2 === 0;
+        const color = isLight ? baseColor : shade(baseColor, -12);
+        drawDiamond(x, y, color);
+      }
+    }
+  }
+
+  function drawInteriorWalls() {
+    const interior = interiorDefs && interiorDefs[sceneState.current];
+    if (!interior) return;
+    const iw = interior.width;
+    const ih = interior.height;
+    const wallColor = interior.wallColor || "#c9b896";
+    const wallHeight = 2.5;
+
+    // North wall (y=0, from x=0 to x=iw)
+    for (let x = 0; x < iw; x++) {
+      const p0 = project(x, 0, 0);
+      const p1 = project(x + 1, 0, 0);
+      const p0t = project(x, 0, wallHeight);
+      const p1t = project(x + 1, 0, wallHeight);
+      ctx.fillStyle = wallColor;
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.lineTo(p1t.x, p1t.y);
+      ctx.lineTo(p0t.x, p0t.y);
+      ctx.closePath();
+      ctx.fill();
+      // Subtle panel line
+      ctx.strokeStyle = "rgba(0,0,0,0.06)";
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+
+    // West wall (x=0, from y=0 to y=ih)
+    const darkWall = shade(wallColor, -18);
+    for (let y = 0; y < ih; y++) {
+      const p0 = project(0, y, 0);
+      const p1 = project(0, y + 1, 0);
+      const p0t = project(0, y, wallHeight);
+      const p1t = project(0, y + 1, wallHeight);
+      ctx.fillStyle = darkWall;
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.lineTo(p1t.x, p1t.y);
+      ctx.lineTo(p0t.x, p0t.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.06)";
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+  }
+
+  function drawInteriorFurniture() {
+    const interior = interiorDefs && interiorDefs[sceneState.current];
+    if (!interior || !interior.furniture) return;
+
+    // Sort by y for correct depth ordering
+    const sorted = [...interior.furniture].sort((a, b) => a.y - b.y);
+
+    for (const item of sorted) {
+      const p = project(item.x, item.y, 0);
+      const z = clamp(world.zoom, 1.2, ZOOM_MAX);
+      const sprite = getPropSprite(item.type, "a");
+      const scaleMap = {
+        table_round: { w: 30, h: 18, y: 12 },
+        table_rect: { w: 32, h: 16, y: 10 },
+        chair: { w: 16, h: 18, y: 12 },
+        counter: { w: 40, h: 16, y: 10 },
+        bookshelf: { w: 30, h: 40, y: 32 },
+        oven: { w: 26, h: 20, y: 14 },
+        flower_display: { w: 20, h: 22, y: 16 },
+        bed: { w: 34, h: 16, y: 10 },
+        desk: { w: 30, h: 20, y: 14 },
+        sofa: { w: 38, h: 18, y: 12 },
+        plant_pot: { w: 14, h: 18, y: 12 },
+        blackboard: { w: 38, h: 28, y: 22 },
+        display_case: { w: 30, h: 24, y: 18 },
+        fridge: { w: 18, h: 32, y: 26 },
+        fireplace: { w: 30, h: 24, y: 18 },
+        shelf: { w: 34, h: 32, y: 26 },
+        checkout_counter: { w: 34, h: 18, y: 12 },
+        whiteboard: { w: 30, h: 30, y: 26 },
+        water_cooler: { w: 14, h: 26, y: 20 },
+        bunk_bed: { w: 30, h: 34, y: 28 },
+        vending_machine: { w: 18, h: 32, y: 26 },
+        podium: { w: 26, h: 22, y: 16 },
+      };
+      const s = scaleMap[item.type] || { w: 20, h: 20, y: 14 };
+      const sw = s.w * z;
+      const sh = s.h * z;
+      ctx.drawImage(sprite, p.x - sw * 0.5, p.y - s.y * z, sw, sh);
+    }
+  }
+
+  function drawInteriorExitHotspot() {
+    const interior = interiorDefs && interiorDefs[sceneState.current];
+    if (!interior || !interior.exitPoint) return;
+    const ep = interior.exitPoint;
+    const p = project(ep.x, ep.y, 0);
+    const z = clamp(world.zoom, 1.2, ZOOM_MAX);
+
+    // Door mat
+    const matW = 24 * z;
+    const matH = 10 * z;
+    ctx.fillStyle = "rgba(160, 100, 50, 0.6)";
+    ctx.beginPath();
+    ctx.roundRect(p.x - matW * 0.5, p.y - matH * 0.5, matW, matH, 3 * z);
+    ctx.fill();
+
+    // Door icon / label
+    const fontSize = Math.max(12, Math.round(10 * z));
+    ctx.font = `700 ${fontSize}px sans-serif`;
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.fillText("🚪 나가기", p.x, p.y - matH * 0.5 - 4 * z);
+    ctx.textAlign = "start";
+
+    // Proximity glow
+    const d = dist(player, ep);
+    if (d < 1.5) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 200, 80, 0.6)";
+      ctx.lineWidth = 2 * z;
+      ctx.beginPath();
+      ctx.roundRect(p.x - matW * 0.5 - 2, p.y - matH * 0.5 - 2, matW + 4, matH + 4, 4 * z);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   function drawWorld() {
+    // ─── Indoor Scene ───
+    if (sceneState.current !== "outdoor") {
+      drawInteriorGround();
+      drawInteriorWalls();
+      drawInteriorFurniture();
+      drawInteriorExitHotspot();
+
+      // Draw entities in current scene
+      const remotes = mp.enabled ? mpRemotePlayerList() : [];
+      const indoorNpcs = npcs.filter(n => (n.currentScene || "outdoor") === sceneState.current);
+      const sceneItems = [...indoorNpcs, player, ...remotes].sort((a, b) => a.x + a.y - (b.x + b.y));
+      const zoomScale = clamp(world.zoom, 0.9, ZOOM_MAX);
+      for (const item of sceneItems) {
+        const isMe = item === player;
+        const isRemote = item._isRemotePlayer;
+        const label = (item.flag ? item.flag + " " : "") + item.name;
+        drawEntity(item, (isMe || isRemote ? 12 : 11) * zoomScale, label);
+      }
+
+      drawSpeechBubbles();
+
+      // Indoor ambient light (slightly warm)
+      ctx.save();
+      ctx.fillStyle = "rgba(255, 240, 200, 0.06)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      drawSceneFade();
+      return;
+    }
+
+    // ─── Outdoor Scene ───
     drawGround();
     for (const b of buildings) drawBuilding(b);
 
@@ -5116,6 +6131,27 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
         ctx.font = `800 ${exitFont}px sans-serif`;
         ctx.fillText("출구", tx + 10 * exitScale, ty + labelH - 6 * exitScale);
       }
+
+      // 퀘스트 게시판 떠다니는 라벨
+      if (hs.id === "questBoard") {
+        const qbScale = clamp(world.zoom, 1.2, ZOOM_MAX);
+        const bobY = Math.sin(nowMs() * 0.003) * 3;
+        const qx = p.x;
+        const qy = p.y - 42 * qbScale + bobY;
+        const labelW = 68 * qbScale;
+        const labelH = 20 * qbScale;
+        ctx.fillStyle = "rgba(255, 248, 230, 0.82)";
+        ctx.strokeStyle = "rgba(140, 100, 50, 0.5)";
+        ctx.lineWidth = Math.max(0.8, 1 * qbScale);
+        ctx.beginPath();
+        ctx.roundRect(qx - labelW * 0.5, qy - labelH * 0.5, labelW, labelH, 6 * qbScale);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#5a3e20";
+        const qbFont = Math.max(14, Math.round(13 * qbScale));
+        ctx.font = `700 ${qbFont}px sans-serif`;
+        ctx.fillText("📜 게시판", qx - labelW * 0.38, qy + labelH * 0.2);
+      }
     }
 
     const now = nowMs();
@@ -5134,7 +6170,8 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     }
 
     const remotes = mp.enabled ? mpRemotePlayerList() : [];
-    const sceneItems = [...props, ...npcs, player, ...remotes].sort((a, b) => a.x + a.y - (b.x + b.y));
+    const outdoorNpcs = npcs.filter(n => (n.currentScene || "outdoor") === "outdoor");
+    const sceneItems = [...props, ...outdoorNpcs, player, ...remotes].sort((a, b) => a.x + a.y - (b.x + b.y));
     const zoomScale = clamp(world.zoom, 0.9, ZOOM_MAX);
     for (const item of sceneItems) {
       if ("type" in item) drawProp(item);
@@ -5146,13 +6183,13 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
       }
     }
 
-    for (const npc of npcs) {
+    for (const npc of outdoorNpcs) {
       const mp = project(npc.x, npc.y, 0);
       const msz = Math.max(14, world.zoom * 4.5);
       if (tagGame.active && npc.id === tagGame.targetNpcId) {
         const bob = Math.sin(now * 0.008) * 4;
         ctx.font = `${msz * 1.4}px sans-serif`;
-        ctx.fillText("🏃💨", mp.x - msz * 0.6, mp.y - world.zoom * 34 + bob);
+        ctx.fillText("👹", mp.x - msz * 0.6, mp.y - world.zoom * 34 + bob);
       } else if (npc.activeRequest) {
         const bob = Math.sin(now * 0.005) * 3;
         ctx.font = `${msz * 1.3}px sans-serif`;
@@ -5210,6 +6247,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     drawFireflies();
     drawWeatherEffects();
     drawWeatherIndicator();
+    drawSceneFade();
   }
 
   function drawSpeechBubbles() {
@@ -5246,18 +6284,18 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
 
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = "rgba(255, 254, 246, 0.93)";
+      ctx.fillStyle = "rgba(255, 254, 246, 0.65)";
       ctx.beginPath();
       ctx.roundRect(x, y, width, height, 10);
       ctx.fill();
-      ctx.fillStyle = "rgba(255, 254, 246, 0.93)";
+      ctx.fillStyle = "rgba(255, 254, 246, 0.65)";
       ctx.beginPath();
       ctx.moveTo(p.x - 5, y + height - 1);
       ctx.lineTo(p.x + 5, y + height - 1);
       ctx.lineTo(p.x, y + height + 7);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = "rgba(66, 52, 35, 0.92)";
+      ctx.fillStyle = "rgba(66, 52, 35, 0.88)";
       for (let li = 0; li < lines.length; li++) {
         ctx.fillText(lines[li], x + 8, y + lineH * (li + 1));
       }
@@ -5294,6 +6332,28 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
 
   function drawMinimap() {
     if (!mctx || !minimap) return;
+
+    // Indoor: show building name badge instead of full minimap
+    if (sceneState.current !== "outdoor") {
+      const w = minimap.width;
+      const h = minimap.height;
+      mctx.clearRect(0, 0, w, h);
+      mctx.save();
+      mctx.fillStyle = "rgba(60, 50, 40, 0.7)";
+      mctx.fillRect(0, 0, w, h);
+      const bld = buildings.find(b => b.id === sceneState.current);
+      const label = bld ? bld.label : sceneState.current;
+      mctx.fillStyle = "#fff";
+      mctx.font = "700 14px sans-serif";
+      mctx.textAlign = "center";
+      mctx.fillText("🏠 " + label, w * 0.5, h * 0.45);
+      mctx.font = "600 11px sans-serif";
+      mctx.fillStyle = "rgba(255,255,255,0.6)";
+      mctx.fillText("실내", w * 0.5, h * 0.65);
+      mctx.textAlign = "start";
+      mctx.restore();
+      return;
+    }
 
     const w = minimap.width;
     const h = minimap.height;
@@ -5356,6 +6416,7 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
 
     mctx.globalAlpha = 0.44;
     for (const npc of npcs) {
+      if ((npc.currentScene || "outdoor") !== "outdoor") continue;
       mctx.fillStyle = npc.color;
       mctx.beginPath();
       mctx.arc(pad + npc.x * sx, pad + npc.y * sy, 2.6, 0, Math.PI * 2);
@@ -5416,9 +6477,22 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
         const hsLabels = {
           exitGate: "나가기",
           cafeDoor: "문 열기",
+          bakeryDoor: "문 열기",
+          floristDoor: "문 열기",
+          libraryDoor: "문 열기",
+          officeDoor: "문 열기",
+          marketDoor: "문 열기",
+          ksaMainDoor: "문 열기",
+          ksaDormDoor: "문 열기",
+          houseADoor: "문 열기",
+          houseBDoor: "문 열기",
+          houseCDoor: "문 열기",
+          interiorExit: "나가기",
           marketBoard: "게시판 보기",
           parkMonument: "조사하기",
           minigameZone: "🏃 술래잡기!",
+          infoCenter: "📋 안내소",
+          questBoard: "📜 게시판",
         };
         mobileInteractBtn.textContent = hsLabels[hs.id] || "상호작용";
       } else if (nearestGroundItem(1.5)) {
@@ -5432,13 +6506,16 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     }
 
     if (questBannerEl) {
-      questBannerEl.hidden = false;
       if (storyArc.active && storyArc.chapters[storyArc.chapter]) {
+        questBannerEl.hidden = false;
         if (questBannerTitleEl) questBannerTitleEl.textContent = `📖 ${storyArc.title}`;
         if (questBannerObjectiveEl) questBannerObjectiveEl.textContent = storyArc.chapters[storyArc.chapter].objective || "";
-      } else {
+      } else if (quest.title && !quest.done) {
+        questBannerEl.hidden = false;
         if (questBannerTitleEl) questBannerTitleEl.textContent = quest.title;
-        if (questBannerObjectiveEl) questBannerObjectiveEl.textContent = (quest.done && !quest.dynamic) ? "완료!" : quest.objective;
+        if (questBannerObjectiveEl) questBannerObjectiveEl.textContent = quest.objective;
+      } else {
+        questBannerEl.hidden = true;
       }
     }
 
@@ -5556,15 +6633,20 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     frameCount += 1;
 
     if (!world.paused) {
-      world.totalMinutes += dt * 14;
+      // 실제 시간과 1:1 동기화 (dt는 초 단위, 1분 = 60초)
+      world.totalMinutes += dt / 60;
       updatePlayer(dt);
       updateNpcs(dt);
       updateNpcSocialEvents();
       updateAmbientEvents();
       updateFavorRequests();
+      updateGuideGreeting(dt);
       updateTagGame(dt);
-      updateWeather(dt);
-      updateDiscoveries();
+      updateSceneFade(dt);
+      if (sceneState.current === "outdoor") {
+        updateWeather(dt);
+        updateDiscoveries();
+      }
       updateAmbientSpeech(nowMs());
       updateConversationCamera();
       updateCamera();
@@ -5580,10 +6662,23 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     }
 
     updateUI();
-    drawWorld();
-    drawTimedEventHud();
-    drawTagGameHud();
-    if (!mobileMode || frameCount % 3 === 0) drawMinimap();
+    if (gameRenderer3D) {
+      elapsedTime += dt;
+      // Clear 2D HUD overlay canvas (transparent)
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      gameRenderer3D.render(
+        { player, npcs, world, weather, sceneState, speechBubbles, weatherParticles },
+        dt,
+        elapsedTime
+      );
+      // Draw minimap and HUD on 2D overlay
+      if (!mobileMode || frameCount % 3 === 0) drawMinimap();
+    } else {
+      drawWorld();
+      drawTimedEventHud();
+      drawTagGameHud();
+      if (!mobileMode || frameCount % 3 === 0) drawMinimap();
+    }
     requestAnimationFrame(frame);
   }
 
@@ -5612,6 +6707,17 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
     }
     if (code === "KeyT") {
       setAutoWalkEnabled(!autoWalk.enabled);
+    }
+    // W키: 날씨 순환 (디버그용)
+    if (code === "KeyG") {
+      const cycle = ["clear", "cloudy", "rain", "storm", "snow", "fog"];
+      const idx = cycle.indexOf(weather.current);
+      weather.current = cycle[(idx + 1) % cycle.length];
+      weather.next = weather.current;
+      weather.intensity = weather.current === "clear" ? 0 : 0.7;
+      weather.transitionProgress = 1;
+      const names = { clear: "맑음", cloudy: "흐림", rain: "비", storm: "폭풍우", snow: "눈", fog: "안개" };
+      addLog("날씨 변경: " + (names[weather.current] || weather.current));
     }
     keys.add(code);
   });
@@ -6170,6 +7276,24 @@ import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_K
 
   function mpOnlineCount() {
     return Object.keys(mp.remotePlayers).length + 1;
+  }
+
+  // ── Three.js 3D Renderer Init ──
+  if (USE_3D && canvas3D) {
+    try {
+      gameRenderer3D = new GameRenderer(canvas3D);
+      gameRenderer3D.init({
+        player,
+        npcs,
+        world,
+        roadTileFn: roadTile,
+        waterTileFn: waterTile,
+      });
+      console.log("[Playground] Three.js 3D renderer initialized");
+    } catch (e) {
+      console.warn("[Playground] Three.js init failed, falling back to 2D:", e);
+      gameRenderer3D = null;
+    }
   }
 
   requestAnimationFrame(frame);
