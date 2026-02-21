@@ -55,8 +55,10 @@ export class BuildingFactory {
     // --- Label sprite ---
     this._addLabel(group, bDef.label, bodyH);
 
+    // --- Building-specific decorations ---
+    this._addDecorations(group, bDef, bodyW, bodyH, bodyD);
+
     // Position in world: game(x,y) -> three(x, 0, y)
-    // Building origin at center of base
     group.position.set(
       bDef.x + bodyW / 2,
       0,
@@ -261,6 +263,174 @@ export class BuildingFactory {
     // Door on south face (+z), centered x
     door.position.set(0, doorH / 2, d / 2 + 0.025);
     group.add(door);
+  }
+
+  _addDecorations(group, bDef, w, h, d) {
+    const id = bDef.id;
+    const t = (c) => this._toonMat(c);
+
+    if (id === 'bakery') {
+      // Bread display shelf outside south face
+      // Shelf
+      const shelf = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 0.08, 0.25), t('#a07840'));
+      shelf.position.set(0, 0.55, d / 2 + 0.18);
+      group.add(shelf);
+      // Baguettes (3 cylinders)
+      for (let i = -1; i <= 1; i++) {
+        const bread = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.3, 6), t('#d4a040'));
+        bread.rotation.z = Math.PI / 2;
+        bread.position.set(i * 0.22, 0.63, d / 2 + 0.18);
+        group.add(bread);
+      }
+      // Round breads (2 spheres)
+      const bun1 = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 4), t('#c89030'));
+      bun1.position.set(-0.15, 0.66, d / 2 + 0.28);
+      group.add(bun1);
+      const bun2 = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 4), t('#d8a848'));
+      bun2.position.set(0.15, 0.65, d / 2 + 0.28);
+      group.add(bun2);
+      // Awning over display
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, 0.04, 0.4), t('#f4a460'));
+      awning.position.set(0, 0.85, d / 2 + 0.2);
+      group.add(awning);
+    }
+
+    if (id === 'cafe') {
+      // Outdoor table + chairs (south side)
+      const table = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 8), t('#a07040'));
+      table.position.set(-0.5, 0.45, d / 2 + 0.5);
+      group.add(table);
+      const tableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.45, 6), t('#806030'));
+      tableLeg.position.set(-0.5, 0.22, d / 2 + 0.5);
+      group.add(tableLeg);
+      // Cup on table
+      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, 0.06, 6), t('#ffffff'));
+      cup.position.set(-0.5, 0.5, d / 2 + 0.5);
+      group.add(cup);
+      // 2 chairs
+      for (const cx of [-0.75, -0.25]) {
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.03, 0.15), t('#6a5040'));
+        seat.position.set(cx, 0.3, d / 2 + 0.5);
+        group.add(seat);
+        const back = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.03), t('#6a5040'));
+        back.position.set(cx, 0.4, d / 2 + 0.62);
+        group.add(back);
+      }
+      // Awning
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, 0.04, 0.6), t('#e68a84'));
+      awning.position.set(0, h * 0.7, d / 2 + 0.3);
+      group.add(awning);
+    }
+
+    if (id === 'florist') {
+      // Flower buckets outside
+      const colors = ['#ff6b9d', '#ffd93d', '#ff4444', '#9966ff', '#6bcf7f'];
+      for (let i = 0; i < 5; i++) {
+        const bx = -0.5 + i * 0.25;
+        // Bucket
+        const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.12, 6), t('#8a7060'));
+        bucket.position.set(bx, 0.06, d / 2 + 0.25);
+        group.add(bucket);
+        // Flowers
+        const flower = new THREE.Mesh(new THREE.SphereGeometry(0.06, 5, 4), t(colors[i]));
+        flower.position.set(bx, 0.18, d / 2 + 0.25);
+        group.add(flower);
+      }
+      // Hanging basket from roof
+      const basket = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), t('#ff6b9d'));
+      basket.position.set(0.4, h * 0.8, d / 2 + 0.15);
+      group.add(basket);
+    }
+
+    if (id === 'library') {
+      // Column pillars on south face (classical look)
+      for (const px of [-w / 3, w / 3]) {
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, h * 0.9, 8), t('#c8c0b0'));
+        col.position.set(px, h * 0.45, d / 2 + 0.08);
+        group.add(col);
+      }
+      // Book stack near door
+      for (let i = 0; i < 3; i++) {
+        const book = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.03, 0.08), t(['#c04040', '#4080c0', '#40a040'][i]));
+        book.position.set(0.35, 0.02 + i * 0.035, d / 2 + 0.15);
+        group.add(book);
+      }
+    }
+
+    if (id === 'market') {
+      // Fruit/vegetable crates outside
+      const crateColors = ['#ff6b4a', '#ffa040', '#6bcf40', '#f0e040'];
+      for (let i = 0; i < 4; i++) {
+        const cx = -w / 3 + i * (w / 4);
+        // Crate
+        const crate = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.15), t('#a08050'));
+        crate.position.set(cx, 0.06, d / 2 + 0.2);
+        group.add(crate);
+        // Produce spheres
+        for (let j = 0; j < 3; j++) {
+          const produce = new THREE.Mesh(new THREE.SphereGeometry(0.04, 5, 4), t(crateColors[i]));
+          produce.position.set(cx + (j - 1) * 0.06, 0.16, d / 2 + 0.2);
+          group.add(produce);
+        }
+      }
+      // Awning
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, 0.8), t('#c0392b'));
+      awning.position.set(0, h * 0.7, d / 2 + 0.4);
+      group.add(awning);
+    }
+
+    if (id === 'office') {
+      // AC unit on side
+      const ac = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.15), t('#cccccc'));
+      ac.position.set(w / 2 + 0.01, h * 0.6, -d / 4);
+      group.add(ac);
+      // Entrance planter
+      const planter = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.25), t('#808080'));
+      planter.position.set(0.4, 0.1, d / 2 + 0.2);
+      group.add(planter);
+      const plant = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), t('#4a9a40'));
+      plant.position.set(0.4, 0.28, d / 2 + 0.2);
+      group.add(plant);
+    }
+
+    if (id === 'ksa_main') {
+      // Flagpole
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.5, 6), t('#aaaaaa'));
+      pole.position.set(0, 1.25, d / 2 + 0.5);
+      group.add(pole);
+      // Flag
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.3), t('#003478'));
+      flag.position.set(0.25, 2.3, d / 2 + 0.5);
+      group.add(flag);
+      // Entrance steps
+      const step = new THREE.Mesh(new THREE.BoxGeometry(w * 0.5, 0.08, 0.3), t('#c0b8a8'));
+      step.position.set(0, 0.04, d / 2 + 0.15);
+      group.add(step);
+    }
+
+    if (id === 'ksa_dorm') {
+      // Bicycle rack
+      for (let i = 0; i < 3; i++) {
+        const bike = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.01, 4, 8), t('#555555'));
+        bike.rotation.x = Math.PI / 2;
+        bike.position.set(-0.3 + i * 0.3, 0.1, d / 2 + 0.25);
+        group.add(bike);
+      }
+    }
+
+    if (id === 'houseA' || id === 'houseB' || id === 'houseC') {
+      // Mailbox
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), t('#666666'));
+      post.position.set(w / 2 + 0.3, 0.25, d / 2 + 0.1);
+      group.add(post);
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.08), t('#cc3333'));
+      box.position.set(w / 2 + 0.3, 0.52, d / 2 + 0.1);
+      group.add(box);
+      // Doormat
+      const mat = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.01, 0.15), t('#8a7a60'));
+      mat.position.set(0, 0.005, d / 2 + 0.12);
+      group.add(mat);
+    }
   }
 
   _addLabel(group, text, height) {
