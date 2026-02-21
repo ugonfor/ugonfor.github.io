@@ -572,55 +572,6 @@ import { GameRenderer } from './renderer/renderer.js';
   let discoveryNotifyUntil = 0;
   let discoveryNotifyTitle = "";
 
-  const favorRequestTemplates = [
-    {
-      minLevel: 0,
-      make(npc) {
-        const itemKeys = Object.keys(itemTypes);
-        const itemKey = itemKeys[Math.floor(Math.random() * itemKeys.length)];
-        const info = itemTypes[itemKey];
-        return {
-          type: "bring_item",
-          title: `${npc.name}의 부탁`,
-          description: `${info.label}을(를) 가져다 주세요.`,
-          itemNeeded: itemKey,
-          expiresAt: nowMs() + 180_000,
-          reward: { favorPoints: 20, relationBoost: 8, items: [] },
-        };
-      },
-    },
-    {
-      minLevel: 1,
-      make(npc) {
-        const others = npcs.filter((n) => n.id !== npc.id);
-        const target = others[Math.floor(Math.random() * others.length)];
-        return {
-          type: "deliver_to",
-          title: `${target.name}에게 전달`,
-          description: `${target.name}에게 가서 말을 전해주세요.`,
-          targetNpcId: target.id,
-          expiresAt: nowMs() + 150_000,
-          reward: { favorPoints: 25, relationBoost: 10, items: ["snack"] },
-        };
-      },
-    },
-    {
-      minLevel: 2,
-      make(npc) {
-        const placeNames = { plaza: "광장", cafe: "카페", park: "공원", market: "시장" };
-        const pk = Object.keys(placeNames)[Math.floor(Math.random() * 4)];
-        return {
-          type: "visit_place",
-          title: `${placeNames[pk]} 탐사`,
-          description: `${placeNames[pk]}에 가서 상황을 확인해주세요.`,
-          targetPlace: places[pk],
-          expiresAt: nowMs() + 120_000,
-          reward: { favorPoints: 30, relationBoost: 12, items: ["gem"] },
-        };
-      },
-    },
-  ];
-
   // ─── Weather Update ───
   function updateWeather(dt) {
     const now = nowMs();
@@ -751,32 +702,13 @@ import { GameRenderer } from './renderer/renderer.js';
     }
   }
 
+  // 부탁은 LLM 대화에서만 자연스럽게 발생 — 여기서는 만료 처리만
   function updateFavorRequests() {
     const now = nowMs();
-    // 동시 활성 부탁은 최대 2개
-    let activeCount = 0;
     for (const npc of npcs) {
-      if (npc.activeRequest) {
-        if (now > npc.activeRequest.expiresAt) {
-          addChat("System", `⏰ '${npc.activeRequest.title}' 시간 초과!`);
-          npc.activeRequest = null;
-        } else {
-          activeCount++;
-        }
-        continue;
+      if (npc.activeRequest && now > npc.activeRequest.expiresAt) {
+        npc.activeRequest = null;
       }
-      if (activeCount >= 2) continue;
-      if (now < npc.lastRequestAt + 300_000) continue;
-      if (dist(player, npc) > 20) continue;
-      if (Math.random() > 0.002) continue;
-
-      const eligible = favorRequestTemplates.filter((t) => npc.favorLevel >= t.minLevel);
-      if (!eligible.length) continue;
-      const template = eligible[Math.floor(Math.random() * eligible.length)];
-      npc.activeRequest = template.make(npc);
-      npc.lastRequestAt = now;
-      npc.mood = "neutral";
-      addChat("System", `❗ ${npc.name}이(가) 도움을 요청합니다: ${npc.activeRequest.description}`);
     }
   }
 
