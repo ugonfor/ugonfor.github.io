@@ -34,9 +34,20 @@ Node.js 프리빌드 + Vite 기반 정적 사이트에, Playground용 LLM 프록
 │   ├── lecture/
 │   └── playground/
 ├── src/playground/                 # 게임 JS 소스 (Vite가 번들)
-│   ├── main.js                     # 엔트리포인트
-│   ├── core/constants.js           # 상수/설정
-│   └── utils/helpers.js            # 순수 유틸 함수
+│   ├── main.js                     # 게임 로직 엔트리포인트 (~7200줄)
+│   ├── core/constants.js           # 건물/소품/NPC/인테리어 데이터
+│   ├── utils/helpers.js            # 순수 유틸 함수
+│   └── renderer/                   # Three.js 3D 렌더러 (10개 모듈)
+│       ├── renderer.js             # 메인 오케스트레이터 (씬/루프)
+│       ├── camera-rig.js           # Ortho(아이소메트릭) + Perspective(실내) 카메라
+│       ├── terrain.js              # 지면 (vertex color 잔디/도로/물)
+│       ├── lighting.js             # 태양/달/주변광 밤낮 주기
+│       ├── buildings.js            # 11개 건물 3D (7종 지붕)
+│       ├── props.js                # 나무/가로등/벤치 등 10종 소품
+│       ├── entities.js             # Crossy Road 박스 캐릭터 + 모션
+│       ├── interior.js             # 실내 렌더링 (바닥/벽/가구)
+│       ├── weather-fx.js           # 비/눈/안개/흐림 파티클
+│       └── speech-overlay.js       # CSS 말풍선 (3D→화면 투영)
 ├── assets/
 │   ├── css/                        # 스타일시트
 │   ├── js/playground-world.js      # Vite 빌드 출력물
@@ -112,7 +123,38 @@ npm run build
 - `scripts/site-config.mjs` — 사이트 메타데이터, API 엔드포인트 등 설정
 - `scripts/build-html.mjs` — 레이아웃 렌더링, 페이지/포스트 HTML 생성, 정적 파일 복사
 - `scripts/verify-build.mjs` — 빌드 결과물 무결성 자동 검증
+- dependencies: `three` (Three.js 3D 렌더링)
 - devDependencies: `vite`, `gray-matter`, `marked`
+
+## Playground 렌더러 구조
+
+Three.js 로우폴리 3D 렌더러. `USE_3D = true` (main.js 상단)로 활성화.
+
+### 게임 로직 ↔ 렌더러 분리
+- **게임 로직** (`main.js`): NPC AI, 퀘스트, 충돌, 저장 등. 2D 좌표 `(x, y)` 사용.
+- **렌더러** (`renderer/`): Three.js 3D. 게임 상태를 읽기만 함 (`gameState` 객체 전달).
+- 좌표 매핑: `game(x, y)` → `three(x, 0, y)` (Y축이 높이)
+
+### 캐릭터 모션 시스템 (`entities.js`)
+| 모션 | 트리거 | 설명 |
+|------|--------|------|
+| walk | 위치 변화 감지 | 팔다리 교차 흔들기 |
+| idle | 정지 + mood=neutral | 기본 자세 |
+| sit | 정지 + 벤치 근처 | 다리 구부림 (렌더러가 자동 감지) |
+| lie | 정지 + 실내 침대 근처 | 옆으로 눕기 (렌더러가 자동 감지) |
+| happy | mood=happy | 통통 뛰기 + 팔 흔들기 |
+| sad | mood=sad | 고개 숙임 |
+| chat | state=chatting | 손짓 + 고개 끄덕 |
+| wave | 수동 호출 | 한 손 흔들기 |
+| angry | 수동 호출 | 몸 떨림 |
+| surprised | 수동 호출 | 점프 + 팔 위로 |
+
+### TODO: 게임 로직 개선
+현재 앉기/눕기는 **렌더러가 벤치/침대 근처를 감지**하여 자동 적용. 더 정확하게 하려면:
+- `npc.state`에 `"sitting"`, `"lying"`, `"waving"` 추가
+- NPC AI에서 벤치 도착 시 `state = "sitting"` 설정
+- 밤에 귀가 후 침대에서 `state = "lying"` 설정
+- 렌더러는 `state`만 읽어서 모션 적용
 
 ## 배포
 
