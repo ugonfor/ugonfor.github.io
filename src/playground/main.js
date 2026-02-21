@@ -1850,7 +1850,9 @@ import { GameRenderer } from './renderer/renderer.js';
         if (!ambientLlmPending) {
           ambientLlmPending = true;
           upsertSpeechBubble(closest.id, "...", 6000);
-          llmReplyOrEmpty(closest, "(혼잣말을 해주세요. 지금 시간, 날씨, 기분에 맞게 짧은 한마디. 10자 이내.)")
+          const n = closest.needs || {};
+          const needHint = n.hunger > 60 ? "배가 고픈 상태." : n.energy < 30 ? "피곤한 상태." : n.social < 30 ? "외로운 상태." : "";
+          llmReplyOrEmpty(closest, `(혼잣말을 해주세요. ${needHint} 지금 시간, 날씨, 기분에 맞게 짧은 한마디. 10자 이내.)`)
             .then((line) => {
               if (line) upsertSpeechBubble(closest.id, line, 4000);
             })
@@ -2946,6 +2948,7 @@ import { GameRenderer } from './renderer/renderer.js';
       tone: getMemoryBasedTone(npc),
       socialContext: getNpcSocialContext(npc),
       favorLevel: npc.favorLevel || 0,
+      npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social) } : null,
     };
 
     const controller = new AbortController();
@@ -3002,6 +3005,7 @@ import { GameRenderer } from './renderer/renderer.js';
       tone: getMemoryBasedTone(npc),
       socialContext: getNpcSocialContext(npc),
       favorLevel: npc.favorLevel || 0,
+      npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social) } : null,
     };
 
     const controller = new AbortController();
@@ -3683,6 +3687,26 @@ import { GameRenderer } from './renderer/renderer.js';
           }
           npc.moodUntil = nowMs() + 30_000 + Math.random() * 60_000;
         }
+      }
+
+      // 욕구 변화 (dt는 초 단위, 실시간 1:1)
+      if (npc.needs) {
+        const n = npc.needs;
+        n.hunger += dt * 0.08;   // 약 20분에 1 증가 → 하루 ~70 채움
+        n.energy -= dt * 0.05;   // 약 33분에 1 감소
+        n.social -= dt * 0.03;   // 약 55분에 1 감소
+        // 장소에 따른 욕구 해소
+        const atCafe = dist(npc, places.cafe) < 2;
+        const atBakery = dist(npc, places.bakery) < 2;
+        const atHome = dist(npc, npc.home) < 2;
+        const nearOtherNpc = npcs.some(o => o.id !== npc.id && dist(npc, o) < 3);
+        if ((atCafe || atBakery) && n.hunger > 30) n.hunger = Math.max(0, n.hunger - dt * 2);
+        if (atHome) n.energy = Math.min(100, n.energy + dt * 0.5);
+        if (nearOtherNpc) n.social = Math.min(100, n.social + dt * 0.3);
+        // 범위 제한
+        n.hunger = Math.min(100, Math.max(0, n.hunger));
+        n.energy = Math.min(100, Math.max(0, n.energy));
+        n.social = Math.min(100, Math.max(0, n.social));
       }
 
       // 술래잡기 중인 NPC는 updateTagGame에서 이동 처리
