@@ -303,30 +303,10 @@ export const groundItems = [
 // ─── Item Respawn ───
 export const ITEM_RESPAWN_MS = 180_000;
 
-// ─── Shop Inventory (Initial Data) ───
-export const shopInventory = {
-  flower_red: { price: 3, stock: 5 },
-  flower_yellow: { price: 3, stock: 5 },
-  coffee: { price: 5, stock: 3 },
-  snack: { price: 4, stock: 4 },
-  letter: { price: 6, stock: 2 },
-  gem: { price: 15, stock: 1 },
-};
 
 // ─── Seasons ───
 export const seasons = ["봄", "여름", "가을", "겨울"];
 
-// ─── Card Definitions ───
-export const cardDefs = {
-  card_sunrise: { name: "첫 일출", rarity: "rare", emoji: "🌅", effect: "이동속도 +5%", effectKey: "speed", effectVal: 0.05 },
-  card_night: { name: "별이 빛나는 밤", rarity: "rare", emoji: "🌙", effect: "야간 시야 확대", effectKey: "nightVision", effectVal: 1 },
-  card_friendship: { name: "우정의 증표", rarity: "epic", emoji: "🤝", effect: "관계도 +10%", effectKey: "relation", effectVal: 0.10 },
-  card_explorer: { name: "탐험가의 발자국", rarity: "common", emoji: "👣", effect: "아이템 발견률 증가", effectKey: "itemFind", effectVal: 0.15 },
-  card_chef: { name: "요리사의 비밀", rarity: "common", emoji: "🍳", effect: "간식 2배 획득", effectKey: "snackDouble", effectVal: 1 },
-  card_gem_hunter: { name: "보석 사냥꾼", rarity: "epic", emoji: "💎", effect: "보석 발견 확률 증가", effectKey: "gemFind", effectVal: 0.20 },
-  card_social: { name: "사교계의 달인", rarity: "rare", emoji: "🎭", effect: "호감도 +15%", effectKey: "favor", effectVal: 0.15 },
-  card_legend: { name: "전설의 주민", rarity: "legendary", emoji: "⭐", effect: "모든 보상 2배", effectKey: "allDouble", effectVal: 1 },
-};
 
 // ─── Interior Definitions ───
 export const interiorDefs = {
