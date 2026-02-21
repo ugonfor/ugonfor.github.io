@@ -19,8 +19,12 @@ export class Terrain {
     const colors = new Float32Array(pos.count * 3);
     const grassBase = new THREE.Color(0x7db85a);
     const roadColor = new THREE.Color(0xc8b48a);
+    const crosswalkColor = new THREE.Color(0xe8e0d0);
     const waterColor = new THREE.Color(0x5fb8e8);
     const tmpColor = new THREE.Color();
+
+    // Crosswalk intersection points
+    const crosswalkPts = [[25, 12], [25, 25], [25, 35], [25, 45]];
 
     for (let i = 0; i < pos.count; i++) {
       // Vertices are in local space; plane center is at origin
@@ -33,7 +37,17 @@ export class Terrain {
       if (waterTileFn && waterTileFn(gx, gy)) {
         tmpColor.copy(waterColor);
       } else if (roadTileFn && roadTileFn(gx, gy)) {
-        tmpColor.copy(roadColor);
+        // Check for crosswalk stripes near intersections
+        let isCrosswalk = false;
+        for (const [cx, cy] of crosswalkPts) {
+          if (Math.abs(gx - cx) < 2 && Math.abs(gy - cy) < 2) {
+            if (Math.floor(gx * 4) % 2 === 0) {
+              isCrosswalk = true;
+            }
+            break;
+          }
+        }
+        tmpColor.copy(isCrosswalk ? crosswalkColor : roadColor);
       } else {
         // Grass with noise variation
         const noise = (Math.sin(gx * 3.7 + gy * 2.3) * 0.5 + 0.5) * 0.08;

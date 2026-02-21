@@ -329,6 +329,106 @@ export class CharacterFactory {
     }
   }
 
+  // ─── Animal Factory Methods ───
+
+  /** Create a small box cat */
+  createCat(color) {
+    const group = new THREE.Group();
+    group.userData = { type: 'animal', animalType: 'cat' };
+
+    const c = color || ['#444444', '#ff9900', '#ffffff'][Math.floor(Math.random() * 3)];
+    // Body
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.35), this._toon(c));
+    body.position.y = 0.15;
+    body.castShadow = true;
+    group.add(body);
+    group.userData.body = body;
+
+    // Head
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), this._toon(c));
+    head.position.set(0, 0.2, 0.2);
+    head.castShadow = true;
+    group.add(head);
+
+    // Ears
+    const earGeo = new THREE.BoxGeometry(0.04, 0.06, 0.04);
+    const earMat = this._toon(c);
+    const leftEar = new THREE.Mesh(earGeo, earMat);
+    leftEar.position.set(-0.05, 0.3, 0.2);
+    group.add(leftEar);
+    const rightEar = new THREE.Mesh(earGeo.clone(), earMat);
+    rightEar.position.set(0.05, 0.3, 0.2);
+    group.add(rightEar);
+
+    // Eyes
+    const eyeGeo = new THREE.BoxGeometry(0.025, 0.025, 0.025);
+    const eyeMat = this._toon('#1a1a1a');
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.position.set(-0.03, 0.22, 0.275);
+    group.add(leftEye);
+    const rightEye = new THREE.Mesh(eyeGeo.clone(), eyeMat);
+    rightEye.position.set(0.03, 0.22, 0.275);
+    group.add(rightEye);
+
+    // Tail
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.25), this._toon(c));
+    tail.position.set(0, 0.22, -0.2);
+    tail.rotation.x = -0.4;
+    group.add(tail);
+
+    return group;
+  }
+
+  /** Create a small box dog */
+  createDog() {
+    const group = new THREE.Group();
+    group.userData = { type: 'animal', animalType: 'dog' };
+
+    const c = '#8b6842';
+    // Body
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.4), this._toon(c));
+    body.position.y = 0.2;
+    body.castShadow = true;
+    group.add(body);
+    group.userData.body = body;
+
+    // Head
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), this._toon(c));
+    head.position.set(0, 0.28, 0.25);
+    head.castShadow = true;
+    group.add(head);
+
+    // Ears (floppy — rotated slightly)
+    const earGeo = new THREE.BoxGeometry(0.05, 0.08, 0.04);
+    const earMat = this._toon('#6b4e2a');
+    const leftEar = new THREE.Mesh(earGeo, earMat);
+    leftEar.position.set(-0.08, 0.36, 0.25);
+    leftEar.rotation.z = 0.3;
+    group.add(leftEar);
+    const rightEar = new THREE.Mesh(earGeo.clone(), earMat);
+    rightEar.position.set(0.08, 0.36, 0.25);
+    rightEar.rotation.z = -0.3;
+    group.add(rightEar);
+
+    // Eyes
+    const eyeGeo = new THREE.BoxGeometry(0.03, 0.03, 0.03);
+    const eyeMat = this._toon('#1a1a1a');
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.position.set(-0.04, 0.3, 0.34);
+    group.add(leftEye);
+    const rightEye = new THREE.Mesh(eyeGeo.clone(), eyeMat);
+    rightEye.position.set(0.04, 0.3, 0.34);
+    group.add(rightEye);
+
+    // Tail (angled up)
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.15, 0.03), this._toon(c));
+    tail.position.set(0, 0.32, -0.22);
+    tail.rotation.x = 0.4;
+    group.add(tail);
+
+    return group;
+  }
+
   /** Create or update a name tag sprite */
   updateNameTag(group, name, isVisible) {
     let tag = group.userData._nameTag;

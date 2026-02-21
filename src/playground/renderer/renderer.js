@@ -72,6 +72,9 @@ export class GameRenderer {
     // Lamp lights for night toggle
     this.lampLights = [];
 
+    // Building groups for window glow
+    this.buildingGroups = [];
+
     // Outdoor groups (for indoor/outdoor toggle)
     this.outdoorGroups = [];
 
@@ -116,6 +119,7 @@ export class GameRenderer {
       const bGroup = this.buildingFactory.createBuilding(bDef);
       this.scene.add(bGroup);
       this.outdoorGroups.push(bGroup);
+      this.buildingGroups.push(bGroup);
     }
 
     // --- Props ---
@@ -158,6 +162,75 @@ export class GameRenderer {
       for (const npc of npcs) {
         this._addNpcMesh(npc);
       }
+    }
+
+    // --- Animals ---
+    this._animals = [];
+    const catPositions = [[12, 12], [28, 22], [40, 35]];
+    for (const [ax, ay] of catPositions) {
+      const mesh = this.characterFactory.createCat();
+      mesh.position.set(ax, 0, ay);
+      this.scene.add(mesh);
+      this.outdoorGroups.push(mesh);
+      this._animals.push({ mesh, x: ax, y: ay, targetX: ax, targetY: ay, speed: 0.8, waitUntil: 0 });
+    }
+    const dogPositions = [[18, 30], [35, 20]];
+    for (const [ax, ay] of dogPositions) {
+      const mesh = this.characterFactory.createDog();
+      mesh.position.set(ax, 0, ay);
+      this.scene.add(mesh);
+      this.outdoorGroups.push(mesh);
+      this._animals.push({ mesh, x: ax, y: ay, targetX: ax, targetY: ay, speed: 0.8, waitUntil: 0 });
+    }
+
+    // --- Building smoke/steam particle systems ---
+    this._smokeSystems = [];
+    const bakeryDef = buildings.find(b => b.id === 'bakery');
+    const cafeDef = buildings.find(b => b.id === 'cafe');
+    const houseDefs = buildings.filter(b => b.id.startsWith('house'));
+
+    const createSmokeSystem = (bx, bz, tag) => {
+      const count = 15;
+      const positions = new Float32Array(count * 3);
+      const lifetimes = new Float32Array(count);
+      for (let i = 0; i < count; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 0.3;
+        positions[i * 3 + 1] = Math.random() * 2.5;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 0.3;
+        lifetimes[i] = Math.random();
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const mat = new THREE.PointsMaterial({
+        color: 0xaaaaaa,
+        size: 4,
+        sizeAttenuation: false,
+        transparent: true,
+        opacity: 0.3,
+        depthWrite: false,
+      });
+      const points = new THREE.Points(geo, mat);
+      points.position.set(bx, 3.5, bz);
+      points.visible = false;
+      this.scene.add(points);
+      this.outdoorGroups.push(points);
+      return { points, lifetimes, tag };
+    };
+
+    if (bakeryDef) {
+      this._smokeSystems.push(createSmokeSystem(
+        bakeryDef.x + bakeryDef.w / 2, bakeryDef.y + bakeryDef.h / 2, 'bakery'
+      ));
+    }
+    if (cafeDef) {
+      this._smokeSystems.push(createSmokeSystem(
+        cafeDef.x + cafeDef.w / 2, cafeDef.y + cafeDef.h / 2, 'cafe'
+      ));
+    }
+    for (const h of houseDefs) {
+      this._smokeSystems.push(createSmokeSystem(
+        h.x + h.w / 2, h.y + h.h / 2, 'house'
+      ));
     }
 
     // Register outdoor groups for interior toggling
@@ -272,6 +345,136 @@ export class GameRenderer {
       }
     }
 
+    // --- Animal AI ---
+    if (this._animals) {
+      const now = performance.now() / 1000;
+      for (const a of this._animals) {
+        if (now > a.waitUntil) {
+          // Pick new random target within 4 units of current position
+          a.targetX = a.x + (Math.random() - 0.5) * 8;
+          a.targetY = a.y + (Math.random() - 0.5) * 8;
+          // Clamp to map (simple bounds)
+          a.targetX = Math.max(5, Math.min(55, a.targetX));
+          a.targetY = Math.max(5, Math.min(55, a.targetY));
+          a.waitUntil = Infinity; // moving until arrival
+        }
+        const dx = a.targetX - a.x;
+        const dy = a.targetY - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0.05) {
+          const step = Math.min(a.speed * dt, dist);
+          a.x += (dx / dist) * step;
+          a.y += (dy / dist) * step;
+          a.mesh.rotation.y = Math.atan2(dx, dy);
+          // Waddle animation
+          if (a.mesh.userData.body) {
+            a.mesh.userData.body.rotation.z = Math.sin(time * 10) * 0.05;
+          }
+        } else {
+          // Arrived — wait 2-5 seconds
+          a.waitUntil = now + 2 + Math.random() * 3;
+          if (a.mesh.userData.body) {
+            a.mesh.userData.body.rotation.z = 0;
+          }
+        }
+        a.mesh.position.set(a.x, 0, a.y);
+      }
+    }
+
+    // --- Building smoke/steam ---
+    if (this._smokeSystems) {
+      const hour = (world.totalMinutes / 60) % 24;
+      for (const sys of this._smokeSystems) {
+        // Visibility rules
+        let visible = false;
+        if (sys.tag === 'cafe') visible = hour >= 8 && hour < 20;
+        else if (sys.tag === 'bakery') visible = hour >= 6 && hour < 18;
+        else if (sys.tag === 'house') visible = hour >= 20 || hour < 6;
+        sys.points.visible = visible;
+
+        if (!visible) continue;
+
+        const posAttr = sys.points.geometry.getAttribute('position');
+        for (let i = 0; i < posAttr.count; i++) {
+          let py = posAttr.getY(i);
+          py += 0.5 * dt;
+          // Wobble on x/z
+          const px = posAttr.getX(i) + Math.sin(time * 2 + i) * 0.01;
+          const pz = posAttr.getZ(i) + Math.cos(time * 2 + i * 0.7) * 0.01;
+          if (py > 2.5) {
+            // Reset particle
+            posAttr.setXYZ(i, (Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.3);
+          } else {
+            posAttr.setXYZ(i, px, py, pz);
+          }
+        }
+        posAttr.needsUpdate = true;
+      }
+    }
+
+    // --- NPC emoji status indicators ---
+    if (npcs) {
+      for (const npc of npcs) {
+        const mesh = this.entityMeshes.get(npc.id);
+        if (!mesh) continue;
+
+        // Determine emoji
+        let emoji = '';
+        const npcScene = npc.currentScene || 'outdoor';
+        if (npc.state === 'chatting') {
+          emoji = '\u{1F4AC}'; // 💬
+        } else if (npcScene === 'cafe') {
+          emoji = '\u2615'; // ☕
+        } else if (npcScene === 'library') {
+          emoji = '\u{1F4D6}'; // 📖
+        } else if (npcScene === 'office' || npcScene === 'ksa_main') {
+          emoji = '\u{1F4BC}'; // 💼
+        } else {
+          const npcMood = (npc.moodUntil > performance.now()) ? npc.mood : 'neutral';
+          if (npcMood === 'happy') emoji = '\u{1F60A}'; // 😊
+          else if (npcMood === 'sad') emoji = '\u{1F622}'; // 😢
+        }
+
+        // Update sprite
+        const prevEmoji = mesh.userData._lastEmoji || '';
+        if (emoji !== prevEmoji) {
+          mesh.userData._lastEmoji = emoji;
+          if (!emoji) {
+            // Hide existing sprite
+            if (mesh.userData._emojiSprite) mesh.userData._emojiSprite.visible = false;
+          } else {
+            let sprite = mesh.userData._emojiSprite;
+            if (!sprite) {
+              const canvas = document.createElement('canvas');
+              canvas.width = 64;
+              canvas.height = 64;
+              const tex = new THREE.CanvasTexture(canvas);
+              tex.minFilter = THREE.LinearFilter;
+              const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+              sprite = new THREE.Sprite(mat);
+              sprite.scale.set(0.4, 0.4, 1);
+              sprite.position.set(0, 2.1, 0);
+              mesh.add(sprite);
+              mesh.userData._emojiSprite = sprite;
+              mesh.userData._emojiCanvas = canvas;
+            }
+            sprite.visible = true;
+            const ctx = mesh.userData._emojiCanvas.getContext('2d');
+            ctx.clearRect(0, 0, 64, 64);
+            ctx.font = '48px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(emoji, 32, 32);
+            sprite.material.map.needsUpdate = true;
+          }
+        }
+        // Sync visibility with mesh
+        if (mesh.userData._emojiSprite) {
+          mesh.userData._emojiSprite.visible = mesh.visible && !!emoji;
+        }
+      }
+    }
+
     // --- Camera follow ---
     this.cameraRig.setZoom(world.zoom || 3.2);
     this.cameraRig.follow(player.x, player.y, dt);
@@ -283,6 +486,12 @@ export class GameRenderer {
 
     const isNight = hour >= 20 || hour < 5;
     this.lighting.updateLamps(this.lampLights, isNight);
+
+    // --- Prop animations (tree sway, lamp glow, fountain particles) ---
+    this.propFactory.updateAnimations(time, isNight);
+
+    // --- Building window glow at night ---
+    this._updateWindowGlow(isNight);
 
     // --- Weather FX (outdoor only) ---
     const isIndoor = sceneState && sceneState.current !== "outdoor";
@@ -338,6 +547,26 @@ export class GameRenderer {
       }
     }
     this.speechOverlay.update(mappedBubbles, this.cameraRig.getActive());
+  }
+
+  _updateWindowGlow(isNight) {
+    if (!this._windowNightState) this._windowNightState = null;
+    if (this._windowNightState === isNight) return; // no change
+    this._windowNightState = isNight;
+
+    for (const bg of this.buildingGroups) {
+      const wins = bg.userData.windows;
+      if (!wins) continue;
+      for (const w of wins) {
+        if (isNight) {
+          w.material.color.setHex(0xffdd88);
+          w.material.opacity = 0.8;
+        } else {
+          w.material.color.setHex(0xc8e6ff);
+          w.material.opacity = 0.75;
+        }
+      }
+    }
   }
 
   _updateSkyColor(hour) {
