@@ -14,7 +14,7 @@ layout: default
 - **[Krafton AI](https://www.krafton.ai/ko/)** (2025.04-Present)
   - Research Engineer, Simulation AI Team
   - Working on [inZOI](https://playinzoi.com/en) character simulation and [SmartZoi](https://www.youtube.com/watch?v=Pk9z1upOj3U)
-  - Built coding-agent workflows and achieved 74% on [Terminal-Bench](https://www.tbench.ai/leaderboard/terminal-bench/2.0) (Rank #2 Global, Rank #1 with Opus 4.6)
+  - Built [Terminus-KIRA](https://github.com/krafton-ai/kira), a coding agent harness achieving 74.8% on [Terminal-Bench](https://www.tbench.ai/leaderboard/terminal-bench/2.0) (Rank #2 Global, Rank #1 with Opus 4.6) — [Tech Blog](https://krafton-ai.github.io/blog/terminus_kira_en/)
 
 ### Internships & Early Research
 - **[Naver Corp.](https://www.navercorp.com/)** (2022.01-2022.02)

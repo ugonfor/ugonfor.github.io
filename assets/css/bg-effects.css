@@ -34,6 +34,12 @@ body {
   background-color: #f6f8fb;
 }
 
+/* ── Landing & About page: no constellation ── */
+html.landing-page #bg-constellation-canvas,
+html.about-page #bg-constellation-canvas {
+  display: none !important;
+}
+
 /* ── Print: hide canvas ── */
 @media print {
   #bg-constellation-canvas {

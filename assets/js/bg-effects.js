@@ -5,6 +5,8 @@
 (function () {
   "use strict";
   if (document.documentElement.classList.contains("playground-page")) return;
+  if (document.documentElement.classList.contains("about-page")) return;
+  if (document.documentElement.classList.contains("landing-page")) return;
 
   var isMobile = window.innerWidth <= 900 || "ontouchstart" in window;
 
