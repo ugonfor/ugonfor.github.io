@@ -138,6 +138,7 @@ extra_head: |
         <p id="pg-chat-model">모델: 로컬 응답</p>
       </div>
       <div id="pg-chat-log" class="pg-chat-log pg-chat-log-dock"></div>
+      <div id="pg-chat-suggestions" class="pg-chat-suggestions"></div>
       <div class="pg-chat-input-row">
         <input id="pg-chat-input" type="text" placeholder="NPC에게 말 걸기..." />
         <button id="pg-chat-send" type="button">전송</button>
