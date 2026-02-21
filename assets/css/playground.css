@@ -430,6 +430,27 @@ html.playground-page section {
   margin-bottom: 4px;
 }
 
+.pg-chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 0 4px;
+}
+.pg-chat-suggestions:empty { display: none; }
+.pg-chat-suggestions button {
+  border: 1px solid rgba(58, 123, 213, 0.3);
+  border-radius: 14px;
+  background: rgba(58, 123, 213, 0.08);
+  color: #2a5a9a;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pg-chat-suggestions button:hover {
+  background: rgba(58, 123, 213, 0.18);
+}
+
 .pg-chat-input-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 78px;

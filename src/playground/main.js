@@ -45,6 +45,7 @@ import { GameRenderer } from './renderer/renderer.js';
   const chatLogEl = document.getElementById("pg-chat-log");
   const chatInputEl = document.getElementById("pg-chat-input");
   const chatSendEl = document.getElementById("pg-chat-send");
+  const chatSuggestionsEl = document.getElementById("pg-chat-suggestions");
   const chatCloseBtn = document.getElementById("pg-chat-close");
   const statusToggleBtn = document.getElementById("pg-status-toggle");
   const logToggleBtn = document.getElementById("pg-log-toggle");
@@ -157,8 +158,8 @@ import { GameRenderer } from './renderer/renderer.js';
   };
 
   const world = {
-    width: 60,
-    height: 65,
+    width: 75,
+    height: 75,
     totalMinutes: (() => { const s = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })); return s.getHours() * 60 + s.getMinutes(); })(),
     paused: false,
     baseTileW: 40,
@@ -1556,6 +1557,14 @@ import { GameRenderer } from './renderer/renderer.js';
     houseADoor: "houseA",
     houseBDoor: "houseB",
     houseCDoor: "houseC",
+    koreaUnivDoor: "korea_univ",
+    kaistAiDoor: "kaist_ai",
+    kraftonAiDoor: "krafton_ai",
+    restaurantDoor: "restaurant",
+    hospitalDoor: "hospital",
+    convenienceDoor: "convenience",
+    policeDoor: "police",
+    gymDoor: "gym",
   };
 
   // ─── NPC Home/Work Building Mapping ───
@@ -2592,12 +2601,18 @@ import { GameRenderer } from './renderer/renderer.js';
       }
       if (dist(guideNpc, player) < 2.5) {
         guideGreetingPhase = 2;
-        addChat(guideNpc.name, "안녕하세요! 이 마을에 오신 걸 환영해요. 저는 안내원 유진이에요.");
-        addChat(guideNpc.name, "궁금한 게 있으면 광장 근처 📋 안내소로 오세요!");
-        addChat(guideNpc.name, "저기 보이는 📜 게시판에서 퀘스트와 업적도 확인할 수 있어요.");
-        addLog("🎀 안내원 유진이 인사를 건넸습니다.");
+        guideNpc.pose = "waving";
+        const hi = "안녕하세요! 이 마을에 오신 걸 환영해요.";
+        addChat(guideNpc.name, hi);
+        upsertSpeechBubble(guideNpc.id, hi, 5000);
+        setTimeout(() => {
+          const hi2 = "저는 안내원 유진이에요. 주민들에게 말을 걸어보세요!";
+          addChat(guideNpc.name, hi2);
+          upsertSpeechBubble(guideNpc.id, hi2, 4000);
+          guideNpc.pose = "standing";
+        }, 4000);
         guideNpc.roamTarget = null;
-        guideNpc.roamWait = 3;
+        guideNpc.roamWait = 6;
       }
     }
   }
@@ -5752,6 +5767,14 @@ import { GameRenderer } from './renderer/renderer.js';
           houseADoor: "문 열기",
           houseBDoor: "문 열기",
           houseCDoor: "문 열기",
+          koreaUnivDoor: "문 열기",
+          kaistAiDoor: "문 열기",
+          kraftonAiDoor: "문 열기",
+          restaurantDoor: "문 열기",
+          hospitalDoor: "문 열기",
+          convenienceDoor: "문 열기",
+          policeDoor: "문 열기",
+          gymDoor: "문 열기",
           interiorExit: "나가기",
           marketBoard: "게시판 보기",
           parkMonument: "조사하기",
@@ -5795,6 +5818,38 @@ import { GameRenderer } from './renderer/renderer.js';
     if (chatInputEl) {
       chatInputEl.disabled = mpChat ? false : !npcNear;
       chatInputEl.placeholder = mpChat ? "플레이어에게 말하기..." : "NPC에게 말 걸기...";
+    }
+    // 추천 응답 표시
+    if (chatSuggestionsEl) {
+      if (npcNear && chatSuggestionsEl.dataset.npcId !== target.npc.id) {
+        chatSuggestionsEl.dataset.npcId = target.npc.id;
+        const npc = target.npc;
+        const persona = npcPersonas[npc.id];
+        const isDocent = persona && persona.isDocent;
+        const friendly = npc.favorLevel >= 2;
+        let suggestions;
+        if (isDocent) {
+          suggestions = ["이 마을에 대해 알려줘", "여기서 뭘 할 수 있어?", "주민들을 소개해줘"];
+        } else if (friendly) {
+          suggestions = ["요즘 어때?", "뭐 하고 있었어?", "나한테 할 말 있어?"];
+        } else {
+          suggestions = ["안녕하세요", "여기는 어떤 곳이에요?", "이름이 뭐예요?"];
+        }
+        chatSuggestionsEl.innerHTML = suggestions.map(s =>
+          `<button type="button">${s}</button>`
+        ).join("");
+        chatSuggestionsEl.querySelectorAll("button").forEach(btn => {
+          btn.addEventListener("click", () => {
+            if (chatInputEl) chatInputEl.value = btn.textContent;
+            sendCardChat();
+            chatSuggestionsEl.innerHTML = "";
+            chatSuggestionsEl.dataset.npcId = "";
+          });
+        });
+      } else if (!npcNear) {
+        chatSuggestionsEl.innerHTML = "";
+        chatSuggestionsEl.dataset.npcId = "";
+      }
     }
     if (chatActiveTargetEl) chatActiveTargetEl.textContent = npcNear ? `대상: ${target.npc.name}` : (mpChat ? "대상: 전체 채팅" : "대상: 없음");
     if (chatActiveStateEl) {
