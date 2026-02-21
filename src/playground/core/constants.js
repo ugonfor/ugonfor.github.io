@@ -229,6 +229,59 @@ export const props = [
   { type: "rock", x: 55, y: 42 },
   { type: "bush", x: 20, y: 50 }, { type: "bush", x: 50, y: 38 },
   { type: "bush", x: 55, y: 25 },
+
+  // ─── Bridge over river (east-west road y=25 crosses river x≈4) ───
+  { type: "bridge", x: 4, y: 25 },
+
+  // ─── Tree-lined boulevard (x=25, left side x=23.5, right side x=26.5) ───
+  { type: "tree", x: 23.5, y: 6 },  { type: "tree", x: 26.5, y: 6 },
+  { type: "tree", x: 23.5, y: 12 }, { type: "tree", x: 26.5, y: 12 },
+  { type: "tree", x: 23.5, y: 21 }, { type: "tree", x: 26.5, y: 21 },
+  { type: "tree", x: 23.5, y: 30 }, { type: "tree", x: 26.5, y: 30 },
+  { type: "tree", x: 23.5, y: 36 }, { type: "tree", x: 26.5, y: 36 },
+  { type: "tree", x: 23.5, y: 39 }, { type: "tree", x: 26.5, y: 39 },
+  { type: "tree", x: 23.5, y: 42 }, { type: "tree", x: 26.5, y: 42 },
+  { type: "tree", x: 23.5, y: 45 }, { type: "tree", x: 26.5, y: 45 },
+
+  // ─── Park improvements (statue near park) ───
+  { type: "statue", x: 15, y: 8 },
+  { type: "bench", x: 14, y: 12 }, { type: "bench", x: 16, y: 12 },
+
+  // ─── Plaza centerpiece (clock tower) ───
+  { type: "clock_tower", x: 25, y: 25 },
+
+  // ─── Road-side lamp posts at key intersections ───
+  { type: "lamp", x: 25, y: 12 }, { type: "lamp", x: 25, y: 35 },
+  { type: "lamp", x: 42, y: 12 }, { type: "lamp", x: 42, y: 16 },
+
+  // ─── Additional signposts at road ends ───
+  { type: "signpost", x: 8, y: 25 }, { type: "signpost", x: 15, y: 35 },
+  { type: "signpost", x: 40, y: 25 },
+
+  // ─── Flower patches near residential area ───
+  { type: "flower", x: 12, y: 36 }, { type: "flower", x: 31.5, y: 36 },
+
+  // ─── Grass tufts (scattered small decorative props) ───
+  // 대로 양쪽 (boulevard x≈23-27)
+  { type: "grass_tuft", x: 23, y: 7 }, { type: "grass_tuft", x: 27, y: 8 },
+  { type: "grass_tuft", x: 23, y: 14 }, { type: "grass_tuft", x: 27, y: 16 },
+  { type: "grass_tuft", x: 23, y: 22 }, { type: "grass_tuft", x: 27, y: 24 },
+  { type: "grass_tuft", x: 23, y: 33 }, { type: "grass_tuft", x: 27, y: 34 },
+  { type: "grass_tuft", x: 23, y: 41 }, { type: "grass_tuft", x: 27, y: 43 },
+  // 건물 근처
+  { type: "grass_tuft", x: 19, y: 10 }, { type: "grass_tuft", x: 22, y: 13 },
+  { type: "grass_tuft", x: 33, y: 10 }, { type: "grass_tuft", x: 33, y: 16 },
+  { type: "grass_tuft", x: 37, y: 8 }, { type: "grass_tuft", x: 44, y: 9 },
+  // 공원 주변
+  { type: "grass_tuft", x: 11, y: 8 }, { type: "grass_tuft", x: 17, y: 12 },
+  { type: "grass_tuft", x: 14, y: 13 }, { type: "grass_tuft", x: 16, y: 7 },
+  // 주택가 주변
+  { type: "grass_tuft", x: 11, y: 34 }, { type: "grass_tuft", x: 15, y: 33 },
+  { type: "grass_tuft", x: 29, y: 34 }, { type: "grass_tuft", x: 33, y: 33 },
+  { type: "grass_tuft", x: 43, y: 34 }, { type: "grass_tuft", x: 47, y: 33 },
+  // 빈 공간 / 외곽
+  { type: "grass_tuft", x: 9, y: 16 }, { type: "grass_tuft", x: 9, y: 22 },
+  { type: "grass_tuft", x: 36, y: 29 }, { type: "grass_tuft", x: 50, y: 40 },
 ];
 
 // ─── Species Pool ───

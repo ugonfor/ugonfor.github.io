@@ -12,6 +12,11 @@ export class PropFactory {
     this.gradientMap.minFilter = THREE.NearestFilter;
     this.gradientMap.magFilter = THREE.NearestFilter;
     this.gradientMap.needsUpdate = true;
+
+    // Animated prop collections
+    this._trees = [];
+    this._lamps = [];
+    this._fountains = [];
   }
 
   _toon(color) {
@@ -30,16 +35,20 @@ export class PropFactory {
     group.position.set(worldX, 0, worldY);
 
     switch (type) {
-      case 'tree': this._tree(group); break;
+      case 'tree': this._tree(group); this._trees.push(group); break;
       case 'bush': this._bush(group); break;
       case 'flower': this._flower(group, worldX, worldY); break;
       case 'fence': this._fence(group); break;
-      case 'lamp': this._lamp(group); break;
+      case 'lamp': this._lamp(group); this._lamps.push(group); break;
       case 'bench': this._bench(group); break;
       case 'rock': this._rock(group); break;
       case 'signpost': this._signpost(group); break;
-      case 'fountain': this._fountain(group); break;
+      case 'fountain': this._fountain(group); this._fountains.push(group); break;
       case 'questboard': this._questboard(group); break;
+      case 'grass_tuft': this._grassTuft(group); break;
+      case 'bridge': this._bridge(group); break;
+      case 'statue': this._statue(group); break;
+      case 'clock_tower': this._clockTower(group); break;
     }
 
     return group;
@@ -93,9 +102,10 @@ export class PropFactory {
     stem.position.y = 0.175;
     g.add(stem);
 
-    // Petals
-    const isPink = Math.round(wx + wy) % 2 === 0;
-    const petalColor = isPink ? 0xff95b7 : 0xffd96f;
+    // Petals — 4 colors based on coordinates
+    const flowerColors = [0xff6b9d, 0xffd93d, 0xff4444, 0x9966ff];
+    const colorIdx = Math.floor(Math.abs(wx * 3 + wy * 7)) % 4;
+    const petalColor = flowerColors[colorIdx];
     const petalGeo = new THREE.SphereGeometry(0.08, 5, 4);
     const petal = new THREE.Mesh(petalGeo, this._toon(petalColor));
     petal.position.y = 0.38;
@@ -152,6 +162,18 @@ export class PropFactory {
     light.position.y = 2.0;
     g.add(light);
     g.userData.lampLight = light;
+
+    // Glow sphere (visible warm glow, hidden by default)
+    const glowGeo = new THREE.SphereGeometry(0.15, 8, 6);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0xffe08f,
+      transparent: true,
+      opacity: 0,
+    });
+    const glowSphere = new THREE.Mesh(glowGeo, glowMat);
+    glowSphere.position.y = 2.05;
+    g.add(glowSphere);
+    g.userData.glowSphere = glowSphere;
   }
 
   _bench(g) {
@@ -246,6 +268,30 @@ export class PropFactory {
     torus.position.y = 1.0;
     torus.rotation.x = Math.PI / 2;
     g.add(torus);
+
+    // Water particles
+    const particleCount = 20;
+    const positions = new Float32Array(particleCount * 3);
+    const pOffsets = new Float32Array(particleCount);
+    for (let i = 0; i < particleCount; i++) {
+      pOffsets[i] = Math.random();
+      positions[i * 3] = 0;
+      positions[i * 3 + 1] = 0.8;
+      positions[i * 3 + 2] = 0;
+    }
+    const particleGeo = new THREE.BufferGeometry();
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMat = new THREE.PointsMaterial({
+      color: 0xc8eeff,
+      size: 0.06,
+      sizeAttenuation: false,
+      transparent: true,
+      opacity: 0.7,
+    });
+    const particles = new THREE.Points(particleGeo, particleMat);
+    g.add(particles);
+    g.userData.waterParticles = particles;
+    g.userData.particleOffsets = pOffsets;
   }
 
   _questboard(g) {
@@ -277,5 +323,150 @@ export class PropFactory {
       n.position.set(-0.12 + col * 0.24, 1.15 - row * 0.15, 0.025);
       g.add(n);
     }
+  }
+
+  _bridge(g) {
+    const woodMat = this._toon('#8b6842');
+    const railMat = this._toon('#7a5a38');
+
+    // Deck
+    const deckGeo = new THREE.BoxGeometry(3, 0.15, 2.5);
+    const deck = new THREE.Mesh(deckGeo, woodMat);
+    deck.position.y = 0.1;
+    deck.castShadow = true;
+    g.add(deck);
+
+    // Railings (one on each side)
+    const railGeo = new THREE.BoxGeometry(3, 0.4, 0.06);
+    const railLeft = new THREE.Mesh(railGeo, railMat);
+    railLeft.position.set(0, 0.35, -1.2);
+    railLeft.castShadow = true;
+    g.add(railLeft);
+
+    const railRight = new THREE.Mesh(railGeo, railMat);
+    railRight.position.set(0, 0.35, 1.2);
+    railRight.castShadow = true;
+    g.add(railRight);
+  }
+
+  _statue(g) {
+    const stoneMat = this._toon('#a0a0a0');
+    const darkStoneMat = this._toon('#707070');
+
+    // Pedestal
+    const pedestalGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.8, 8);
+    const pedestal = new THREE.Mesh(pedestalGeo, stoneMat);
+    pedestal.position.y = 0.4;
+    pedestal.castShadow = true;
+    g.add(pedestal);
+
+    // Figure on top
+    const figureGeo = new THREE.BoxGeometry(0.2, 0.5, 0.2);
+    const figure = new THREE.Mesh(figureGeo, darkStoneMat);
+    figure.position.y = 1.05;
+    figure.castShadow = true;
+    g.add(figure);
+
+    // Head
+    const headGeo = new THREE.SphereGeometry(0.1, 6, 5);
+    const head = new THREE.Mesh(headGeo, darkStoneMat);
+    head.position.y = 1.4;
+    head.castShadow = true;
+    g.add(head);
+  }
+
+  _grassTuft(g) {
+    const greens = [0x6aae5f, 0x5a9e4f, 0x7aba6f];
+    for (let i = 0; i < 3; i++) {
+      const bladeGeo = new THREE.BoxGeometry(0.03, 0.2 + Math.random() * 0.1, 0.01);
+      const blade = new THREE.Mesh(bladeGeo, this._toon(greens[i]));
+      const angle = (i / 3) * Math.PI * 2 + Math.random() * 0.3;
+      blade.position.set(Math.cos(angle) * 0.04, 0.1, Math.sin(angle) * 0.04);
+      blade.rotation.z = (Math.random() - 0.5) * 0.3;
+      g.add(blade);
+    }
+  }
+
+  /**
+   * Update all animated props (trees, lamps, fountains).
+   * @param {number} time - Total elapsed seconds
+   * @param {boolean} isNight - Whether it is currently night
+   */
+  updateAnimations(time, isNight) {
+    // Tree canopy sway
+    for (const tree of this._trees) {
+      for (const child of tree.children) {
+        // Canopy parts are above y=1 (trunk top is at 0.6+0.6=1.2, canopy starts ~1.5)
+        if (child.position.y > 1.0) {
+          child.rotation.z = Math.sin(time + tree.position.x * 1.3 + tree.position.z * 0.7) * 0.03;
+        }
+      }
+    }
+
+    // Lamp glow
+    for (const lamp of this._lamps) {
+      const glow = lamp.userData.glowSphere;
+      if (!glow) continue;
+      if (isNight) {
+        glow.material.opacity = 0.5 + Math.sin(time * 2 + lamp.position.x) * 0.1;
+      } else {
+        glow.material.opacity = 0;
+      }
+    }
+
+    // Fountain water particles
+    for (const fountain of this._fountains) {
+      const particles = fountain.userData.waterParticles;
+      const offsets = fountain.userData.particleOffsets;
+      if (!particles || !offsets) continue;
+      const posAttr = particles.geometry.attributes.position;
+      for (let i = 0; i < offsets.length; i++) {
+        // Each particle cycles upward then resets
+        const phase = (time * 0.8 + offsets[i]) % 1.0;
+        const py = 0.8 + phase * 1.2; // y from 0.8 to 2.0
+        const spread = phase * 0.3;
+        const angle = offsets[i] * Math.PI * 2 + time * 0.5;
+        posAttr.setXYZ(
+          i,
+          Math.cos(angle) * spread,
+          py,
+          Math.sin(angle) * spread
+        );
+      }
+      posAttr.needsUpdate = true;
+    }
+  }
+
+  _clockTower(g) {
+    const stoneMat = this._toon('#a0978a');
+    const roofMat = this._toon('#6a5a4a');
+
+    // Base tower
+    const baseGeo = new THREE.BoxGeometry(1.2, 3, 1.2);
+    const base = new THREE.Mesh(baseGeo, stoneMat);
+    base.position.y = 1.5;
+    base.castShadow = true;
+    g.add(base);
+
+    // Roof (pyramid)
+    const roofGeo = new THREE.ConeGeometry(0.8, 1, 4);
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.y = 3.5;
+    roof.rotation.y = Math.PI / 4;
+    roof.castShadow = true;
+    g.add(roof);
+
+    // Clock face (front)
+    const clockGeo = new THREE.PlaneGeometry(0.5, 0.5);
+    const clockMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const clock = new THREE.Mesh(clockGeo, clockMat);
+    clock.position.set(0, 2.5, 0.61);
+    g.add(clock);
+
+    // Clock face (back)
+    const clockBack = new THREE.Mesh(clockGeo, clockMat);
+    clockBack.position.set(0, 2.5, -0.61);
+    clockBack.rotation.y = Math.PI;
+    g.add(clockBack);
   }
 }

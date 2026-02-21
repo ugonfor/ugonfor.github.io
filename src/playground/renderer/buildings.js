@@ -193,9 +193,14 @@ export class BuildingFactory {
   }
 
   _addWindows(group, w, h, d, bodyColor) {
-    const winMat = this._toonMat('#d4eeff');
+    const winMat = new THREE.MeshBasicMaterial({
+      color: 0xc8e6ff,
+      transparent: true,
+      opacity: 0.75,
+    });
     const winSize = 0.25;
     const winGeo = new THREE.PlaneGeometry(winSize, winSize);
+    const windows = [];
 
     // Calculate window positions along front and back faces (z-axis)
     const cols = Math.max(1, Math.floor(w / 0.8));
@@ -210,12 +215,14 @@ export class BuildingFactory {
         const wFront = new THREE.Mesh(winGeo, winMat);
         wFront.position.set(wx, wy, d / 2 + 0.01);
         group.add(wFront);
+        windows.push(wFront);
 
         // Back face (north, -z)
         const wBack = new THREE.Mesh(winGeo, winMat);
         wBack.position.set(wx, wy, -d / 2 - 0.01);
         wBack.rotation.y = Math.PI;
         group.add(wBack);
+        windows.push(wBack);
       }
     }
 
@@ -231,14 +238,18 @@ export class BuildingFactory {
         wLeft.position.set(-w / 2 - 0.01, wy, wz);
         wLeft.rotation.y = -Math.PI / 2;
         group.add(wLeft);
+        windows.push(wLeft);
 
         // Right face (+x)
         const wRight = new THREE.Mesh(winGeo, winMat);
         wRight.position.set(w / 2 + 0.01, wy, wz);
         wRight.rotation.y = Math.PI / 2;
         group.add(wRight);
+        windows.push(wRight);
       }
     }
+
+    group.userData.windows = windows;
   }
 
   _addDoor(group, w, d) {
