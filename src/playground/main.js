@@ -3148,8 +3148,12 @@ import { GameRenderer } from './renderer/renderer.js';
       if (LLM_STREAM_API_URL) {
         streamedRendered = true;
         streamingDraft = startStreamingChat(npc.id, npc.name);
+        let streamBubbleText = "";
         const llm = await requestLlmNpcReplyStream(npc, msg, (chunk) => {
           if (streamingDraft) streamingDraft.append(chunk);
+          streamBubbleText += chunk;
+          // 스트리밍 중 말풍선 실시간 갱신
+          upsertSpeechBubble(npc.id, streamBubbleText, 6000);
         });
         reply = (streamingDraft && streamingDraft.text()) || llm.reply;
         if (streamingDraft) streamingDraft.done();
