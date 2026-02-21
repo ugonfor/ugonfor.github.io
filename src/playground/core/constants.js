@@ -83,6 +83,14 @@ export const places = {
   ksa_dorm: { x: 40.5, y: 16.5 },   // 건물 남쪽 문 앞
   infoCenter: { x: 24, y: 23 },     // 안내소 (광장 근처)
   questBoard: { x: 26, y: 23 },     // 퀘스트 게시판 (광장 동쪽)
+  korea_univ: { x: 12.5, y: 45.5 },   // 건물 남쪽 문 앞
+  kaist_ai: { x: 42, y: 53.5 },       // 건물 남쪽 문 앞
+  krafton_ai: { x: 30, y: 52.5 },     // 건물 남쪽 문 앞
+  restaurant: { x: 21.5, y: 24.5 },   // 건물 남쪽 문 앞
+  hospital: { x: 37.5, y: 32.5 },     // 건물 남쪽 문 앞
+  convenience: { x: 29, y: 24.5 },    // 건물 남쪽 문 앞
+  police: { x: 11.5, y: 58.5 },       // 건물 남쪽 문 앞
+  gym: { x: 52, y: 45.5 },            // 건물 남쪽 문 앞
 };
 
 // ─── Buildings ───
@@ -98,11 +106,19 @@ export const buildings = [
   { id: "houseA", x: 12, y: 33, w: 2, h: 2, z: 2.0, color: "#e8c9a6", roof: "#c4a073", label: "주택" },
   { id: "houseB", x: 30, y: 33, w: 2, h: 2, z: 2.0, color: "#d4b89a", roof: "#b09572", label: "주택" },
   { id: "houseC", x: 44, y: 33, w: 2, h: 2, z: 2.0, color: "#ceb798", roof: "#a89370", label: "주택" },
+  { id: "korea_univ", x: 10, y: 42, w: 5, h: 3, z: 3.0, color: "#8B0029", roof: "#6a0020", label: "고려대학교" },
+  { id: "kaist_ai", x: 40, y: 50, w: 4, h: 3, z: 2.8, color: "#003478", roof: "#002458", label: "KAIST AI대학원" },
+  { id: "krafton_ai", x: 28, y: 50, w: 4, h: 2, z: 2.6, color: "#1a1a2e", roof: "#0f0f1e", label: "크래프톤 AI" },
+  { id: "restaurant", x: 20, y: 22, w: 3, h: 2, z: 2.2, color: "#e8a060", roof: "#c88040", label: "음식점" },
+  { id: "hospital", x: 36, y: 30, w: 3, h: 2, z: 2.4, color: "#ffffff", roof: "#d0d0d0", label: "병원" },
+  { id: "convenience", x: 28, y: 22, w: 2, h: 2, z: 2.0, color: "#00a651", roof: "#008040", label: "편의점" },
+  { id: "police", x: 10, y: 56, w: 3, h: 2, z: 2.3, color: "#4a6fa5", roof: "#3a5f95", label: "경찰서" },
+  { id: "gym", x: 50, y: 42, w: 4, h: 3, z: 2.8, color: "#d4d4d4", roof: "#b0b0b0", label: "체육관" },
 ];
 
 // ─── Hotspots ───
 export const hotspots = [
-  { id: "exitGate", x: 25, y: 57, label: "출구" },
+  { id: "exitGate", x: 25, y: 72, label: "출구" },
   { id: "cafeDoor", x: 21.5, y: 11, label: "카페 입구" },
   { id: "bakeryDoor", x: 21, y: 16, label: "빵집 입구" },
   { id: "floristDoor", x: 21, y: 20, label: "꽃집 입구" },
@@ -114,6 +130,14 @@ export const hotspots = [
   { id: "houseADoor", x: 13, y: 35, label: "주택" },
   { id: "houseBDoor", x: 31, y: 35, label: "주택" },
   { id: "houseCDoor", x: 45, y: 35, label: "주택" },
+  { id: "koreaUnivDoor", x: 12.5, y: 45, label: "고려대학교" },
+  { id: "kaistAiDoor", x: 42, y: 53, label: "KAIST AI대학원" },
+  { id: "kraftonAiDoor", x: 30, y: 52, label: "크래프톤 AI" },
+  { id: "restaurantDoor", x: 21.5, y: 24, label: "음식점" },
+  { id: "hospitalDoor", x: 37.5, y: 32, label: "병원" },
+  { id: "convenienceDoor", x: 29, y: 24, label: "편의점" },
+  { id: "policeDoor", x: 11.5, y: 58, label: "경찰서" },
+  { id: "gymDoor", x: 52, y: 45, label: "체육관" },
   { id: "parkMonument", x: 15, y: 10, label: "공원 기념비" },
   { id: "minigameZone", x: 25, y: 20, label: "놀이터" },
   { id: "infoCenter", x: 24, y: 23, label: "안내소" },
@@ -209,7 +233,7 @@ export const props = [
   { type: "lamp", x: 15, y: 25 }, { type: "lamp", x: 35, y: 25 },
   { type: "lamp", x: 15, y: 35 }, { type: "lamp", x: 35, y: 35 },
   { type: "lamp", x: 40, y: 25 }, { type: "lamp", x: 45, y: 35 },
-  { type: "signpost", x: 25, y: 50 },
+  { type: "signpost", x: 25, y: 58 },
 
   // 자연 소품 — 외곽 및 빈 공간
   { type: "tree", x: 8, y: 5 }, { type: "tree", x: 10, y: 4.5 },
@@ -219,16 +243,78 @@ export const props = [
   { type: "rock", x: 10, y: 7 }, { type: "rock", x: 8, y: 18 },
   { type: "rock", x: 8, y: 24 }, { type: "rock", x: 9, y: 32 },
 
-  // 확장 영역 (남쪽/동쪽 외곽)
-  { type: "tree", x: 12, y: 45 }, { type: "tree", x: 25, y: 48 },
-  { type: "tree", x: 40, y: 45 }, { type: "tree", x: 50, y: 42 },
+  // 확장 영역 (남쪽/동쪽 외곽) — 새 건물과 겹치지 않도록 조정
   { type: "tree", x: 18, y: 52 }, { type: "tree", x: 35, y: 55 },
-  { type: "tree", x: 48, y: 50 }, { type: "tree", x: 55, y: 20 },
+  { type: "tree", x: 55, y: 20 },
   { type: "tree", x: 55, y: 35 }, { type: "tree", x: 55, y: 50 },
-  { type: "rock", x: 30, y: 50 }, { type: "rock", x: 45, y: 48 },
+  { type: "rock", x: 30, y: 50 }, { type: "rock", x: 55, y: 48 },
   { type: "rock", x: 55, y: 42 },
-  { type: "bush", x: 20, y: 50 }, { type: "bush", x: 50, y: 38 },
+  { type: "bush", x: 20, y: 50 }, { type: "bush", x: 55, y: 38 },
   { type: "bush", x: 55, y: 25 },
+
+  // ─── 고려대학교 (10, 42) 주변 ───
+  { type: "tree", x: 8, y: 41 }, { type: "tree", x: 16, y: 41 },
+  { type: "tree", x: 8, y: 46 }, { type: "tree", x: 16, y: 46 },
+  { type: "bench", x: 9, y: 44 }, { type: "bench", x: 16, y: 44 },
+  { type: "lamp", x: 12.5, y: 46 },
+  { type: "flower", x: 9.5, y: 42 }, { type: "flower", x: 15.5, y: 42 },
+
+  // ─── KAIST AI대학원 (38, 42) 주변 ───
+  { type: "tree", x: 37, y: 41 }, { type: "tree", x: 43, y: 41 },
+  { type: "tree", x: 37, y: 46 }, { type: "tree", x: 43, y: 46 },
+  { type: "bench", x: 38, y: 46 }, { type: "bench", x: 42, y: 46 },
+  { type: "lamp", x: 40, y: 46 },
+
+  // ─── 크래프톤 AI (28, 42) 주변 ───
+  { type: "lamp", x: 30, y: 44.5 },
+  { type: "bush", x: 27, y: 42 }, { type: "bush", x: 33, y: 42 },
+
+  // ─── 음식점 (20, 22) 주변 ───
+  { type: "lamp", x: 21.5, y: 25 },
+  { type: "flower", x: 19.5, y: 22 }, { type: "flower", x: 23.5, y: 22 },
+
+  // ─── 병원 (34, 28) 주변 ───
+  { type: "lamp", x: 35.5, y: 31 },
+  { type: "signpost", x: 34, y: 31 },
+  { type: "bench", x: 37.5, y: 29 },
+
+  // ─── 편의점 (28, 22) 주변 ───
+  { type: "lamp", x: 29, y: 25 },
+
+  // ─── 경찰서 (10, 48) 주변 ───
+  { type: "lamp", x: 11.5, y: 51 },
+  { type: "signpost", x: 10, y: 51 },
+  { type: "bench", x: 14, y: 49 },
+  { type: "tree", x: 8, y: 48 }, { type: "tree", x: 14, y: 51 },
+
+  // ─── 체육관 (48, 42) 주변 ───
+  { type: "tree", x: 47, y: 41 }, { type: "tree", x: 53, y: 41 },
+  { type: "bench", x: 48, y: 46 }, { type: "bench", x: 52, y: 46 },
+  { type: "lamp", x: 50, y: 46 },
+
+  // ─── 확장 남쪽 영역 추가 가로등 ───
+  { type: "lamp", x: 24, y: 50 }, { type: "lamp", x: 26, y: 50 },
+  { type: "lamp", x: 24, y: 55 }, { type: "lamp", x: 26, y: 55 },
+  { type: "lamp", x: 24, y: 60 }, { type: "lamp", x: 26, y: 60 },
+  { type: "lamp", x: 24, y: 65 }, { type: "lamp", x: 26, y: 65 },
+  { type: "lamp", x: 24, y: 70 }, { type: "lamp", x: 26, y: 70 },
+  { type: "signpost", x: 25, y: 70 },
+
+  // ─── 확장 남쪽 대로 가로수 ───
+  { type: "tree", x: 23.5, y: 48 }, { type: "tree", x: 26.5, y: 48 },
+  { type: "tree", x: 23.5, y: 52 }, { type: "tree", x: 26.5, y: 52 },
+  { type: "tree", x: 23.5, y: 56 }, { type: "tree", x: 26.5, y: 56 },
+  { type: "tree", x: 23.5, y: 60 }, { type: "tree", x: 26.5, y: 60 },
+  { type: "tree", x: 23.5, y: 64 }, { type: "tree", x: 26.5, y: 64 },
+  { type: "tree", x: 23.5, y: 68 }, { type: "tree", x: 26.5, y: 68 },
+
+  // ─── 확장 외곽 자연 소품 ───
+  { type: "tree", x: 60, y: 50 }, { type: "tree", x: 65, y: 45 },
+  { type: "tree", x: 70, y: 40 }, { type: "tree", x: 60, y: 60 },
+  { type: "tree", x: 10, y: 60 }, { type: "tree", x: 40, y: 60 },
+  { type: "tree", x: 55, y: 65 }, { type: "tree", x: 15, y: 65 },
+  { type: "rock", x: 65, y: 55 }, { type: "rock", x: 8, y: 55 },
+  { type: "bush", x: 60, y: 35 }, { type: "bush", x: 65, y: 50 },
 
   // ─── Bridge over river (east-west road y=25 crosses river x≈4) ───
   { type: "bridge", x: 4, y: 25 },
@@ -666,6 +752,265 @@ export const interiorDefs = {
     npcSpots: [
       { x: 3, y: 3, id: "resident_c1" },
       { x: 6, y: 4, id: "resident_c2" },
+    ],
+  },
+
+  korea_univ: {
+    width: 14, height: 10,
+    floorColor: "#d4c4a0", wallColor: "#f0e8d8",
+    spawnPoint: { x: 7, y: 9 },
+    exitPoint: { x: 7, y: 9.5 },
+    furniture: [
+      { type: "podium", x: 7, y: 1 },
+      { type: "blackboard", x: 4, y: 0.5, w: 6, h: 1 },
+      { type: "student_desk", x: 3, y: 3 }, { type: "student_desk", x: 5, y: 3 },
+      { type: "student_desk", x: 7, y: 3 }, { type: "student_desk", x: 9, y: 3 },
+      { type: "student_desk", x: 11, y: 3 },
+      { type: "student_desk", x: 3, y: 5 }, { type: "student_desk", x: 5, y: 5 },
+      { type: "student_desk", x: 7, y: 5 }, { type: "student_desk", x: 9, y: 5 },
+      { type: "student_desk", x: 11, y: 5 },
+      { type: "student_desk", x: 3, y: 7 }, { type: "student_desk", x: 5, y: 7 },
+      { type: "student_desk", x: 7, y: 7 }, { type: "student_desk", x: 9, y: 7 },
+      { type: "student_desk", x: 11, y: 7 },
+      { type: "bookshelf", x: 13, y: 1, w: 1, h: 3 },
+    ],
+    collision: [
+      { x: 4, y: 0.5, w: 6, h: 1 },
+      { x: 6.5, y: 1, w: 1, h: 1 },
+      { x: 3, y: 3, w: 1, h: 1 }, { x: 5, y: 3, w: 1, h: 1 },
+      { x: 7, y: 3, w: 1, h: 1 }, { x: 9, y: 3, w: 1, h: 1 },
+      { x: 11, y: 3, w: 1, h: 1 },
+      { x: 3, y: 5, w: 1, h: 1 }, { x: 5, y: 5, w: 1, h: 1 },
+      { x: 7, y: 5, w: 1, h: 1 }, { x: 9, y: 5, w: 1, h: 1 },
+      { x: 11, y: 5, w: 1, h: 1 },
+      { x: 3, y: 7, w: 1, h: 1 }, { x: 5, y: 7, w: 1, h: 1 },
+      { x: 7, y: 7, w: 1, h: 1 }, { x: 9, y: 7, w: 1, h: 1 },
+      { x: 11, y: 7, w: 1, h: 1 },
+      { x: 13, y: 1, w: 1, h: 3 },
+    ],
+    npcSpots: [
+      { x: 7, y: 1.5, id: "professor" },
+      { x: 4, y: 4, id: "ku_student_1" },
+      { x: 10, y: 6, id: "ku_student_2" },
+    ],
+  },
+
+  kaist_ai: {
+    width: 12, height: 10,
+    floorColor: "#e0e0e8", wallColor: "#f0f0f8",
+    spawnPoint: { x: 6, y: 9 },
+    exitPoint: { x: 6, y: 9.5 },
+    furniture: [
+      { type: "desk", x: 2, y: 2, w: 2, h: 1 },
+      { type: "desk", x: 5, y: 2, w: 2, h: 1 },
+      { type: "desk", x: 8, y: 2, w: 2, h: 1 },
+      { type: "desk", x: 2, y: 5, w: 2, h: 1 },
+      { type: "desk", x: 5, y: 5, w: 2, h: 1 },
+      { type: "desk", x: 8, y: 5, w: 2, h: 1 },
+      { type: "whiteboard", x: 1, y: 1, w: 1, h: 2 },
+      { type: "bookshelf", x: 11, y: 1, w: 1, h: 3 },
+      { type: "plant_pot", x: 1, y: 8 },
+      { type: "chair", x: 3, y: 3 }, { type: "chair", x: 6, y: 3 },
+      { type: "chair", x: 9, y: 3 },
+      { type: "chair", x: 3, y: 6 }, { type: "chair", x: 6, y: 6 },
+      { type: "chair", x: 9, y: 6 },
+    ],
+    collision: [
+      { x: 2, y: 2, w: 2, h: 1 },
+      { x: 5, y: 2, w: 2, h: 1 },
+      { x: 8, y: 2, w: 2, h: 1 },
+      { x: 2, y: 5, w: 2, h: 1 },
+      { x: 5, y: 5, w: 2, h: 1 },
+      { x: 8, y: 5, w: 2, h: 1 },
+      { x: 1, y: 1, w: 1, h: 2 },
+      { x: 11, y: 1, w: 1, h: 3 },
+    ],
+    npcSpots: [
+      { x: 3, y: 3, id: "ai_researcher_1" },
+      { x: 9, y: 3, id: "ai_researcher_2" },
+      { x: 6, y: 7, id: "ai_student" },
+    ],
+  },
+
+  krafton_ai: {
+    width: 12, height: 8,
+    floorColor: "#2a2a3e", wallColor: "#1a1a2e",
+    spawnPoint: { x: 6, y: 7 },
+    exitPoint: { x: 6, y: 7.5 },
+    furniture: [
+      { type: "desk", x: 2, y: 2, w: 2, h: 1 },
+      { type: "desk", x: 5, y: 2, w: 2, h: 1 },
+      { type: "desk", x: 8, y: 2, w: 2, h: 1 },
+      { type: "desk", x: 2, y: 4, w: 2, h: 1 },
+      { type: "desk", x: 5, y: 4, w: 2, h: 1 },
+      { type: "desk", x: 8, y: 4, w: 2, h: 1 },
+      { type: "counter", x: 10, y: 1, w: 2, h: 1 },
+      { type: "chair", x: 3, y: 3 }, { type: "chair", x: 6, y: 3 },
+      { type: "chair", x: 9, y: 3 },
+      { type: "chair", x: 3, y: 5 }, { type: "chair", x: 6, y: 5 },
+      { type: "chair", x: 9, y: 5 },
+      { type: "plant_pot", x: 1, y: 1 },
+      { type: "plant_pot", x: 11, y: 6 },
+    ],
+    collision: [
+      { x: 2, y: 2, w: 2, h: 1 },
+      { x: 5, y: 2, w: 2, h: 1 },
+      { x: 8, y: 2, w: 2, h: 1 },
+      { x: 2, y: 4, w: 2, h: 1 },
+      { x: 5, y: 4, w: 2, h: 1 },
+      { x: 8, y: 4, w: 2, h: 1 },
+      { x: 10, y: 1, w: 2, h: 1 },
+    ],
+    npcSpots: [
+      { x: 3, y: 3, id: "krafton_dev_1" },
+      { x: 9, y: 5, id: "krafton_dev_2" },
+      { x: 6, y: 6, id: "krafton_pm" },
+    ],
+  },
+
+  restaurant: {
+    width: 10, height: 8,
+    floorColor: "#d8c0a0", wallColor: "#e8d4b8",
+    spawnPoint: { x: 5, y: 7 },
+    exitPoint: { x: 5, y: 7.5 },
+    furniture: [
+      { type: "dining_table", x: 2, y: 2, w: 2, h: 1 },
+      { type: "dining_table", x: 6, y: 2, w: 2, h: 1 },
+      { type: "dining_table", x: 2, y: 5, w: 2, h: 1 },
+      { type: "dining_table", x: 6, y: 5, w: 2, h: 1 },
+      { type: "kitchen_counter", x: 4, y: 0.5, w: 3, h: 1 },
+      { type: "stove", x: 8, y: 1, w: 1, h: 1 },
+      { type: "fridge", x: 9, y: 1, w: 1, h: 1 },
+      { type: "chair", x: 2, y: 3 }, { type: "chair", x: 3, y: 3 },
+      { type: "chair", x: 6, y: 3 }, { type: "chair", x: 7, y: 3 },
+      { type: "chair", x: 2, y: 6 }, { type: "chair", x: 3, y: 6 },
+      { type: "chair", x: 6, y: 6 }, { type: "chair", x: 7, y: 6 },
+    ],
+    collision: [
+      { x: 2, y: 2, w: 2, h: 1 },
+      { x: 6, y: 2, w: 2, h: 1 },
+      { x: 2, y: 5, w: 2, h: 1 },
+      { x: 6, y: 5, w: 2, h: 1 },
+      { x: 4, y: 0.5, w: 3, h: 1 },
+      { x: 8, y: 1, w: 1, h: 1 },
+      { x: 9, y: 1, w: 1, h: 1 },
+    ],
+    npcSpots: [
+      { x: 5, y: 1.5, id: "chef" },
+      { x: 3, y: 4, id: "diner_1" },
+      { x: 7, y: 4, id: "diner_2" },
+    ],
+  },
+
+  hospital: {
+    width: 10, height: 8,
+    floorColor: "#e8e8f0", wallColor: "#f0f0f8",
+    spawnPoint: { x: 5, y: 7 },
+    exitPoint: { x: 5, y: 7.5 },
+    furniture: [
+      { type: "counter", x: 3, y: 1, w: 4, h: 1 },
+      { type: "chair", x: 2, y: 3 }, { type: "chair", x: 4, y: 3 },
+      { type: "chair", x: 6, y: 3 },
+      { type: "bookshelf", x: 9, y: 1, w: 1, h: 2 },
+      { type: "bed", x: 1, y: 5, w: 2, h: 2 },
+      { type: "bed", x: 5, y: 5, w: 2, h: 2 },
+      { type: "shelf", x: 9, y: 5, w: 1, h: 2 },
+    ],
+    collision: [
+      { x: 3, y: 1, w: 4, h: 1 },
+      { x: 9, y: 1, w: 1, h: 2 },
+      { x: 1, y: 5, w: 2, h: 2 },
+      { x: 5, y: 5, w: 2, h: 2 },
+      { x: 9, y: 5, w: 1, h: 2 },
+    ],
+    npcSpots: [
+      { x: 5, y: 1.5, id: "receptionist" },
+      { x: 3, y: 6, id: "doctor" },
+      { x: 8, y: 4, id: "patient" },
+    ],
+  },
+
+  convenience: {
+    width: 8, height: 8,
+    floorColor: "#e0e8d8", wallColor: "#f0f8e8",
+    spawnPoint: { x: 4, y: 7 },
+    exitPoint: { x: 4, y: 7.5 },
+    furniture: [
+      { type: "shelf", x: 1, y: 1, w: 2, h: 1 },
+      { type: "shelf", x: 1, y: 3, w: 2, h: 1 },
+      { type: "shelf", x: 5, y: 1, w: 2, h: 1 },
+      { type: "shelf", x: 5, y: 3, w: 2, h: 1 },
+      { type: "checkout_counter", x: 3, y: 6, w: 2, h: 1 },
+      { type: "fridge", x: 7, y: 1, w: 1, h: 2 },
+      { type: "display_case", x: 1, y: 5, w: 2, h: 1 },
+    ],
+    collision: [
+      { x: 1, y: 1, w: 2, h: 1 },
+      { x: 1, y: 3, w: 2, h: 1 },
+      { x: 5, y: 1, w: 2, h: 1 },
+      { x: 5, y: 3, w: 2, h: 1 },
+      { x: 3, y: 6, w: 2, h: 1 },
+      { x: 7, y: 1, w: 1, h: 2 },
+      { x: 1, y: 5, w: 2, h: 1 },
+    ],
+    npcSpots: [
+      { x: 4, y: 6.5, id: "cashier" },
+      { x: 3, y: 2, id: "conv_customer" },
+    ],
+  },
+
+  police: {
+    width: 10, height: 8,
+    floorColor: "#d0d4d8", wallColor: "#e0e4e8",
+    spawnPoint: { x: 5, y: 7 },
+    exitPoint: { x: 5, y: 7.5 },
+    furniture: [
+      { type: "desk", x: 2, y: 2, w: 2, h: 1 },
+      { type: "desk", x: 6, y: 2, w: 2, h: 1 },
+      { type: "bookshelf", x: 9, y: 1, w: 1, h: 3 },
+      { type: "chair", x: 3, y: 3 }, { type: "chair", x: 7, y: 3 },
+      { type: "shelf", x: 1, y: 5, w: 3, h: 1 },
+      { type: "whiteboard", x: 5, y: 5, w: 2, h: 1 },
+    ],
+    collision: [
+      { x: 2, y: 2, w: 2, h: 1 },
+      { x: 6, y: 2, w: 2, h: 1 },
+      { x: 9, y: 1, w: 1, h: 3 },
+      { x: 1, y: 5, w: 3, h: 1 },
+      { x: 5, y: 5, w: 2, h: 1 },
+    ],
+    npcSpots: [
+      { x: 3, y: 3, id: "officer_1" },
+      { x: 7, y: 3, id: "officer_2" },
+      { x: 5, y: 6, id: "visitor" },
+    ],
+  },
+
+  gym: {
+    width: 12, height: 10,
+    floorColor: "#c8c0b0", wallColor: "#e0d8c8",
+    spawnPoint: { x: 6, y: 9 },
+    exitPoint: { x: 6, y: 9.5 },
+    furniture: [
+      { type: "desk", x: 2, y: 2, w: 2, h: 1 },
+      { type: "desk", x: 5, y: 2, w: 2, h: 1 },
+      { type: "desk", x: 8, y: 2, w: 2, h: 1 },
+      { type: "shelf", x: 11, y: 2, w: 1, h: 2 },
+      { type: "bench", x: 3, y: 5 }, { type: "bench", x: 7, y: 5 },
+      { type: "bookshelf", x: 11, y: 6, w: 1, h: 3 },
+      { type: "rug", x: 2, y: 7, w: 4, h: 2 },
+    ],
+    collision: [
+      { x: 2, y: 2, w: 2, h: 1 },
+      { x: 5, y: 2, w: 2, h: 1 },
+      { x: 8, y: 2, w: 2, h: 1 },
+      { x: 11, y: 2, w: 1, h: 2 },
+      { x: 11, y: 6, w: 1, h: 3 },
+    ],
+    npcSpots: [
+      { x: 3, y: 3, id: "trainer" },
+      { x: 9, y: 3, id: "gym_member_1" },
+      { x: 5, y: 8, id: "gym_member_2" },
     ],
   },
 };

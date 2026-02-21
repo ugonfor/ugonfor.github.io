@@ -75,21 +75,30 @@ export class BuildingFactory {
     if (id === 'houseA' || id === 'houseB' || id === 'houseC') {
       // Gable roof: triangular prism
       this._gableRoof(group, w, h, d, roofColor);
-    } else if (id === 'ksa_main' || id === 'ksa_dorm') {
+    } else if (id === 'ksa_main' || id === 'ksa_dorm' || id === 'kaist_ai') {
       // Flat roof with parapet
       this._flatRoof(group, w, h, d, roofColor);
     } else if (id === 'market') {
       // Hip roof (4-sided cone)
       this._hipRoof(group, w, h, d, '#c0392b');
-    } else if (id === 'library') {
+    } else if (id === 'library' || id === 'korea_univ') {
       // Pediment (classical triangle)
       this._pedimentRoof(group, w, h, d, roofColor);
-    } else if (id === 'cafe' || id === 'bakery' || id === 'florist') {
+    } else if (id === 'cafe' || id === 'bakery' || id === 'florist' || id === 'restaurant') {
       // Mansard: two-tier
       this._mansardRoof(group, w, h, d, roofColor);
-    } else if (id === 'office') {
+    } else if (id === 'office' || id === 'krafton_ai' || id === 'gym') {
       // Modern flat with accent stripe
       this._modernRoof(group, w, h, d, roofColor);
+    } else if (id === 'hospital') {
+      // White flat roof
+      this._flatRoof(group, w, h, d, roofColor);
+    } else if (id === 'convenience') {
+      // Flat roof with green accent
+      this._modernRoof(group, w, h, d, roofColor);
+    } else if (id === 'police') {
+      // Flat roof
+      this._flatRoof(group, w, h, d, roofColor);
     } else {
       // Default flat
       this._flatRoof(group, w, h, d, roofColor);
@@ -430,6 +439,146 @@ export class BuildingFactory {
       const mat = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.01, 0.15), t('#8a7a60'));
       mat.position.set(0, 0.005, d / 2 + 0.12);
       group.add(mat);
+    }
+
+    if (id === 'korea_univ') {
+      // Entrance gate arch (2 pillars + top beam)
+      for (const px of [-w / 2 + 0.3, w / 2 - 0.3]) {
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.15, h * 0.7, 0.15), t('#8B0029'));
+        pillar.position.set(px, h * 0.35, d / 2 + 0.5);
+        group.add(pillar);
+      }
+      const archBeam = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 0.12, 0.15), t('#6a0020'));
+      archBeam.position.set(0, h * 0.7, d / 2 + 0.5);
+      group.add(archBeam);
+      // Crimson banner
+      const banner = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.8), t('#8B0029'));
+      banner.position.set(w / 2 + 0.01, h * 0.6, 0);
+      banner.rotation.y = Math.PI / 2;
+      group.add(banner);
+      // Entrance steps
+      const step = new THREE.Mesh(new THREE.BoxGeometry(w * 0.5, 0.08, 0.3), t('#c0b0a0'));
+      step.position.set(0, 0.04, d / 2 + 0.15);
+      group.add(step);
+    }
+
+    if (id === 'kaist_ai') {
+      // KAIST letters on front (simple colored box representing sign)
+      const sign = new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, 0.3, 0.05), t('#003478'));
+      sign.position.set(0, h * 0.7, d / 2 + 0.03);
+      group.add(sign);
+      // Modern planter
+      const planter = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.4), t('#505050'));
+      planter.position.set(w / 3, 0.1, d / 2 + 0.3);
+      group.add(planter);
+      const plant = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 4), t('#3a8a30'));
+      plant.position.set(w / 3, 0.3, d / 2 + 0.3);
+      group.add(plant);
+    }
+
+    if (id === 'krafton_ai') {
+      // LED sign (glowing box on front)
+      const ledSign = new THREE.Mesh(new THREE.BoxGeometry(w * 0.5, 0.2, 0.06),
+        new THREE.MeshBasicMaterial({ color: '#00ffcc', transparent: true, opacity: 0.8 }));
+      ledSign.position.set(0, h * 0.75, d / 2 + 0.04);
+      group.add(ledSign);
+      // Entrance planter
+      const planter = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.3), t('#333333'));
+      planter.position.set(-w / 3, 0.09, d / 2 + 0.25);
+      group.add(planter);
+      const plant = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), t('#4a9a40'));
+      plant.position.set(-w / 3, 0.25, d / 2 + 0.25);
+      group.add(plant);
+    }
+
+    if (id === 'restaurant') {
+      // Lantern (small glowing sphere)
+      const lanternPole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 6), t('#8a6030'));
+      lanternPole.position.set(-w / 3, 0.3, d / 2 + 0.3);
+      group.add(lanternPole);
+      const lantern = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 4),
+        new THREE.MeshBasicMaterial({ color: '#ffaa44', transparent: true, opacity: 0.9 }));
+      lantern.position.set(-w / 3, 0.65, d / 2 + 0.3);
+      group.add(lantern);
+      // Menu board outside
+      const menuBoard = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.05), t('#5c3a1a'));
+      menuBoard.position.set(w / 3, 0.3, d / 2 + 0.25);
+      group.add(menuBoard);
+      const menuFace = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.35), t('#f5e8d0'));
+      menuFace.position.set(w / 3, 0.3, d / 2 + 0.28);
+      group.add(menuFace);
+      // Awning
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, 0.04, 0.5), t('#c88040'));
+      awning.position.set(0, h * 0.7, d / 2 + 0.25);
+      group.add(awning);
+    }
+
+    if (id === 'hospital') {
+      // Red cross symbol (2 crossed boxes)
+      const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.05), t('#ff0000'));
+      crossH.position.set(0, h * 0.7, d / 2 + 0.03);
+      group.add(crossH);
+      const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.05), t('#ff0000'));
+      crossV.position.set(0, h * 0.7, d / 2 + 0.03);
+      group.add(crossV);
+      // Ambulance-colored box near entrance
+      const ambulance = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.3), t('#ffffff'));
+      ambulance.position.set(w / 3, 0.125, d / 2 + 0.35);
+      group.add(ambulance);
+      const ambStripe = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.31), t('#ff3333'));
+      ambStripe.position.set(w / 3, 0.15, d / 2 + 0.35);
+      group.add(ambStripe);
+    }
+
+    if (id === 'convenience') {
+      // Illuminated sign box
+      const signBox = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 0.25, 0.08),
+        new THREE.MeshBasicMaterial({ color: '#00ff66', transparent: true, opacity: 0.85 }));
+      signBox.position.set(0, h * 0.8, d / 2 + 0.05);
+      group.add(signBox);
+      // Small product display outside
+      const display = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.2), t('#a09080'));
+      display.position.set(-w / 4, 0.15, d / 2 + 0.2);
+      group.add(display);
+      for (let i = 0; i < 3; i++) {
+        const item = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.06), t(['#ff6b4a', '#4488ff', '#ffd040'][i]));
+        item.position.set(-w / 4 + (i - 1) * 0.12, 0.35, d / 2 + 0.2);
+        group.add(item);
+      }
+    }
+
+    if (id === 'police') {
+      // Blue lamp on top
+      const lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.08, 8), t('#333333'));
+      lampBase.position.set(0, h + 0.2, 0);
+      group.add(lampBase);
+      const blueLamp = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6),
+        new THREE.MeshBasicMaterial({ color: '#4488ff', transparent: true, opacity: 0.85 }));
+      blueLamp.position.set(0, h + 0.35, 0);
+      group.add(blueLamp);
+      // Badge emblem on front
+      const badge = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 6), t('#c0a030'));
+      badge.rotation.x = Math.PI / 2;
+      badge.position.set(0, h * 0.6, d / 2 + 0.02);
+      group.add(badge);
+    }
+
+    if (id === 'gym') {
+      // Dumbbell prop outside (2 small spheres + cylinder)
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 6), t('#555555'));
+      bar.rotation.z = Math.PI / 2;
+      bar.position.set(w / 3, 0.15, d / 2 + 0.3);
+      group.add(bar);
+      const weight1 = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 4), t('#333333'));
+      weight1.position.set(w / 3 - 0.2, 0.15, d / 2 + 0.3);
+      group.add(weight1);
+      const weight2 = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 4), t('#333333'));
+      weight2.position.set(w / 3 + 0.2, 0.15, d / 2 + 0.3);
+      group.add(weight2);
+      // Sports banner
+      const sportsBanner = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.3), t('#ff6600'));
+      sportsBanner.position.set(-w / 4, h * 0.65, d / 2 + 0.02);
+      group.add(sportsBanner);
     }
   }
 
