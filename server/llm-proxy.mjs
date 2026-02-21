@@ -16,6 +16,9 @@ const MAX_BODY_BYTES = Math.max(8_192, Number(process.env.MAX_BODY_BYTES || 1_00
 const RATE_LIMIT_WINDOW_MS = Math.max(1_000, Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000));
 const RATE_LIMIT_MAX = Math.max(1, Number(process.env.RATE_LIMIT_MAX || 90));
 const PROXY_AUTH_TOKEN = String(process.env.PROXY_AUTH_TOKEN || "").trim();
+const OPENWEATHER_API_KEY = String(process.env.OPENWEATHER_API_KEY || "").trim();
+const SEOUL_LAT = 37.5665;
+const SEOUL_LON = 126.9780;
 const TURNSTILE_SECRET_KEY = String(process.env.TURNSTILE_SECRET_KEY || "").trim();
 const TURNSTILE_VERIFY_URL = String(
   process.env.TURNSTILE_VERIFY_URL || "https://challenges.cloudflare.com/turnstile/v0/siteverify"
@@ -55,6 +58,45 @@ const sharedState = {
   revision: 0,
   customNpcs: [],
 };
+
+// ─── Seoul Weather Cache ───
+let weatherCache = { weather: "clear", temp: 20, fetchedAt: 0 };
+const WEATHER_CACHE_TTL = 10 * 60 * 1000; // 10분
+
+function mapOwmToGameWeather(owmId) {
+  if (owmId >= 200 && owmId < 300) return "storm";     // Thunderstorm
+  if (owmId >= 300 && owmId < 400) return "rain";       // Drizzle
+  if (owmId >= 500 && owmId < 600) return "rain";       // Rain
+  if (owmId >= 600 && owmId < 700) return "snow";       // Snow
+  if (owmId >= 700 && owmId < 800) return "fog";        // Atmosphere (fog, mist, haze)
+  if (owmId === 800) return "clear";                     // Clear
+  if (owmId > 800) return "cloudy";                      // Clouds
+  return "clear";
+}
+
+async function fetchSeoulWeather() {
+  const now = Date.now();
+  if (now - weatherCache.fetchedAt < WEATHER_CACHE_TTL) return weatherCache;
+  if (!OPENWEATHER_API_KEY) return weatherCache;
+
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${SEOUL_LAT}&lon=${SEOUL_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`OWM HTTP ${res.status}`);
+    const data = await res.json();
+    const owmId = data?.weather?.[0]?.id || 800;
+    weatherCache = {
+      weather: mapOwmToGameWeather(owmId),
+      temp: Math.round(data?.main?.temp ?? 20),
+      description: data?.weather?.[0]?.description || "",
+      fetchedAt: now,
+    };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`[weather] fetch failed: ${err.message}`);
+  }
+  return weatherCache;
+}
 
 function cleanText(value, maxLen) {
   return String(value || "")
@@ -431,7 +473,8 @@ async function callGemini(prompt) {
 
   const errors = [];
   for (const model of MODEL_CHAIN) {
-    const body = model.includes("2.5") || model.includes("3-")
+    const needsThinkingOff = model.startsWith("gemini-") && (model.includes("2.5") || model.includes("3-"));
+    const body = needsThinkingOff
       ? { ...payload, generationConfig: { ...payload.generationConfig, thinkingConfig: { thinkingBudget: 0 } } }
       : payload;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
@@ -494,7 +537,8 @@ async function callGeminiStream(prompt) {
 
   const errors = [];
   for (const model of MODEL_CHAIN) {
-    const body = model.includes("2.5") || model.includes("3-")
+    const needsThinkingOff = model.startsWith("gemini-") && (model.includes("2.5") || model.includes("3-"));
+    const body = needsThinkingOff
       ? { ...payload, generationConfig: { ...payload.generationConfig, thinkingConfig: { thinkingBudget: 0 } } }
       : payload;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${API_KEY}`;
@@ -580,6 +624,11 @@ const server = createServer(async (req, res) => {
 
   if (req.method === "GET" && req.url === "/healthz") {
     return writeJson(res, 200, { ok: true, models: MODEL_CHAIN }, origin);
+  }
+
+  if (req.method === "GET" && req.url === "/api/weather") {
+    const w = await fetchSeoulWeather();
+    return writeJson(res, 200, { weather: w.weather, temp: w.temp, description: w.description }, origin);
   }
 
   if (req.url === "/api/world-npcs" && req.method === "GET") {
