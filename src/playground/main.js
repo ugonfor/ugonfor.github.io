@@ -3660,11 +3660,18 @@ import { GameRenderer } from './renderer/renderer.js';
       } else {
         npc.roamWait = 0.6 + Math.random() * 2.2;
         npc.state = "idle";
-        // 자세 결정: 벤치 근처면 앉기, 밤이면 가끔 눕기
+        // 자세 결정: 벤치 근처면 벤치에 앉기, 밤이면 가끔 눕기
         const h = hourOfDay();
-        const nearBench = props.some(p => p.type === "bench" && dist(npc, p) < 1.5);
-        if (nearBench && Math.random() < 0.6) {
+        const closestBench = props
+          .filter(p => p.type === "bench" && dist(npc, p) < 1.5)
+          .sort((a, b) => dist(npc, a) - dist(npc, b))[0];
+        if (closestBench && Math.random() < 0.6) {
+          // 벤치 위치로 이동하고 벤치를 등지고 앉기
+          npc.x = closestBench.x;
+          npc.y = closestBench.y;
           npc.pose = "sitting";
+          // 벤치 방향: 대로(x=25) 쪽을 바라보도록
+          npc.seatFacing = Math.atan2(25 - npc.y, 25 - npc.x);
           npc.roamWait = 3 + Math.random() * 5;
         } else if (h >= 23 || h < 5) {
           npc.pose = Math.random() < 0.3 ? "lying" : "standing";
