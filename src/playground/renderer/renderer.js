@@ -259,6 +259,10 @@ export class GameRenderer {
           if (!npcMoving) {
             // Reset lie rotation if was lying and now standing
             if (npcPose !== 'lying' && mesh.rotation.z !== 0) { mesh.rotation.z = 0; mesh.position.y = 0; }
+            // 앉을 때 벤치 방향으로 회전
+            if (npcPose === 'sitting' && npc.seatFacing != null) {
+              mesh.rotation.y = npc.seatFacing;
+            }
             this.characterFactory.animateByState(mesh, npcState, npcMood, time, false, npcPose);
           } else {
             if (mesh.rotation.z !== 0) { mesh.rotation.z = 0; mesh.position.y = 0; }
