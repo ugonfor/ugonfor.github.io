@@ -470,7 +470,8 @@ function buildAboutPage() {
 
   const htmlContent = marked.parse(md);
 
-  return renderLayout(htmlContent, {});
+  const aboutExtraHead = `<script>document.documentElement.classList.add('about-page');</script>`;
+  return renderLayout(htmlContent, { extraHead: aboutExtraHead });
 }
 
 function buildPlaygroundPage() {
