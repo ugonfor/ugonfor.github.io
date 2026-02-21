@@ -3282,6 +3282,32 @@ import { GameRenderer } from './renderer/renderer.js';
       }
     }
 
+    // [동행] / [동행해제] / [안내:장소] 태그 파싱
+    if (/\[동행\]/.test(cleanReply)) {
+      cleanReply = cleanReply.replace(/\s*\[동행\]\s*/, "").trim();
+      npc.following = true;
+      npc.roamTarget = null;
+      addLog(`${npc.name}이(가) 동행합니다.`);
+    }
+    if (/\[동행해제\]/.test(cleanReply)) {
+      cleanReply = cleanReply.replace(/\s*\[동행해제\]\s*/, "").trim();
+      npc.following = false;
+      addLog(`${npc.name}이(가) 동행을 멈춥니다.`);
+    }
+    const guideMatch = cleanReply.match(/\[안내:(\w+)\]/);
+    if (guideMatch) {
+      cleanReply = cleanReply.replace(/\s*\[안내:\w+\]\s*/, "").trim();
+      const dest = places[guideMatch[1]];
+      if (dest) {
+        // NPC가 목적지로 먼저 걸어감 + 플레이어 자동 따라가기
+        npc.following = false;
+        npc.roamTarget = { x: dest.x, y: dest.y };
+        npc.roamWait = 0;
+        player.moveTarget = { x: dest.x, y: dest.y + 1 }; // NPC 약간 뒤를 따라감
+        addLog(`${npc.name}이(가) ${guideMatch[1]}(으)로 안내합니다.`);
+      }
+    }
+
     if (cleanReply && !streamedRendered) addNpcChat(npc.id, npc.name, cleanReply);
     if (cleanReply) upsertSpeechBubble(npc.id, cleanReply, 4000);
 
@@ -3297,6 +3323,8 @@ import { GameRenderer } from './renderer/renderer.js';
       // NPC가 대화를 마무리하면 자동으로 세션 종료
       const farewellPattern = /(안녕|잘\s?가|다음에|나중에|바이|bye|또\s?봐|가\s?볼게|이만|할\s?일|다시\s?보자|그럼\s?이만|갈게)/i;
       if (farewellPattern.test(cleanReply)) {
+        // 동행 중이면 해제
+        if (npc.following) npc.following = false;
         setTimeout(() => {
           if (conversationFocusNpcId === npc.id) {
             conversationFocusNpcId = null;
@@ -3707,6 +3735,22 @@ import { GameRenderer } from './renderer/renderer.js';
         n.hunger = Math.min(100, Math.max(0, n.hunger));
         n.energy = Math.min(100, Math.max(0, n.energy));
         n.social = Math.min(100, Math.max(0, n.social));
+      }
+
+      // 동행 모드: 플레이어를 따라감
+      if (npc.following) {
+        const fd = dist(npc, player);
+        if (fd > 1.8) {
+          const fdx = player.x - npc.x;
+          const fdy = player.y - npc.y;
+          const fdd = Math.hypot(fdx, fdy);
+          const fnx = npc.x + (fdx / fdd) * npc.speed * dt;
+          const fny = npc.y + (fdy / fdd) * npc.speed * dt;
+          if (canStand(fnx, fny)) { npc.x = fnx; npc.y = fny; npc.state = "moving"; npc.pose = "standing"; }
+        } else {
+          npc.state = "idle";
+        }
+        continue;
       }
 
       // 술래잡기 중인 NPC는 updateTagGame에서 이동 처리
