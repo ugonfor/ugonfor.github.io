@@ -289,11 +289,16 @@ export class GameRenderer {
       const pdx = player.x - prevPX;
       const pdy = player.y - prevPZ;
       const playerMoving = Math.abs(pdx) > 0.001 || Math.abs(pdy) > 0.001;
+      const playerPose = player.pose || 'standing';
       if (playerMoving) {
         this.playerMesh.rotation.y = Math.atan2(pdx, pdy);
-        this.characterFactory.animateWalk(this.playerMesh, time);
+        this.characterFactory.animateByState(this.playerMesh, 'moving', 'neutral', time, true, 'standing');
       } else {
-        this.characterFactory.animateIdle(this.playerMesh);
+        if (playerPose !== 'lying' && this.playerMesh.rotation.z !== 0) {
+          this.playerMesh.rotation.z = 0;
+          this.playerMesh.position.y = 0;
+        }
+        this.characterFactory.animateByState(this.playerMesh, 'idle', 'neutral', time, false, playerPose);
       }
     }
 
