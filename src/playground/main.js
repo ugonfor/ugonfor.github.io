@@ -196,6 +196,8 @@ import { GameRenderer } from './renderer/renderer.js';
     color: "#f2cc61",
     species: "human_a",
     moveTarget: null,
+    pose: "standing",
+    idleTime: 0,
   };
 
   function randomSpecies() {
@@ -1863,12 +1865,15 @@ import { GameRenderer } from './renderer/renderer.js';
     // NPC 선제적 말 걸기: 가까이 + 호감도 있으면 가끔 먼저 인사
     if (!npcProactiveGreetPending && now > nextNpcProactiveAt && !conversationFocusNpcId) {
       nextNpcProactiveAt = now + 20000 + Math.random() * 30000;
-      const close = npcs.filter(n => dist(n, player) < 3.5 && n.favorLevel >= 1 && !chatSessionActiveFor(n.id) && n.talkCooldown <= 0);
+      const close = npcs.filter(n => dist(n, player) < 3.5 && !chatSessionActiveFor(n.id) && n.talkCooldown <= 0 && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
       if (close.length && Math.random() < 0.15) {
         const npc = close[Math.floor(Math.random() * close.length)];
         npcProactiveGreetPending = true;
         npc.pose = "waving";
-        llmReplyOrEmpty(npc, "(플레이어가 근처를 지나갑니다. 먼저 반갑게 말을 걸어주세요. 짧은 한마디.)")
+        const greetPrompt = npc.favorLevel >= 1
+          ? "(친한 플레이어가 근처를 지나갑니다. 반갑게 먼저 말을 걸어주세요. 짧은 한마디.)"
+          : "(처음 보는 사람이 근처를 지나갑니다. 가볍게 인사해주세요. 짧은 한마디.)";
+        llmReplyOrEmpty(npc, greetPrompt)
           .then((line) => {
             if (line) {
               addChat(npc.name, line);
@@ -2788,6 +2793,17 @@ import { GameRenderer } from './renderer/renderer.js';
       }
       applyPanelState();
 
+      // 자고 있는 NPC 깨우기
+      if (near.npc.pose === "lying") {
+        near.npc.pose = "standing";
+        near.npc.roamWait = 0;
+        addChat("System", `${near.npc.name}을(를) 깨웠습니다.`);
+        upsertSpeechBubble(near.npc.id, "음... 뭐야...", 3000);
+        near.npc.mood = "sad";
+        near.npc.moodUntil = nowMs() + 15_000;
+        return;
+      }
+
       if (near.npc.talkCooldown <= 0) {
         near.npc.talkCooldown = 3.5;
         // 도슨트 NPC는 항상 안내소 메뉴 표시
@@ -3537,7 +3553,22 @@ import { GameRenderer } from './renderer/renderer.js';
     }
 
     const mag = Math.hypot(dx, dy);
-    if (!mag) return;
+    if (!mag) {
+      // 가만히 있으면 idle 시간 누적 → 자동 앉기
+      player.idleTime += dt;
+      if (player.idleTime > 5 && player.pose === "standing") {
+        const bench = props.find(p => p.type === "bench" && dist(player, p) < 1.0);
+        if (bench) {
+          player.x = bench.x;
+          player.y = bench.y;
+          player.pose = "sitting";
+        }
+      }
+      return;
+    }
+    // 이동하면 서기로 복귀
+    player.idleTime = 0;
+    if (player.pose !== "standing") player.pose = "standing";
 
     const runMul = keys.has("ShiftLeft") || keys.has("ShiftRight") || inputState.runHold ? 1.75 : 1;
     const walkMul = (player.moveTarget && player.moveTarget.autoWalk) ? 0.5 : 1;
