@@ -473,9 +473,10 @@ export class GameRenderer {
             sprite.material.map.needsUpdate = true;
           }
         }
-        // Sync visibility with mesh
+        // Hide emoji when speech bubble is active for this NPC
+        const hasBubble = speechBubbles && speechBubbles.some(b => b.id === npc.id && b.until > performance.now());
         if (mesh.userData._emojiSprite) {
-          mesh.userData._emojiSprite.visible = mesh.visible && !!emoji;
+          mesh.userData._emojiSprite.visible = mesh.visible && !!emoji && !hasBubble;
         }
       }
     }
