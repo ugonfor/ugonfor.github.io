@@ -178,7 +178,7 @@ function buildBaseHeaders(origin) {
     headers["Vary"] = "Origin";
     headers["Access-Control-Allow-Origin"] = origin;
     headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
-    headers["Access-Control-Allow-Headers"] = "Content-Type, X-Proxy-Token, X-Turnstile-Token";
+    headers["Access-Control-Allow-Headers"] = "Content-Type, X-Proxy-Token, X-Turnstile-Token, X-Debug";
   }
   return headers;
 }
@@ -1136,7 +1136,12 @@ const server = createServer(async (req, res) => {
         return writeJson(res, 503, { error: "audit logging unavailable", requestId }, origin);
       }
     }
-    return writeJson(res, 200, { reply, model, requestId, suggestions, emotion, farewell, action, mention }, origin);
+    const responseBody = { reply, model, requestId, suggestions, emotion, farewell, action, mention };
+    // debug=1 헤더 → full prompt 포함
+    if (req.headers["x-debug"] === "1") {
+      responseBody._debug = { prompt };
+    }
+    return writeJson(res, 200, responseBody, origin);
   } catch (err) {
     const status = Number(err?.statusCode || 500);
     const message = status >= 500 ? "LLM proxy error" : (err?.message || "invalid request");
