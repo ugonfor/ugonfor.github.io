@@ -598,7 +598,7 @@ button.pg-pressed,
 
 @media print, screen and (max-width: 900px), screen and (max-height: 500px) and (orientation: landscape) {
   .pg-world-stage {
-    --pg-mobile-joystick: clamp(76px, 24vw, 92px);
+    --pg-mobile-joystick: clamp(100px, 30vw, 130px);
     --pg-mobile-action-w: clamp(56px, 17.5vw, 66px);
     --pg-mobile-action-h: clamp(38px, 10.8vw, 44px);
     --pg-mobile-control-gap: clamp(4px, 1.6vw, 7px);
@@ -960,6 +960,27 @@ button.pg-pressed,
 }
 .pg-name-modal-box button:hover {
   background: #3a7bc8;
+}
+.pg-name-lang-select {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.pg-name-lang-select button {
+  flex: 1;
+  padding: 8px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: #f8f8f8;
+  color: #333;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pg-name-lang-select button.active {
+  border-color: #4a90d9;
+  background: #e8f0ff;
+  color: #2a6ab8;
 }
 
 
