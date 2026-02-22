@@ -453,7 +453,7 @@ function buildPrompt(payload) {
     "월드 컨텍스트:",
     `- 시간: ${worldContext.time || "unknown"}`,
     `- 근처 인물: ${worldContext.nearby || "none"}`,
-    ...(payload.npcNeeds ? [`- 현재 상태: 배고픔 ${payload.npcNeeds.hunger}/100, 에너지 ${payload.npcNeeds.energy}/100, 사교 욕구 ${payload.npcNeeds.social}/100`, "- 상태가 극단적이면 대화에 자연스럽게 반영하세요 (배고프면 음식 언급, 피곤하면 쉬고 싶다 등)"] : []),
+    ...(payload.npcNeeds ? [`- 현재 상태: 배고픔 ${payload.npcNeeds.hunger}/100, 에너지 ${payload.npcNeeds.energy}/100, 사교 ${payload.npcNeeds.social}/100, 즐거움 ${payload.npcNeeds.fun ?? 50}/100, 할일 ${payload.npcNeeds.duty ?? 0}/100`, "- 상태가 극단적이면 대화에 자연스럽게 반영하세요 (배고프면 음식, 피곤하면 쉬고싶다, 심심하면 놀고싶다, 할일 많으면 바쁘다 등)"] : []),
     "",
     "최근 대화:",
     historyText || "(none)",
