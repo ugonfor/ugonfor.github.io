@@ -18,22 +18,6 @@ import { GameRenderer } from './renderer/renderer.js';
     return text;
   }
 
-  // Language toggle
-  const langToggleEl = document.getElementById('pg-lang-toggle');
-  if (langToggleEl) {
-    langToggleEl.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-lang]');
-      if (!btn) return;
-      const lang = btn.dataset.lang;
-      if (lang === currentLang) return;
-      currentLang = lang;
-      localStorage.setItem('playground_lang', lang);
-      langToggleEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
-    });
-    // Set initial active state
-    langToggleEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.lang === currentLang));
-  }
-
   // When 3D mode, create a WebGL canvas behind the 2D HUD canvas
   let canvas3D = null;
   if (USE_3D) {
@@ -964,11 +948,6 @@ import { GameRenderer } from './renderer/renderer.js';
       localStorage.setItem(PLAYER_NAME_KEY, player.name);
       localStorage.setItem("playground_lang", currentLang);
     } catch { /* ignore */ }
-    // 언어 토글 UI 동기화
-    const langToggleEl = document.getElementById("pg-lang-toggle");
-    if (langToggleEl) {
-      langToggleEl.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.lang === currentLang));
-    }
   }
 
   async function changePlayerName() {
