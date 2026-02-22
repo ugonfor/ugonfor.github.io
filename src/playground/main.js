@@ -3374,12 +3374,34 @@ import { GameRenderer } from './renderer/renderer.js';
           upsertSpeechBubble(npc.id, streamBubbleText, 6000);
         });
         reply = (streamingDraft && streamingDraft.text()) || llm.reply;
-        if (streamingDraft) streamingDraft.done();
-        if (llm.suggestions && llm.suggestions.length) serverSuggestions = llm.suggestions;
-        serverEmotion = llm.emotion || "neutral";
-        serverFarewell = !!llm.farewell;
-        serverAction = llm.action || { type: "none", target: "" };
-        serverMention = llm.mention || { npc: null, place: null };
+        // 스트리밍 reply가 JSON이면 파싱 (Gemma 폴백 시)
+        if (reply) {
+          let streamParsed = null;
+          try { streamParsed = JSON.parse(reply); } catch { /* */ }
+          if (!streamParsed) {
+            const braceMatch = reply.match(/\{[\s\S]*\}/);
+            if (braceMatch) try { streamParsed = JSON.parse(braceMatch[0]); } catch { /* */ }
+          }
+          if (streamParsed && streamParsed.reply) {
+            reply = String(streamParsed.reply);
+            if (Array.isArray(streamParsed.suggestions)) serverSuggestions = streamParsed.suggestions;
+            if (streamParsed.emotion) serverEmotion = streamParsed.emotion;
+            if (streamParsed.farewell) serverFarewell = true;
+            if (streamParsed.action) serverAction = streamParsed.action;
+            if (streamParsed.mention) serverMention = streamParsed.mention;
+            // 채팅 기록을 깨끗한 텍스트로 교체
+            if (streamingDraft) {
+              streamingDraft.remove();
+              streamedRendered = false;
+            }
+          }
+        }
+        if (streamingDraft && streamedRendered) streamingDraft.done();
+        if (llm.suggestions && llm.suggestions.length && !serverSuggestions.length) serverSuggestions = llm.suggestions;
+        if (!serverEmotion || serverEmotion === "neutral") serverEmotion = llm.emotion || "neutral";
+        if (!serverFarewell) serverFarewell = !!llm.farewell;
+        if (!serverAction || serverAction.type === "none") serverAction = llm.action || { type: "none", target: "" };
+        if (!serverMention) serverMention = llm.mention || { npc: null, place: null };
         lastLlmModel = llm.model || "gemini";
         if (!llmAvailable) addLog(t("log_llm_restored"));
         llmAvailable = true;
