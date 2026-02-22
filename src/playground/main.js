@@ -3294,17 +3294,29 @@ import { GameRenderer } from './renderer/renderer.js';
       npc.following = false;
       addLog(`${npc.name}이(가) 동행을 멈춥니다.`);
     }
-    const guideMatch = cleanReply.match(/\[안내:(\w+)\]/);
-    if (guideMatch) {
-      cleanReply = cleanReply.replace(/\s*\[안내:\w+\]\s*/, "").trim();
-      const dest = places[guideMatch[1]];
-      if (dest) {
-        // NPC가 목적지로 먼저 걸어감 + 플레이어 자동 따라가기
+    // [안내:장소] 또는 [안내:npc:id] 태그 파싱
+    const guideNpcMatch = cleanReply.match(/\[안내:npc:(\w+)\]/);
+    const guidePlaceMatch = cleanReply.match(/\[안내:(\w+)\]/);
+    if (guideNpcMatch) {
+      cleanReply = cleanReply.replace(/\s*\[안내:npc:\w+\]\s*/, "").trim();
+      const targetNpc = npcs.find(n => n.id === guideNpcMatch[1]);
+      if (targetNpc) {
+        // NPC를 추적하며 안내 — followTarget에 NPC id 저장
         npc.following = false;
+        npc.guideTargetNpcId = targetNpc.id;
+        npc.roamWait = 0;
+        addLog(`${npc.name}이(가) ${targetNpc.name}에게 안내합니다.`);
+      }
+    } else if (guidePlaceMatch && !guideNpcMatch) {
+      cleanReply = cleanReply.replace(/\s*\[안내:\w+\]\s*/, "").trim();
+      const dest = places[guidePlaceMatch[1]];
+      if (dest) {
+        npc.following = false;
+        npc.guideTargetNpcId = null;
         npc.roamTarget = { x: dest.x, y: dest.y };
         npc.roamWait = 0;
-        player.moveTarget = { x: dest.x, y: dest.y + 1 }; // NPC 약간 뒤를 따라감
-        addLog(`${npc.name}이(가) ${guideMatch[1]}(으)로 안내합니다.`);
+        player.moveTarget = { x: dest.x, y: dest.y + 1 };
+        addLog(`${npc.name}이(가) ${guidePlaceMatch[1]}(으)로 안내합니다.`);
       }
     }
 
@@ -3749,6 +3761,35 @@ import { GameRenderer } from './renderer/renderer.js';
           if (canStand(fnx, fny)) { npc.x = fnx; npc.y = fny; npc.state = "moving"; npc.pose = "standing"; }
         } else {
           npc.state = "idle";
+        }
+        continue;
+      }
+
+      // NPC 안내 모드: 대상 NPC를 추적하며 앞서 걸어감
+      if (npc.guideTargetNpcId) {
+        const targetNpc = npcs.find(n => n.id === npc.guideTargetNpcId);
+        if (!targetNpc || dist(npc, targetNpc) < 2) {
+          // 도착 또는 대상 없음 → 안내 종료
+          npc.guideTargetNpcId = null;
+          if (targetNpc) {
+            upsertSpeechBubble(npc.id, `여기 ${targetNpc.name}이(가) 있어요!`, 3000);
+            addChat(npc.name, `여기 ${targetNpc.name}이(가) 있어요!`);
+          }
+          npc.state = "idle";
+        } else {
+          // 대상 NPC를 향해 이동
+          npc.roamTarget = { x: targetNpc.x, y: targetNpc.y };
+          // 플레이어도 따라오게
+          if (dist(player, npc) > 4) {
+            player.moveTarget = { x: npc.x, y: npc.y };
+          }
+          const gd = dist(npc, targetNpc);
+          const gdx = targetNpc.x - npc.x;
+          const gdy = targetNpc.y - npc.y;
+          const gdd = Math.hypot(gdx, gdy);
+          const gnx = npc.x + (gdx / gdd) * npc.speed * dt;
+          const gny = npc.y + (gdy / gdd) * npc.speed * dt;
+          if (canStand(gnx, gny)) { npc.x = gnx; npc.y = gny; npc.state = "moving"; npc.pose = "standing"; }
         }
         continue;
       }
