@@ -3360,100 +3360,30 @@ import { GameRenderer } from './renderer/renderer.js';
     let serverFarewell = false;
     let serverAction = { type: "none", target: "" };
     let serverMention = { npc: null, place: null };
-    let streamingDraft = null;
-    let streamedRendered = false;
+
+    // 응답 대기 중 . . . 표시
+    upsertSpeechBubble(npc.id, ". . .", 15000);
+    addNpcChat(npc.id, npc.name, ". . .");
+    const waitingChatIdx = getNpcChats(npc.id).findIndex(c => c.text === ". . .");
+
     try {
-      if (LLM_STREAM_API_URL) {
-        streamedRendered = true;
-        streamingDraft = startStreamingChat(npc.id, npc.name);
-        let streamBubbleText = "";
-        const llm = await requestLlmNpcReplyStream(npc, msg, (chunk) => {
-          if (streamingDraft) streamingDraft.append(chunk);
-          streamBubbleText += chunk;
-          // 스트리밍 중 말풍선 실시간 갱신
-          upsertSpeechBubble(npc.id, streamBubbleText, 6000);
-        });
-        reply = (streamingDraft && streamingDraft.text()) || llm.reply;
-        // 스트리밍 reply가 JSON이면 파싱 (Gemma 폴백 시)
-        if (reply) {
-          let streamParsed = null;
-          try { streamParsed = JSON.parse(reply); } catch { /* */ }
-          if (!streamParsed) {
-            const braceMatch = reply.match(/\{[\s\S]*\}/);
-            if (braceMatch) try { streamParsed = JSON.parse(braceMatch[0]); } catch { /* */ }
-          }
-          if (streamParsed && streamParsed.reply) {
-            reply = String(streamParsed.reply);
-            if (Array.isArray(streamParsed.suggestions)) serverSuggestions = streamParsed.suggestions;
-            if (streamParsed.emotion) serverEmotion = streamParsed.emotion;
-            if (streamParsed.farewell) serverFarewell = true;
-            if (streamParsed.action) serverAction = streamParsed.action;
-            if (streamParsed.mention) serverMention = streamParsed.mention;
-            // 채팅 기록을 깨끗한 텍스트로 교체
-            if (streamingDraft) {
-              streamingDraft.remove();
-              streamedRendered = false;
-            }
-          }
-        }
-        if (streamingDraft && streamedRendered) streamingDraft.done();
-        if (llm.suggestions && llm.suggestions.length && !serverSuggestions.length) serverSuggestions = llm.suggestions;
-        if (!serverEmotion || serverEmotion === "neutral") serverEmotion = llm.emotion || "neutral";
-        if (!serverFarewell) serverFarewell = !!llm.farewell;
-        if (!serverAction || serverAction.type === "none") serverAction = llm.action || { type: "none", target: "" };
-        if (!serverMention) serverMention = llm.mention || { npc: null, place: null };
-        lastLlmModel = llm.model || "gemini";
-        if (!llmAvailable) addLog(t("log_llm_restored"));
-        llmAvailable = true;
-        lastLlmError = "";
-      } else {
-        const llm = await requestLlmNpcReply(npc, msg);
-        reply = llm.reply;
-        if (llm.suggestions && llm.suggestions.length) serverSuggestions = llm.suggestions;
-        serverEmotion = llm.emotion || "neutral";
-        serverFarewell = !!llm.farewell;
-        serverAction = llm.action || { type: "none", target: "" };
-        serverMention = llm.mention || { npc: null, place: null };
-        lastLlmModel = llm.model || "gemini";
-        if (!llmAvailable) addLog(t("log_llm_restored"));
-        llmAvailable = true;
-        lastLlmError = "";
-      }
+      const llm = await requestLlmNpcReply(npc, msg);
+      reply = llm.reply;
+      if (llm.suggestions && llm.suggestions.length) serverSuggestions = llm.suggestions;
+      serverEmotion = llm.emotion || "neutral";
+      serverFarewell = !!llm.farewell;
+      serverAction = llm.action || { type: "none", target: "" };
+      serverMention = llm.mention || { npc: null, place: null };
+      lastLlmModel = llm.model || "gemini";
+      if (!llmAvailable) addLog(t("log_llm_restored"));
+      llmAvailable = true;
+      lastLlmError = "";
     } catch (err) {
-      const hadStreamText = streamingDraft && !streamingDraft.empty();
-      if (streamingDraft) {
-        if (hadStreamText) streamingDraft.done();
-        else {
-          streamingDraft.remove();
-          streamedRendered = false;
-        }
-      }
-      if (hadStreamText) {
-        llmAvailable = false;
-        lastLlmModel = "local";
-        lastLlmError = err && err.message ? String(err.message) : "unknown";
-        addChat("System", t("sys_stream_partial"));
-      } else {
-        try {
-          const llm = await requestLlmNpcReply(npc, msg);
-          reply = llm.reply;
-          if (llm.suggestions && llm.suggestions.length) serverSuggestions = llm.suggestions;
-          serverEmotion = llm.emotion || "neutral";
-          serverFarewell = !!llm.farewell;
-          serverAction = llm.action || { type: "none", target: "" };
-          serverMention = llm.mention || { npc: null, place: null };
-          lastLlmModel = llm.model || "gemini";
-          if (!llmAvailable) addLog(t("log_llm_restored"));
-          llmAvailable = true;
-          lastLlmError = "";
-        } catch (err2) {
-          if (llmAvailable) addLog(t("log_llm_fallback"));
-          llmAvailable = false;
-          lastLlmModel = "local";
-          lastLlmError = (err2 && err2.message ? String(err2.message) : "") || (err && err.message ? String(err.message) : "unknown");
-          reply = t("sys_llm_lost");
-        }
-      }
+      if (llmAvailable) addLog(t("log_llm_fallback"));
+      llmAvailable = false;
+      lastLlmModel = "local";
+      lastLlmError = err && err.message ? String(err.message) : "unknown";
+      reply = t("sys_llm_lost");
     } finally {
       if (chatSendEl) chatSendEl.disabled = false;
       if (chatInputEl) chatInputEl.disabled = false;
@@ -3588,16 +3518,20 @@ import { GameRenderer } from './renderer/renderer.js';
 
     // 선택지: structured output > 태그 파싱 > 키워드 폴백
     let llmSuggestions = serverSuggestions.length ? serverSuggestions : null;
-    if (!llmSuggestions && streamedRendered) {
-      const sugMatch = cleanReply.match(/\[선택지:([^\]]+)\]/);
-      if (sugMatch) {
-        cleanReply = cleanReply.replace(/\s*\[선택지:[^\]]+\]\s*/, "").trim();
-        llmSuggestions = sugMatch[1].split("|").map(s => s.trim()).filter(Boolean);
-      }
-    }
 
-    if (cleanReply && !streamedRendered) addNpcChat(npc.id, npc.name, cleanReply);
-    if (cleanReply) upsertSpeechBubble(npc.id, cleanReply, 4000);
+    // ". . ." 대기 채팅을 실제 응답으로 교체
+    if (cleanReply) {
+      const history = getNpcChats(npc.id);
+      const waitIdx = history.findIndex(c => c.text === ". . .");
+      if (waitIdx >= 0) {
+        history[waitIdx].text = cleanReply;
+        history[waitIdx].speaker = npc.name;
+        renderCurrentChat();
+      } else {
+        addNpcChat(npc.id, npc.name, cleanReply);
+      }
+      upsertSpeechBubble(npc.id, cleanReply, 4000);
+    }
     // 대화 후 추천 선택지 갱신 (structured output > 태그 > 키워드 폴백)
     if (cleanReply) renderSuggestions(npc, cleanReply, llmSuggestions);
 
