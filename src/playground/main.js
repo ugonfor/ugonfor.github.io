@@ -1531,25 +1531,30 @@ import { GameRenderer } from './renderer/renderer.js';
   }
 
   function roadTile(x, y) {
-    // Central Boulevard (north-south)
-    if (Math.abs(x - 25) <= 1.5 && y >= 5 && y <= 55) return true;
-    // Main Cross Street (east-west)
-    if (Math.abs(y - 25) <= 1.2 && x >= 8 && x <= 55) return true;
-    // Northern Alley (commercial)
-    if (Math.abs(y - 12) <= 0.8 && x >= 23 && x <= 45) return true;
-    // Southern Alley (residential)
-    if (Math.abs(y - 35) <= 0.8 && x >= 8 && x <= 50) return true;
-    // Market alley
-    if (Math.abs(y - 45) <= 0.8 && x >= 15 && x <= 40) return true;
-    // KSA connector
-    if (Math.abs(x - 42) <= 0.8 && y >= 12 && y <= 20) return true;
+    // Boulevard (north-south, 3 tiles wide)
+    if (x >= 29 && x <= 31 && y >= 3 && y <= 77) return true;
+    // Park south path
+    if (y >= 13.5 && y <= 14.5 && x >= 8 && x <= 52) return true;
+    // Commercial row 1 connector
+    if (y >= 17.5 && y <= 18.5 && x >= 8 && x <= 52) return true;
+    // Plaza paths
+    if (y >= 24.5 && y <= 25.5 && x >= 12 && x <= 48) return true;
+    // Commercial row 2 connector
+    if (y >= 34.5 && y <= 35.5 && x >= 8 && x <= 52) return true;
+    // Bridge over river
+    if (x >= 28 && x <= 32 && y >= 44 && y <= 46) return true;
     return false;
   }
 
   function waterTile(x, y) {
-    if (y < 4 || y > world.height - 3) return false;
-    const riverCenter = 4.0 + Math.sin(y * 0.34) * 1.2 + Math.sin(y * 0.12 + 0.5) * 0.6;
-    return x < riverCenter;
+    // East-west river with slight curve
+    const riverCenter = 45 + Math.sin(x * 0.15) * 0.8;
+    if (Math.abs(y - riverCenter) < 1.2) {
+      // Bridge gap
+      if (x >= 28 && x <= 32) return false;
+      return x >= 2 && x <= 58;
+    }
+    return false;
   }
 
   function inBuilding(x, y) {
