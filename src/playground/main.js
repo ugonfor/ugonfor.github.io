@@ -3372,10 +3372,18 @@ import { GameRenderer } from './renderer/renderer.js';
       }
     }
 
+    // [선택지:a|b|c] 태그 파싱
+    let llmSuggestions = null;
+    const sugMatch = cleanReply.match(/\[선택지:([^\]]+)\]/);
+    if (sugMatch) {
+      cleanReply = cleanReply.replace(/\s*\[선택지:[^\]]+\]\s*/, "").trim();
+      llmSuggestions = sugMatch[1].split("|").map(s => s.trim()).filter(Boolean);
+    }
+
     if (cleanReply && !streamedRendered) addNpcChat(npc.id, npc.name, cleanReply);
     if (cleanReply) upsertSpeechBubble(npc.id, cleanReply, 4000);
-    // 대화 후 추천 선택지 갱신
-    if (cleanReply) renderSuggestions(npc, cleanReply);
+    // 대화 후 추천 선택지 갱신 (LLM 생성 or 키워드 기반 폴백)
+    if (cleanReply) renderSuggestions(npc, cleanReply, llmSuggestions);
 
     if (cleanReply) {
       applyConversationEffect(npc, msg, cleanReply);
@@ -3403,7 +3411,7 @@ import { GameRenderer } from './renderer/renderer.js';
   }
 
   // 대화 추천 선택지 (맥락에 따라 동적 변경)
-  function renderSuggestions(npc, lastReply) {
+  function renderSuggestions(npc, lastReply, llmSuggestions) {
     if (!chatSuggestionsEl) return;
     chatSuggestionsEl.dataset.npcId = npc.id;
     const persona = npcPersonas[npc.id];
@@ -3411,12 +3419,15 @@ import { GameRenderer } from './renderer/renderer.js';
     const friendly = npc.favorLevel >= 2;
     let suggestions;
 
-    if (lastReply) {
-      // 대화 후 — NPC 응답에 맞는 후속 선택지
+    if (llmSuggestions && llmSuggestions.length >= 2) {
+      // LLM이 생성한 선택지 우선 사용
+      suggestions = llmSuggestions.slice(0, 3);
+    } else if (lastReply) {
+      // 폴백: 키워드 기반 후속 선택지
       const r = lastReply;
-      if (/(먹|음식|빵|커피|카페|배고|맛)/.test(r)) {
+      if (/(먹|음식|빵|커피|카페|배고|맛|food|eat|cafe|hungry)/.test(r)) {
         suggestions = [t("suggest_food_1"), t("suggest_food_2"), t("suggest_bye")];
-      } else if (/(누구|사람|주민|친구|이름)/.test(r)) {
+      } else if (/(누구|사람|주민|친구|이름|who|name|friend)/.test(r)) {
         suggestions = [t("suggest_people_1"), t("suggest_people_2"), t("suggest_bye")];
       } else if (/(어디|장소|안내|가자|따라)/.test(r)) {
         suggestions = [t("suggest_place_1"), t("suggest_place_2"), t("suggest_bye")];
