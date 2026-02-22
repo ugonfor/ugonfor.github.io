@@ -449,14 +449,12 @@ function buildPromptKo(payload) {
     "- 플레이어를 다른 NPC에게 안내할 때: [안내:npc:id] (예: '승준이한테 데려다줄게! [안내:npc:heo]')",
     "- NPC id: heo(허승준), kim(김민수), choi(최민영), jung(정욱진), seo(서창근), lee(이진원), park(박지호), jang(장동우), yoo(유효곤), baker(한소영), guide(유진)",
     "",
-    "**필수** 후속 선택지 (반드시 포함):",
-    "- 모든 답변의 맨 마지막에 반드시 [선택지:a|b|c] 태그를 붙이세요. 빠뜨리지 마세요!",
-    "- 형식: [선택지:옵션1|옵션2|옵션3]",
-    "- 예시: '카페가 참 좋아! [선택지:어떤 메뉴가 맛있어?|같이 가자!|다음에 보자]'",
-    "- 예시: '이 마을에 오래된 분수가 있는데... [선택지:더 알려줘!|그 분수 어디 있어?|신기하다]'",
+    "후속 선택지:",
+    "- 응답에 플레이어가 다음에 할 수 있는 말 3가지를 포함하세요.",
     "- 선택지는 방금 한 이야기의 자연스러운 후속 질문/반응이어야 합니다.",
-    "- 매번 다른 선택지를 만드세요. 이전과 같은 선택지를 반복하지 마세요.",
-    "- 마지막 선택지는 대화를 끝낼 수 있는 것으로 (예: '다음에 보자', '고마워', '잘 가')",
+    "- 매번 다른 선택지를 만드세요.",
+    "- 마지막 선택지는 대화를 끝낼 수 있는 것으로.",
+    "- (JSON structured output으로 자동 분리됩니다)",
     "",
     "대화 마무리:",
     "- 대화가 자연스럽게 끝났다고 느끼면 작별 인사를 하세요.",
@@ -566,14 +564,12 @@ function buildPromptEn(payload) {
     "- When guiding the player to another NPC: [안내:npc:id] (e.g., 'I'll take you to Seungjun! [안내:npc:heo]')",
     "- NPC ids: heo(허승준), kim(김민수), choi(최민영), jung(정욱진), seo(서창근), lee(이진원), park(박지호), jang(장동우), yoo(유효곤), baker(한소영), guide(유진)",
     "",
-    "**REQUIRED** Follow-up choices (must include):",
-    "- You MUST add a [선택지:a|b|c] tag at the very end of every reply. Never skip this!",
-    "- Format: [선택지:option1|option2|option3]",
-    "- Example: 'The cafe is great! [선택지:What's good here?|Let's go together!|See you later]'",
-    "- Example: 'There's an old fountain in this village... [선택지:Tell me more!|Where is it?|That's cool]'",
+    "Follow-up choices:",
+    "- Include 3 things the player could say next.",
     "- Choices should be natural follow-ups to what you just said.",
-    "- Make different choices each time. Don't repeat the same options.",
-    "- The last choice should let the player end the conversation (e.g. 'See you later', 'Thanks')",
+    "- Make different choices each time.",
+    "- The last choice should let the player end the conversation.",
+    "- (JSON structured output handles separation automatically)",
     "",
     "Ending conversations:",
     "- When the conversation feels like it's naturally ending, say goodbye.",
@@ -622,18 +618,38 @@ function buildAuditBase(req, endpoint, requestId, payload, prompt, startedAtMs) 
   };
 }
 
-async function callGemini(prompt) {
+const STRUCTURED_SCHEMA = {
+  type: "object",
+  properties: {
+    reply: { type: "string", description: "NPC의 대화 응답" },
+    suggestions: {
+      type: "array",
+      items: { type: "string" },
+      description: "플레이어의 후속 선택지 3개",
+    },
+    tags: { type: "string", description: "시스템 태그 (예: [동행], [부탁:bring_item:coffee], [안내:cafe]). 없으면 빈 문자열." },
+  },
+  required: ["reply", "suggestions"],
+};
+
+async function callGemini(prompt, useStructured = false) {
   if (!API_KEY) {
     throw new Error("GOOGLE_API_KEY is not set");
   }
 
   if (!MODEL_CHAIN.length) throw new Error("MODEL_CHAIN is empty");
 
+  const genConfig = {
+    temperature: 0.8,
+    maxOutputTokens: 256,
+  };
+  if (useStructured) {
+    genConfig.responseMimeType = "application/json";
+    genConfig.responseSchema = STRUCTURED_SCHEMA;
+  }
+
   const payload = {
-    generationConfig: {
-      temperature: 0.8,
-      maxOutputTokens: 180,
-    },
+    generationConfig: genConfig,
     contents: [
       {
         role: "user",
@@ -664,8 +680,20 @@ async function callGemini(prompt) {
     }
 
     if (response.ok) {
-      const reply = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || "").join("").trim();
-      if (reply) return { reply, model };
+      const rawText = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || "").join("").trim();
+      if (rawText) {
+        // Structured output → JSON 파싱 시도
+        if (useStructured) {
+          try {
+            const parsed = JSON.parse(rawText);
+            if (parsed.reply) {
+              const fullReply = parsed.tags ? `${parsed.reply} ${parsed.tags}` : parsed.reply;
+              return { reply: fullReply, model, suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [] };
+            }
+          } catch { /* JSON 파싱 실패 → 일반 텍스트로 폴백 */ }
+        }
+        return { reply: rawText, model };
+      }
       errors.push(`${model}: empty reply`);
       continue;
     }
@@ -1037,9 +1065,10 @@ const server = createServer(async (req, res) => {
       return writeJson(res, 400, { error: "userMessage and npcName are required" }, origin);
     }
     prompt = buildPrompt(payload);
-    const result = await callGemini(prompt);
+    const result = await callGemini(prompt, true);
     reply = result.reply;
     model = result.model;
+    const suggestions = result.suggestions || [];
     const auditRecord = {
       ...buildAuditBase(req, "/api/npc-chat", requestId, payload, prompt, startedAtMs),
       response: {
@@ -1061,7 +1090,7 @@ const server = createServer(async (req, res) => {
         return writeJson(res, 503, { error: "audit logging unavailable", requestId }, origin);
       }
     }
-    return writeJson(res, 200, { reply, model, requestId }, origin);
+    return writeJson(res, 200, { reply, model, requestId, suggestions }, origin);
   } catch (err) {
     const status = Number(err?.statusCode || 500);
     const message = status >= 500 ? "LLM proxy error" : (err?.message || "invalid request");

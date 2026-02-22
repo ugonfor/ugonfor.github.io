@@ -3019,7 +3019,8 @@ import { GameRenderer } from './renderer/renderer.js';
       const reply = (data && typeof data.reply === "string" && data.reply.trim()) || "";
       if (!reply) throw new Error("Empty LLM reply");
       const model = (data && typeof data.model === "string" && data.model.trim()) || "gemini";
-      return { reply, model };
+      const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+      return { reply, model, suggestions };
     } finally {
       clearTimeout(timeout);
     }
@@ -3236,6 +3237,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (chatSendEl) chatSendEl.disabled = true;
     if (chatInputEl) chatInputEl.disabled = true;
     let reply = "";
+    let serverSuggestions = [];
     let streamingDraft = null;
     let streamedRendered = false;
     try {
@@ -3258,6 +3260,7 @@ import { GameRenderer } from './renderer/renderer.js';
       } else {
         const llm = await requestLlmNpcReply(npc, msg);
         reply = llm.reply;
+        if (llm.suggestions && llm.suggestions.length) serverSuggestions = llm.suggestions;
         lastLlmModel = llm.model || "gemini";
         if (!llmAvailable) addLog("LLM 연결이 복구되었습니다.");
         llmAvailable = true;
@@ -3372,17 +3375,19 @@ import { GameRenderer } from './renderer/renderer.js';
       }
     }
 
-    // [선택지:a|b|c] 태그 파싱
-    let llmSuggestions = null;
-    const sugMatch = cleanReply.match(/\[선택지:([^\]]+)\]/);
-    if (sugMatch) {
-      cleanReply = cleanReply.replace(/\s*\[선택지:[^\]]+\]\s*/, "").trim();
-      llmSuggestions = sugMatch[1].split("|").map(s => s.trim()).filter(Boolean);
+    // [선택지:a|b|c] 태그 파싱 (스트리밍 폴백)
+    let llmSuggestions = serverSuggestions.length ? serverSuggestions : null;
+    if (!llmSuggestions) {
+      const sugMatch = cleanReply.match(/\[선택지:([^\]]+)\]/);
+      if (sugMatch) {
+        cleanReply = cleanReply.replace(/\s*\[선택지:[^\]]+\]\s*/, "").trim();
+        llmSuggestions = sugMatch[1].split("|").map(s => s.trim()).filter(Boolean);
+      }
     }
 
     if (cleanReply && !streamedRendered) addNpcChat(npc.id, npc.name, cleanReply);
     if (cleanReply) upsertSpeechBubble(npc.id, cleanReply, 4000);
-    // 대화 후 추천 선택지 갱신 (LLM 생성 or 키워드 기반 폴백)
+    // 대화 후 추천 선택지 갱신 (structured output > 태그 > 키워드 폴백)
     if (cleanReply) renderSuggestions(npc, cleanReply, llmSuggestions);
 
     if (cleanReply) {
