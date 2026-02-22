@@ -216,7 +216,7 @@ import { GameRenderer } from './renderer/renderer.js';
   };
 
   const player = {
-    name: "플레이어",
+    name: t("default_player_name"),
     flag: "",
     x: 20,
     y: 25,
@@ -290,7 +290,7 @@ import { GameRenderer } from './renderer/renderer.js';
   function getNpcMemorySummary(npc) {
     const mem = ensureMemoryFormat(npc);
     if (mem.entries.length === 0) return "";
-    const levelName = favorLevelNames[npc.favorLevel] || "낯선 사이";
+    const levelName = favorLevelNames[npc.favorLevel] || t("relation_stranger");
     const recent = mem.entries.slice(-8);
     const lines = recent.map((e) => {
       if (e.type === "chat") return `[대화] ${e.summary}`;
@@ -447,7 +447,7 @@ import { GameRenderer } from './renderer/renderer.js';
       tagGame.active = false;
       targetNpc.favorPoints += 8;
       addChat("System", t("sys_tag_win", { name: targetNpc.name }));
-      addLog(`술래잡기 승리!`);
+      addLog(t("log_tag_win"));
       return;
     }
 
@@ -457,7 +457,7 @@ import { GameRenderer } from './renderer/renderer.js';
       tagGame.active = false;
       tagGame.caught = true;
       addChat("System", t("sys_tag_lose", { name: targetNpc.name }));
-      addLog("술래잡기 실패...");
+      addLog(t("log_tag_lose"));
       return;
     }
 
@@ -698,8 +698,8 @@ import { GameRenderer } from './renderer/renderer.js';
       }
       discoveryNotifyUntil = now + 4000;
       discoveryNotifyTitle = d.title;
-      addLog(`🔍 발견! "${d.title}" — ${d.desc}`);
-      addChat("System", `✨ 새로운 발견: ${d.title}!`);
+      addLog(t("log_discovery", { title: d.title, desc: d.desc }));
+      addChat("System", t("sys_discovery", { title: d.title }));
     }
   }
 
@@ -723,14 +723,14 @@ import { GameRenderer } from './renderer/renderer.js';
         completeFavor(npc, req);
         return true;
       }
-      addChat(npc.name, `${itemTypes[req.itemNeeded].label}이(가) 필요해요.`);
+      addChat(npc.name, t("favor_need_item", { label: itemTypes[req.itemNeeded].label }));
       return true;
     }
 
     if (req.type === "deliver_to") {
       const target = npcById(req.targetNpcId);
       if (!target) {
-        addChat("System", `대상 NPC가 더 이상 존재하지 않아 요청이 취소됩니다.`);
+        addChat("System", t("sys_favor_cancel"));
         npc.activeRequest = null;
         return true;
       }
@@ -771,7 +771,7 @@ import { GameRenderer } from './renderer/renderer.js';
       addNpcMemory(npc, "favor", `관계가 '${favorLevelNames[npc.favorLevel]}'(으)로 발전`);
     }
 
-    addChat("System", `✅ '${req.title}' 완료! (호감도 +${req.reward.favorPoints})`);
+    addChat("System", t("favor_complete", { title: req.title, points: req.reward.favorPoints }));
   }
 
   function itemRespawnMs(gi) {
@@ -795,12 +795,12 @@ import { GameRenderer } from './renderer/renderer.js';
     if (s !== lastSeasonAnnounced) {
       lastSeasonAnnounced = s;
       const effects = {
-        "봄": "🌸 봄이 왔습니다! 꽃이 더 자주 피어납니다.",
-        "여름": "☀️ 여름입니다! NPC들이 활발하게 활동합니다.",
-        "가을": "🍂 가을입니다! 시장에 특별 상품이 등장합니다.",
-        "겨울": "❄️ 겨울입니다! NPC들이 실내에 머무르는 시간이 늘어납니다.",
+        "봄": t("season_spring"),
+        "여름": t("season_summer"),
+        "가을": t("season_fall"),
+        "겨울": t("season_winter"),
       };
-      addChat("System", effects[s] || `계절이 ${s}(으)로 바뀌었습니다.`);
+      addChat("System", effects[s] || t("season_change", { season: s }));
     }
   }
 
@@ -829,14 +829,14 @@ import { GameRenderer } from './renderer/renderer.js';
     amount = Math.round(amount * 1);
     inventory[gi.type] = (inventory[gi.type] || 0) + amount;
     const info = itemTypes[gi.type];
-    addChat("System", `${info.emoji} ${info.label}을(를) 주웠습니다!${amount > 1 ? ` (x${amount})` : ""} (보유: ${inventory[gi.type]})`);
+    addChat("System", t("sys_item_pickup", { emoji: info.emoji, label: info.label, extra: amount > 1 ? ` (x${amount})` : "", count: inventory[gi.type] }));
     return true;
   }
 
   function giftItemToNpc(npc) {
     const giftable = Object.entries(inventory).filter(([, count]) => count > 0);
     if (giftable.length === 0) {
-      addChat("System", "선물할 아이템이 없습니다. 바닥에서 아이템을 주워보세요.");
+      addChat("System", t("sys_no_gift_item"));
       return false;
     }
     const [type] = giftable[Math.floor(Math.random() * giftable.length)];
@@ -848,9 +848,9 @@ import { GameRenderer } from './renderer/renderer.js';
     npc.mood = "happy";
     npc.moodUntil = nowMs() + 30_000;
     const reactions = [
-      `와, ${info.label}! 정말 고마워!`,
-      `${info.label}을(를) 받다니 감동이야!`,
-      `이거 내가 좋아하는 건데! 고마워!`,
+      t("gift_react_1", { label: info.label }),
+      t("gift_react_2", { label: info.label }),
+      t("gift_react_3"),
     ];
     addChat(npc.name, reactions[Math.floor(Math.random() * reactions.length)]);
     addNpcMemory(npc, "gift", `${info.label}을(를) 선물 받음`, { item: type });
@@ -866,7 +866,7 @@ import { GameRenderer } from './renderer/renderer.js';
         parts.push(`${info.emoji}${count}`);
       }
     }
-    return parts.length > 0 ? parts.join(" ") : "없음";
+    return parts.length > 0 ? parts.join(" ") : t("inv_empty");
   }
 
 
@@ -911,7 +911,7 @@ import { GameRenderer } from './renderer/renderer.js';
       const langKoBtn = document.getElementById("pg-name-lang-ko");
       const langEnBtn = document.getElementById("pg-name-lang-en");
       if (!modal || !nameInput || !confirmBtn) {
-        resolve({ name: defaultName || "플레이어", lang: currentLang });
+        resolve({ name: defaultName || t("default_player_name"), lang: currentLang });
         return;
       }
       nameInput.value = defaultName || "";
@@ -975,7 +975,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (next === player.name) return;
     player.name = next;
     try { localStorage.setItem(PLAYER_NAME_KEY, player.name); } catch { /* ignore */ }
-    addLog(`플레이어 이름이 '${player.flag ? player.flag + " " : ""}${player.name}'(으)로 변경되었습니다.`);
+    addLog(t("log_name_changed", { name: (player.flag ? player.flag + " " : "") + player.name }));
   }
 
   function toggleMobileChatMode() {
@@ -992,7 +992,7 @@ import { GameRenderer } from './renderer/renderer.js';
       return;
     }
     if (!npcNear) {
-      addChat("System", "근처 NPC가 없습니다. 먼저 NPC 옆으로 이동해 주세요.");
+      addChat("System", t("sys_no_npc_near_chat"));
       return;
     }
 
@@ -1086,9 +1086,9 @@ import { GameRenderer } from './renderer/renderer.js';
   function createCustomNpc(nameRaw, personalityRaw) {
     const name = String(nameRaw || "").trim();
     const personality = String(personalityRaw || "").trim() || inferPersonalityFromName(name);
-    if (!name) return { ok: false, reason: "이름을 입력해 주세요." };
-    if (npcs.some((n) => n.name === name)) return { ok: false, reason: "이미 있는 이름입니다." };
-    if (npcs.length >= 48) return { ok: false, reason: "월드 내 NPC가 너무 많습니다." };
+    if (!name) return { ok: false, reason: t("npc_err_no_name") };
+    if (npcs.some((n) => n.name === name)) return { ok: false, reason: t("npc_err_dup_name") };
+    if (npcs.length >= 48) return { ok: false, reason: t("npc_err_too_many") };
 
     const id = `custom_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e5).toString(36)}`;
     const home = { x: clamp(player.x + (Math.random() * 2 - 1) * 1.5, 2, world.width - 2), y: clamp(player.y + (Math.random() * 2 - 1) * 1.5, 2, world.height - 2) };
@@ -1104,9 +1104,9 @@ import { GameRenderer } from './renderer/renderer.js';
 
   function removeNpc(nameOrId) {
     const query = String(nameOrId || "").trim();
-    if (!query) return { ok: false, reason: "제거할 NPC 이름을 입력해 주세요." };
+    if (!query) return { ok: false, reason: t("npc_err_no_query") };
     const idx = npcs.findIndex((n) => n.name === query || n.id === query);
-    if (idx === -1) return { ok: false, reason: `'${query}' NPC를 찾을 수 없습니다.` };
+    if (idx === -1) return { ok: false, reason: t("npc_err_not_found", { query }) };
     const npc = npcs[idx];
     npcs.splice(idx, 1);
     removedNpcIds.add(npc.id);
@@ -1159,9 +1159,9 @@ import { GameRenderer } from './renderer/renderer.js';
           added += 1;
         }
       }
-      if (added > 0) addLog(`공유 NPC ${added}명이 월드에 반영되었습니다.`);
+      if (added > 0) addLog(t("log_shared_npc_sync", { count: added }));
     } catch (err) {
-      addLog("공유 NPC 동기화에 실패했습니다.");
+      addLog(t("log_shared_npc_fail"));
     }
   }
 
@@ -1208,7 +1208,7 @@ import { GameRenderer } from './renderer/renderer.js';
     stageEl.classList.toggle("pg-mobile-status-collapsed", mobile && mobileStatusCollapsed);
     stageEl.classList.toggle("pg-mobile-log-collapsed", mobile && mobileLogCollapsed);
     if (mobileSheetToggleBtn) {
-      mobileSheetToggleBtn.textContent = mobileSheetOpen ? "패널 닫기" : "패널 열기";
+      mobileSheetToggleBtn.textContent = mobileSheetOpen ? t("mobile_panel_close") : t("mobile_panel_open");
       mobileSheetToggleBtn.setAttribute("aria-expanded", mobileSheetOpen ? "true" : "false");
     }
     if (chatCloseBtn) {
@@ -1220,12 +1220,12 @@ import { GameRenderer } from './renderer/renderer.js';
     }
     if (statusToggleBtn) {
       statusToggleBtn.hidden = !mobile;
-      statusToggleBtn.textContent = mobileStatusCollapsed ? "펼치기" : "접기";
+      statusToggleBtn.textContent = mobileStatusCollapsed ? t("mobile_expand") : t("mobile_collapse");
       statusToggleBtn.setAttribute("aria-expanded", mobileStatusCollapsed ? "false" : "true");
     }
     if (logToggleBtn) {
       logToggleBtn.hidden = !mobile;
-      logToggleBtn.textContent = mobileLogCollapsed ? "펼치기" : "접기";
+      logToggleBtn.textContent = mobileLogCollapsed ? t("mobile_expand") : t("mobile_collapse");
       logToggleBtn.setAttribute("aria-expanded", mobileLogCollapsed ? "false" : "true");
     }
     const tabs = [
@@ -1672,7 +1672,7 @@ import { GameRenderer } from './renderer/renderer.js';
     cameraPan.x = 0;
     cameraPan.y = 0;
     const bld = buildings.find(b => b.id === buildingId);
-    addLog(`${bld?.label || buildingId}에 들어왔습니다.`);
+    addLog(t("log_entered_building", { label: bld?.label || buildingId }));
   }
 
   function exitBuilding() {
@@ -1686,7 +1686,7 @@ import { GameRenderer } from './renderer/renderer.js';
       cameraPan.x = sceneState.savedCameraPan.x;
       cameraPan.y = sceneState.savedCameraPan.y;
     }
-    addLog("밖으로 나왔습니다.");
+    addLog(t("log_exited_building"));
   }
 
   function startSceneFade(callback) {
@@ -1754,11 +1754,11 @@ import { GameRenderer } from './renderer/renderer.js';
 
   function refreshAutoWalkButton() {
     if (autoWalkBtn) {
-      autoWalkBtn.textContent = autoWalk.enabled ? "자동산책 끄기" : "자동산책 켜기";
+      autoWalkBtn.textContent = autoWalk.enabled ? t("autowalk_off") : t("autowalk_on");
       autoWalkBtn.setAttribute("aria-pressed", autoWalk.enabled ? "true" : "false");
     }
     if (mobileAutoWalkBtn) {
-      mobileAutoWalkBtn.textContent = autoWalk.enabled ? "산책끄기" : "산책켜기";
+      mobileAutoWalkBtn.textContent = autoWalk.enabled ? t("autowalk_off_short") : t("autowalk_on_short");
       mobileAutoWalkBtn.setAttribute("aria-pressed", autoWalk.enabled ? "true" : "false");
       mobileAutoWalkBtn.classList.toggle("pg-pressed", autoWalk.enabled);
     }
@@ -1778,7 +1778,7 @@ import { GameRenderer } from './renderer/renderer.js';
     } catch {
       // ignore localStorage errors
     }
-    if (!silent) addLog(autoWalk.enabled ? "자동 산책 모드가 켜졌습니다." : "자동 산책 모드가 꺼졌습니다.");
+    if (!silent) addLog(autoWalk.enabled ? t("log_autowalk_on") : t("log_autowalk_off"));
   }
 
   function updateAutoWalk(now) {
@@ -1807,38 +1807,38 @@ import { GameRenderer } from './renderer/renderer.js';
       const questEntries = mem.entries.filter((e) => e.type === "quest");
       if (giftEntries.length > 0) {
         const last = giftEntries[giftEntries.length - 1];
-        memLines.push(`${last.metadata.item ? "그때 받은 선물… 아직 간직하고 있어." : "선물 고마웠어."}`);
+        memLines.push(last.metadata.item ? t("ambient_gift_remember") : t("ambient_gift_thanks"));
       }
       if (questEntries.length > 0) {
-        memLines.push("같이 퀘스트 했던 거 기억나.");
+        memLines.push(t("ambient_quest_memory"));
       }
       if (npc.favorLevel >= 2) {
-        memLines.push("요즘 자주 만나니까 좋다.");
+        memLines.push(t("ambient_meet_often"));
       }
       if (mem.conversationCount >= 5) {
-        memLines.push("우리 이제 꽤 많이 얘기했네.");
+        memLines.push(t("ambient_talked_alot"));
       }
       if (memLines.length > 0) return memLines[Math.floor(Math.random() * memLines.length)];
     }
 
     const bySpecies = {
-      human_a: ["오늘 햇빛 좋다.", "산책 코스 괜찮네."],
-      human_b: ["카페 들를까?", "기분 전환이 되네."],
-      human_c: ["꽃이 많이 폈다.", "바람이 시원하다."],
-      human_d: ["오늘은 천천히 걷자.", "생각 정리하기 좋네."],
-      human_e: ["마켓 쪽이 붐비네.", "여기 분위기 좋다."],
-      human_f: ["길이 꽤 예쁘네.", "잠깐 쉬었다 가자."],
-      human_g: ["오늘도 힘내보자.", "이 동네 마음에 든다."],
-      human_h: ["조용해서 좋네.", "조금 더 걸어볼까."],
-      human_i: ["저녁되면 더 예쁘겠다.", "오늘은 여유롭네."],
+      human_a: [t("ambient_a1"), t("ambient_a2")],
+      human_b: [t("ambient_b1"), t("ambient_b2")],
+      human_c: [t("ambient_c1"), t("ambient_c2")],
+      human_d: [t("ambient_d1"), t("ambient_d2")],
+      human_e: [t("ambient_e1"), t("ambient_e2")],
+      human_f: [t("ambient_f1"), t("ambient_f2")],
+      human_g: [t("ambient_g1"), t("ambient_g2")],
+      human_h: [t("ambient_h1"), t("ambient_h2")],
+      human_i: [t("ambient_i1"), t("ambient_i2")],
     };
-    const fallback = ["안녕!", "오늘 어때?", "산책 중이야.", "여기 분위기 좋다."];
+    const fallback = [t("ambient_fallback_1"), t("ambient_fallback_2"), t("ambient_fallback_3"), t("ambient_fallback_4")];
     const pool = bySpecies[npc.species] || fallback;
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
   function playerFallbackLine() {
-    const lines = ["어디로 갈까?", "산책 좋다.", "다음엔 누구랑 얘기하지?"];
+    const lines = [t("player_line_1"), t("player_line_2"), t("player_line_3")];
     return lines[Math.floor(Math.random() * lines.length)];
   }
 
@@ -1904,9 +1904,9 @@ import { GameRenderer } from './renderer/renderer.js';
   }
 
   // 분위기 표현 (LLM 없이)
-  const ambientSolo = ["🎵", "🎶", "~♪", "흠흠", "후~", "라라~", "음~"];
-  const ambientChat = ["ㅎㅎ", "와~", "그래?", "맞아", "음음", "오~", "헤헤"];
-  const ambientMood = { happy: ["😊", "~♪", "흐흐"], sad: ["😔", "후...", "하아"], neutral: ["🤔", "음", "..."] };
+  const ambientSolo = t("ambient_solo");
+  const ambientChat = t("ambient_chat");
+  const ambientMood = { happy: t("ambient_mood_happy"), sad: t("ambient_mood_sad"), neutral: t("ambient_mood_neutral") };
   function ambientEmoji(npc, nearOther) {
     if (nearOther) return ambientChat[Math.floor(Math.random() * ambientChat.length)];
     const mood = (npc.moodUntil > nowMs() && npc.mood !== "neutral") ? npc.mood : "neutral";
@@ -2488,7 +2488,7 @@ import { GameRenderer } from './renderer/renderer.js';
     const questType = quest.questType || "deliver";
     const primaryNpcId = quest.primaryNpcId || null;
     const startedAt = quest.startedAt || 0;
-    quest.objective = "완료";
+    quest.objective = t("quest_complete");
     quest.done = true;
     quest.dynamic = false;
     quest.dynamicStages = null;
@@ -2515,13 +2515,13 @@ import { GameRenderer } from './renderer/renderer.js';
       const rewardItem = itemKeys[Math.floor(Math.random() * itemKeys.length)];
       inventory[rewardItem] = (inventory[rewardItem] || 0) + 1;
       const info = itemTypes[rewardItem];
-      addChat("System", `🎁 보상: ${info.emoji} ${info.label} 획득!`);
+      addChat("System", t("sys_quest_reward", { emoji: info.emoji, label: info.label }));
     }
 
     if (questType === "urgent" && startedAt > 0) {
       const elapsed = (nowMs() - startedAt) / 1000;
       if (elapsed <= 60) {
-        addChat("System", `⚡ 긴급 배달 보너스! 빠른 완료 (${Math.round(elapsed)}초)`);
+        addChat("System", t("sys_urgent_bonus", { sec: Math.round(elapsed) }));
         if (relKey) adjustRelation(relKey, 5);
         if (primaryNpc) {
           primaryNpc.favorPoints += Math.round(10 * 1 * 1);
@@ -2549,7 +2549,7 @@ import { GameRenderer } from './renderer/renderer.js';
       quest._onComplete = null;
     }
 
-    addChat("System", `퀘스트 '${title}' 완료!`);
+    addChat("System", t("sys_quest_complete", { title }));
     generateDynamicQuest();
   }
 
@@ -2628,7 +2628,7 @@ import { GameRenderer } from './renderer/renderer.js';
       quest.startedAt = nowMs();
       quest._stageCount = q.stages.length;
       quest._onComplete = q.onComplete || null;
-      addChat("System", `새 퀘스트: ${q.title}`);
+      addChat("System", t("sys_new_quest", { title: q.title }));
       enrichQuestDialogue(type, primaryNpc, q.stages);
     }
   }
@@ -2640,7 +2640,7 @@ import { GameRenderer } from './renderer/renderer.js';
 
     // NPC가 제거되어 퀘스트 진행 불가능한 경우 자동 스킵
     if (stage.npcId && !npcById(stage.npcId)) {
-      addChat("System", `대상 NPC가 떠나서 이 단계를 건너뜁니다.`);
+      addChat("System", t("sys_npc_left_skip"));
       advanceDynamicQuest();
       return true;
     }
@@ -2650,7 +2650,7 @@ import { GameRenderer } from './renderer/renderer.js';
       const itemKey = stage.requireItem;
       if (!inventory[itemKey] || inventory[itemKey] <= 0) {
         const info = itemTypes[itemKey];
-        addChat(npc.name, `아직 ${info ? info.label : itemKey}이(가) 없네. 구해와줘!`);
+        addChat(npc.name, t("favor_still_need", { label: info ? info.label : itemKey }));
         return true;
       }
       inventory[itemKey] -= 1;
@@ -2666,7 +2666,7 @@ import { GameRenderer } from './renderer/renderer.js';
         const h = hourOfDay();
         if (!(h >= stage.afterHour || h < 5)) return false;
       }
-      addChat("System", stage.autoText || "목적지에 도착했습니다.");
+      addChat("System", stage.autoText || t("sys_arrived_default"));
       advanceDynamicQuest();
       return true;
     }
@@ -2722,14 +2722,14 @@ import { GameRenderer } from './renderer/renderer.js';
   // ─── 도슨트 안내소 시스템 ───
   function showDocentMenu() {
     const guideNpc = npcs.find(n => n.id === "guide");
-    const guideName = guideNpc ? guideNpc.name : "안내원";
-    addChat(guideName, "안녕하세요! 안내소에 오신 걸 환영합니다. 무엇이 궁금하세요?");
-    addChat("System", "━━ 안내소 메뉴 ━━");
-    addChat("System", "채팅창에 번호를 입력하세요:");
-    addChat("System", "1. 이 마을은 뭐하는 곳이야?");
-    addChat("System", "2. 여기서 뭘 할 수 있어?");
-    addChat("System", "3. 주변 NPC를 소개해줘");
-    addChat("System", "4. 장소를 알려줘");
+    const guideName = guideNpc ? guideNpc.name : t("docent_fallback_name");
+    addChat(guideName, t("docent_welcome"));
+    addChat("System", t("docent_menu_title"));
+    addChat("System", t("docent_menu_prompt"));
+    addChat("System", t("docent_menu_1"));
+    addChat("System", t("docent_menu_2"));
+    addChat("System", t("docent_menu_3"));
+    addChat("System", t("docent_menu_4"));
     docentMenuActive = true;
   }
 
@@ -2738,46 +2738,46 @@ import { GameRenderer } from './renderer/renderer.js';
 
   function handleDocentChoice(choice) {
     const guideNpc = npcs.find(n => n.id === "guide");
-    const name = guideNpc ? guideNpc.name : "안내원";
+    const name = guideNpc ? guideNpc.name : t("docent_fallback_name");
     docentMenuActive = false;
 
     if (choice === "1") {
-      addChat(name, "여기는 Hyogon Ryu의 개인 홈페이지 속 Playground예요!");
-      addChat(name, "AI NPC들이 살아가는 작은 오픈 월드입니다.");
-      addChat(name, "NPC들과 대화하고, 퀘스트를 수행하고, 마을을 탐험해보세요.");
+      addChat(name, t("docent_intro_1"));
+      addChat(name, t("docent_intro_2"));
+      addChat(name, t("docent_intro_3"));
       return true;
     }
     if (choice === "2") {
-      addChat(name, "할 수 있는 것들을 알려드릴게요!");
-      addChat(name, "🚶 WASD로 이동, Shift로 달리기");
-      addChat(name, "💬 E키로 NPC와 대화 (채팅창에서 직접 대화도 가능)");
-      addChat(name, "📋 퀘스트를 수행하면 NPC 호감도를 얻어요");
-      addChat(name, "🎁 NPC에게 선물하면 관계가 좋아져요");
-      addChat(name, "🏃 놀이터에서 술래잡기! NPC에게서 도망치세요");
-      addChat(name, "🗺️ 숨겨진 발견 장소들이 곳곳에 있어요");
+      addChat(name, t("docent_activities_title"));
+      addChat(name, t("docent_act_move"));
+      addChat(name, t("docent_act_chat"));
+      addChat(name, t("docent_act_quest"));
+      addChat(name, t("docent_act_gift"));
+      addChat(name, t("docent_act_tag"));
+      addChat(name, t("docent_act_discover"));
       return true;
     }
     if (choice === "3") {
-      addChat(name, "현재 마을에 있는 주민들을 소개할게요!");
+      addChat(name, t("docent_npc_title"));
       for (const npc of npcs) {
         if (npc.id === "guide") continue;
         const persona = npcPersonas[npc.id];
-        const desc = persona ? persona.personality : "알 수 없음";
-        const levelName = favorLevelNames[npc.favorLevel] || "낯선 사이";
+        const desc = persona ? persona.personality : t("docent_npc_unknown");
+        const levelName = favorLevelNames[npc.favorLevel] || t("relation_stranger");
         addChat(name, `• ${npc.name} — ${desc} (${levelName})`);
       }
       return true;
     }
     if (choice === "4") {
-      addChat(name, "주요 장소들을 알려드릴게요!");
-      addChat(name, "☕ 카페 — NPC들이 쉬러 오는 곳");
-      addChat(name, "🏢 사무실 — 낮에 NPC들이 일하는 곳");
-      addChat(name, "🏪 시장 — 아이템 거래소");
-      addChat(name, "🌳 공원 — 기념비와 발견 장소가 있어요");
-      addChat(name, "🏫 KSA 본관/기숙사 — 학생 NPC들의 생활 공간");
-      addChat(name, "📚 도서관, 🍞 빵집, 🌸 꽃집 — 마을 시설들");
-      addChat(name, "🏃 놀이터 — 술래잡기 미니게임!");
-      addChat(name, "📋 안내소 — 바로 여기! 언제든 다시 오세요");
+      addChat(name, t("docent_places_title"));
+      addChat(name, t("docent_place_cafe"));
+      addChat(name, t("docent_place_office"));
+      addChat(name, t("docent_place_market"));
+      addChat(name, t("docent_place_park"));
+      addChat(name, t("docent_place_ksa"));
+      addChat(name, t("docent_place_facilities"));
+      addChat(name, t("docent_place_playground"));
+      addChat(name, t("docent_place_info"));
       return true;
     }
     return false;
@@ -2800,14 +2800,15 @@ import { GameRenderer } from './renderer/renderer.js';
       if (quest.done && !quest.dynamic) {
         addChat("System", t("board_no_quest"));
       } else {
-        const stageInfo = quest.dynamic && quest.dynamicStages
-          ? ` (${quest.stage + 1}/${quest.dynamicStages.length}단계)`
-          : ` (${quest.stage}단계)`;
-        addChat("System", `📋 ${quest.title}${stageInfo}`);
-        addChat("System", `   목표: ${quest.objective}`);
+        if (quest.dynamic && quest.dynamicStages) {
+          addChat("System", t("sys_board_stage", { title: quest.title, stage: quest.stage + 1, total: quest.dynamicStages.length }));
+        } else {
+          addChat("System", t("sys_board_stage_simple", { title: quest.title, stage: quest.stage }));
+        }
+        addChat("System", t("sys_board_objective", { objective: quest.objective }));
         if (quest.dynamic && quest.dynamicStages) {
           const pct = Math.round((quest.stage / quest.dynamicStages.length) * 100);
-          addChat("System", `   진행도: ${"█".repeat(Math.floor(pct / 10))}${"░".repeat(10 - Math.floor(pct / 10))} ${pct}%`);
+          addChat("System", t("sys_board_progress", { bar: "█".repeat(Math.floor(pct / 10)) + "░".repeat(10 - Math.floor(pct / 10)), pct }));
         }
       }
       return true;
@@ -2825,7 +2826,7 @@ import { GameRenderer } from './renderer/renderer.js';
           addChat("System", `  ${icon} ${title}`);
         }
         if (questHistory.length > 10) {
-          addChat("System", `  ... 외 ${questHistory.length - 10}개`);
+          addChat("System", t("sys_board_more", { count: questHistory.length - 10 }));
         }
       }
       return true;
@@ -2850,13 +2851,13 @@ import { GameRenderer } from './renderer/renderer.js';
         startSceneFade(() => enterBuilding(buildingId));
       } else {
         const bld = buildings.find(b => b.id === buildingId);
-        addLog(`${bld?.label || buildingId}을(를) 확인했습니다.`);
+        addLog(t("log_checked_building", { label: bld?.label || buildingId }));
       }
       return true;
     }
 
     if (hs.id === "exitGate") {
-      addLog("플레이그라운드를 떠나는 중... 소개 페이지로 돌아갑니다.");
+      addLog(t("log_leaving_playground"));
       setTimeout(() => {
         window.location.href = "/";
       }, 120);
@@ -2864,12 +2865,12 @@ import { GameRenderer } from './renderer/renderer.js';
     }
 
     if (hs.id === "parkMonument") {
-      addLog("기념비에 희미한 무늬가 새겨져 있습니다.");
+      addLog(t("log_monument"));
       return true;
     }
 
     if (hs.id === "marketBoard") {
-      addLog("게시판: '야시장은 20시에 광장 근처에서 시작됩니다.'");
+      addLog(t("log_market_board"));
       return true;
     }
 
@@ -2885,7 +2886,7 @@ import { GameRenderer } from './renderer/renderer.js';
 
     if (hs.id === "minigameZone") {
       if (sceneState.current !== "outdoor") {
-        addLog("실내에서는 술래잡기를 할 수 없습니다.");
+        addLog(t("log_tag_indoor"));
         return true;
       }
       if (tagGame.active) {
@@ -2899,7 +2900,7 @@ import { GameRenderer } from './renderer/renderer.js';
         return true;
       }
       const target = candidates[Math.floor(Math.random() * candidates.length)];
-      addChat("System", `🏃 놀이터에서 술래잡기! ${target.name}이(가) 술래! 60초간 도망치세요!`);
+      addChat("System", t("sys_tag_playground", { name: target.name }));
       startTagGame(target);
       return true;
     }
@@ -3198,7 +3199,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (docentMenuActive && /^[1-4]$/.test(msg.trim())) {
       addChat("You", msg.trim());
       if (!handleDocentChoice(msg.trim())) {
-        addChat("System", "1~4 중에서 선택해주세요.");
+        addChat("System", t("sys_select_1_to_4"));
       }
       return;
     }
@@ -3206,7 +3207,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (questBoardMenuActive && /^[1-3]$/.test(msg.trim())) {
       addChat("You", msg.trim());
       if (!handleQuestBoardChoice(msg.trim())) {
-        addChat("System", "1~3 중에서 선택해주세요.");
+        addChat("System", t("sys_select_1_to_3"));
       }
       return;
     }
@@ -3217,7 +3218,7 @@ import { GameRenderer } from './renderer/renderer.js';
         giftItemToNpc(target.npc);
       } else {
         addChat("You", msg);
-        addChat("System", "선물할 대상이 근처에 없습니다.");
+        addChat("System", t("sys_no_gift_target"));
       }
       return;
     }
@@ -3225,7 +3226,7 @@ import { GameRenderer } from './renderer/renderer.js';
       const zoneHs = hotspots.find(h => h.id === "minigameZone");
       const nearZone = zoneHs && Math.hypot(player.x - zoneHs.x, player.y - zoneHs.y) < 5;
       if (!nearZone) {
-        addChat("System", "놀이터 근처에서만 술래잡기를 할 수 있습니다! 🏃");
+        addChat("System", t("sys_tag_zone_only"));
         return;
       }
       if (tagGame.active) {
@@ -3236,8 +3237,8 @@ import { GameRenderer } from './renderer/renderer.js';
           addChat("System", t("sys_tag_no_npc"));
         } else {
           const target = candidates[Math.floor(Math.random() * candidates.length)];
-          addChat("You", "좋아, 술래잡기 하자!");
-          addChat(target.name, "잡으러 간다~! 👹");
+          addChat("You", t("sys_tag_chat_you"));
+          addChat(target.name, t("sys_tag_chat_npc"));
           conversationFocusNpcId = null;
           if (isMobileViewport()) mobileChatOpen = false;
           startTagGame(target);
@@ -3246,15 +3247,15 @@ import { GameRenderer } from './renderer/renderer.js';
       return;
     }
     if (/^(인벤|인벤토리|inventory|가방)$/i.test(msg.trim())) {
-      addChat("System", `인벤토리: ${inventorySummary()}`);
+      addChat("System", t("sys_inventory", { summary: inventorySummary() }));
       return;
     }
     const removeMatch = msg.trim().match(/^(제거|삭제|remove)\s+(.+)$/i);
     if (removeMatch) {
       const result = removeNpc(removeMatch[2].trim());
       if (result.ok) {
-        addChat("System", `${result.name}이(가) 월드에서 제거되었습니다.`);
-        addLog(`${result.name} NPC가 제거되었습니다.`);
+        addChat("System", t("sys_npc_removed", { name: result.name }));
+        addLog(t("log_npc_removed", { name: result.name }));
       } else {
         addChat("System", result.reason);
       }
@@ -3281,7 +3282,7 @@ import { GameRenderer } from './renderer/renderer.js';
     upsertSpeechBubble("player", msg, 3000);
     if (!target.near) {
       moveNearNpcTarget(target.npc);
-      addSystemToast(`${target.npc.name}에게 이동 중입니다. 가까이 가면 대화할 수 있습니다.`);
+      addSystemToast(t("toast_moving_to_npc", { name: target.npc.name }));
       return;
     }
 
@@ -3310,7 +3311,7 @@ import { GameRenderer } from './renderer/renderer.js';
         reply = (streamingDraft && streamingDraft.text()) || llm.reply;
         if (streamingDraft) streamingDraft.done();
         lastLlmModel = llm.model || "gemini";
-        if (!llmAvailable) addLog("LLM 연결이 복구되었습니다.");
+        if (!llmAvailable) addLog(t("log_llm_restored"));
         llmAvailable = true;
         lastLlmError = "";
       } else {
@@ -3322,7 +3323,7 @@ import { GameRenderer } from './renderer/renderer.js';
         serverAction = llm.action || { type: "none", target: "" };
         serverMention = llm.mention || { npc: null, place: null };
         lastLlmModel = llm.model || "gemini";
-        if (!llmAvailable) addLog("LLM 연결이 복구되었습니다.");
+        if (!llmAvailable) addLog(t("log_llm_restored"));
         llmAvailable = true;
         lastLlmError = "";
       }
@@ -3339,7 +3340,7 @@ import { GameRenderer } from './renderer/renderer.js';
         llmAvailable = false;
         lastLlmModel = "local";
         lastLlmError = err && err.message ? String(err.message) : "unknown";
-        addChat("System", "스트리밍이 중단되어 응답 일부만 도착했습니다.");
+        addChat("System", t("sys_stream_partial"));
       } else {
         try {
           const llm = await requestLlmNpcReply(npc, msg);
@@ -3350,11 +3351,11 @@ import { GameRenderer } from './renderer/renderer.js';
           serverAction = llm.action || { type: "none", target: "" };
           serverMention = llm.mention || { npc: null, place: null };
           lastLlmModel = llm.model || "gemini";
-          if (!llmAvailable) addLog("LLM 연결이 복구되었습니다.");
+          if (!llmAvailable) addLog(t("log_llm_restored"));
           llmAvailable = true;
           lastLlmError = "";
         } catch (err2) {
-          if (llmAvailable) addLog("LLM 연결이 불안정해 로컬 응답으로 전환했습니다.");
+          if (llmAvailable) addLog(t("log_llm_fallback"));
           llmAvailable = false;
           lastLlmModel = "local";
           lastLlmError = (err2 && err2.message ? String(err2.message) : "") || (err && err.message ? String(err.message) : "unknown");
@@ -3382,8 +3383,8 @@ import { GameRenderer } from './renderer/renderer.js';
           if (reqType === "bring_item" && itemTypes[reqTarget]) {
             npc.activeRequest = {
               type: "bring_item",
-              title: `${npc.name}의 부탁`,
-              description: `${itemTypes[reqTarget].label}을(를) 가져다 주세요.`,
+              title: t("favor_request_title", { name: npc.name }),
+              description: t("favor_request_bring", { label: itemTypes[reqTarget].label }),
               itemNeeded: reqTarget,
               expiresAt: nowMs() + 300_000,
               reward: { favorPoints: 20, relationBoost: 8, items: [] },
@@ -3393,8 +3394,8 @@ import { GameRenderer } from './renderer/renderer.js';
             if (targetNpc) {
               npc.activeRequest = {
                 type: "deliver_to",
-                title: `${targetNpc.name}에게 전달`,
-                description: `${targetNpc.name}에게 가서 말을 전해주세요.`,
+                title: t("favor_deliver_title", { name: targetNpc.name }),
+                description: t("favor_deliver_desc", { name: targetNpc.name }),
                 targetNpcId: targetNpc.id,
                 expiresAt: nowMs() + 300_000,
                 reward: { favorPoints: 25, relationBoost: 10, items: [] },
@@ -3425,7 +3426,7 @@ import { GameRenderer } from './renderer/renderer.js';
           npc.following = false;
           npc.guideTargetNpcId = targetNpc.id;
           npc.roamWait = 0;
-          addLog(`${npc.name}이(가) ${targetNpc.name}에게 안내합니다.`);
+          addLog(t("log_guide_to_npc", { npc: npc.name, target: targetNpc.name }));
         }
       } else if (guidePlaceMatch && !guideNpcMatch) {
         cleanReply = cleanReply.replace(/\s*\[안내:\w+\]\s*/, "").trim();
@@ -3436,7 +3437,7 @@ import { GameRenderer } from './renderer/renderer.js';
           npc.roamTarget = { x: dest.x, y: dest.y };
           npc.roamWait = 0;
           player.moveTarget = { x: dest.x, y: dest.y + 1 };
-          addLog(`${npc.name}이(가) ${guidePlaceMatch[1]}(으)로 안내합니다.`);
+          addLog(t("log_guide_to_place", { npc: npc.name, place: guidePlaceMatch[1] }));
         }
       }
     } else {
@@ -3457,7 +3458,7 @@ import { GameRenderer } from './renderer/renderer.js';
           npc.roamTarget = { x: dest.x, y: dest.y };
           npc.roamWait = 0;
           player.moveTarget = { x: dest.x, y: dest.y + 1 };
-          addLog(`${npc.name}이(가) ${act.target}(으)로 안내합니다.`);
+          addLog(t("log_guide_to_place", { npc: npc.name, place: act.target }));
         }
       } else if (act.type === "guide_npc") {
         npc.following = false;
@@ -3465,7 +3466,7 @@ import { GameRenderer } from './renderer/renderer.js';
         if (targetNpc) {
           npc.guideTargetNpcId = targetNpc.id;
           npc.roamWait = 0;
-          addLog(`${npc.name}이(가) ${targetNpc.name}에게 안내합니다.`);
+          addLog(t("log_guide_to_npc", { npc: npc.name, target: targetNpc.name }));
         }
       } else if (act.type === "go_place") {
         const dest = places[act.target];
@@ -3478,8 +3479,8 @@ import { GameRenderer } from './renderer/renderer.js';
         if (info) {
           npc.activeRequest = {
             type: "bring_item",
-            title: `${npc.name}의 부탁`,
-            description: `${info.label}을(를) 가져다 주세요.`,
+            title: t("favor_request_title", { name: npc.name }),
+            description: t("favor_request_bring", { label: info.label }),
             itemNeeded: act.target,
             expiresAt: nowMs() + 300_000,
             reward: { favorPoints: 20, relationBoost: 8, items: [] },
@@ -3490,8 +3491,8 @@ import { GameRenderer } from './renderer/renderer.js';
         if (targetNpc) {
           npc.activeRequest = {
             type: "deliver_to",
-            title: `${targetNpc.name}에게 전달`,
-            description: `${targetNpc.name}에게 가서 말을 전해주세요.`,
+            title: t("favor_deliver_title", { name: targetNpc.name }),
+            description: t("favor_deliver_desc", { name: targetNpc.name }),
             targetNpcId: targetNpc.id,
             expiresAt: nowMs() + 300_000,
             reward: { favorPoints: 25, relationBoost: 10, items: [] },
@@ -3500,7 +3501,7 @@ import { GameRenderer } from './renderer/renderer.js';
       } else if (act.type === "give_item") {
         if (act.target && itemTypes[act.target]) {
           inventory[act.target] = (inventory[act.target] || 0) + 1;
-          addChat("System", `${npc.name}에게서 ${itemTypes[act.target].label}을(를) 받았습니다!`);
+          addChat("System", t("sys_received_item", { npc: npc.name, label: itemTypes[act.target].label }));
         }
       }
     }
@@ -3565,7 +3566,7 @@ import { GameRenderer } from './renderer/renderer.js';
       const mentionedPlace = /(카페|빵집|시장|공원|광장|도서관|꽃집|사무실|학교|기숙사|cafe|park|market|library|office)/.test(r);
 
       if (mentionedNpc) {
-        suggestions = [`${mentionedNpc.name} 어디 있어?`, `${mentionedNpc.name}한테 데려다줘`, t("suggest_bye")];
+        suggestions = [t("suggest_where_npc", { name: mentionedNpc.name }), t("suggest_take_me", { name: mentionedNpc.name }), t("suggest_bye")];
       } else if (mentionedPlace) {
         suggestions = [t("suggest_place_1"), t("suggest_place_2"), t("suggest_bye")];
       } else if (/(먹|음식|빵|커피|카페|배고|맛|요리|크로아상|food|eat|cafe|hungry|cook|bread)/.test(r)) {
@@ -3573,14 +3574,14 @@ import { GameRenderer } from './renderer/renderer.js';
       } else if (/(힘들|슬프|걱정|미안|괜찮|외로|피곤|아프|worried|tired|sorry|sad|lonely)/.test(r)) {
         suggestions = [t("suggest_care_1"), t("suggest_care_2"), t("suggest_bye")];
       } else if (/(재미|놀|게임|술래|fun|play|game)/.test(r)) {
-        suggestions = [t("suggest_more"), "같이 놀자!", t("suggest_bye")];
+        suggestions = [t("suggest_more"), t("suggest_play"), t("suggest_bye")];
       } else if (/(비밀|전설|옛날|역사|이야기|secret|legend|story|history)/.test(r)) {
-        suggestions = [t("suggest_more"), "진짜야?", t("suggest_bye")];
+        suggestions = [t("suggest_more"), t("suggest_really"), t("suggest_bye")];
       } else if (/(날씨|비|눈|해|바람|weather|rain|snow|sun)/.test(r)) {
-        suggestions = ["산책 갈래?", t("suggest_more"), t("suggest_bye")];
+        suggestions = [t("suggest_walk"), t("suggest_more"), t("suggest_bye")];
       } else if (r.endsWith("?") || /(뭐|어떻|왜|what|how|why)/.test(r)) {
-        // NPC가 질문했을 때
-        suggestions = ["응!", "아니", t("suggest_more")];
+        // NPC asked a question
+        suggestions = [t("suggest_yes"), t("suggest_no"), t("suggest_more")];
       } else {
         suggestions = [t("suggest_more"), t("suggest_thanks"), t("suggest_bye")];
       }
@@ -3620,7 +3621,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (worldEvents.day !== day) {
       worldEvents.day = day;
       worldEvents.once = {};
-      addLog("시뮬레이션에서 새로운 하루가 시작됩니다.");
+      addLog(t("log_new_day"));
     }
 
     const h = hourOfDay();
@@ -3628,19 +3629,19 @@ import { GameRenderer } from './renderer/renderer.js';
     const cafeKey = dayFlag("cafe-open");
     if (h >= 9 && !worldEvents.once[cafeKey]) {
       worldEvents.once[cafeKey] = true;
-      addLog("카페가 열리고 아침 루틴이 시작됩니다.");
+      addLog(t("log_cafe_open"));
     }
 
     const marketKey = dayFlag("night-market");
     if (h >= 20 && !worldEvents.once[marketKey]) {
       worldEvents.once[marketKey] = true;
-      addLog("광장 근처에서 야시장이 열렸습니다.");
+      addLog(t("log_night_market"));
     }
 
     const parkKey = dayFlag("park-aura");
     if ((h >= 20 || h < 5) && !worldEvents.once[parkKey] && dist(player, places.park) < 2.5) {
       worldEvents.once[parkKey] = true;
-      addLog("공원 기념비 근처에서 이상한 기운이 느껴집니다.");
+      addLog(t("log_park_aura"));
     }
 
     if (quest.dynamic && quest.dynamicStages) {
@@ -3650,7 +3651,7 @@ import { GameRenderer } from './renderer/renderer.js';
       }
       // 제거된 NPC 대상 스테이지 자동 스킵
       if (stage && stage.npcId && !stage.visit && !stage.requireItem && !npcById(stage.npcId)) {
-        addChat("System", `대상 NPC가 떠나서 이 단계를 건너뜁니다.`);
+        addChat("System", t("sys_npc_left_skip"));
         advanceDynamicQuest();
       }
     }
@@ -3844,7 +3845,7 @@ import { GameRenderer } from './renderer/renderer.js';
       refreshRemoveSelect();
       addLog(t("sys_load_ok"));
     } catch (err) {
-      addLog("저장된 상태를 불러오지 못했습니다.");
+      addLog(t("log_load_fail"));
     }
   }
 
@@ -3941,7 +3942,7 @@ import { GameRenderer } from './renderer/renderer.js';
       if (td <= 0.12) {
         const targetNpc = npcById(player.moveTarget.npcId);
         if (targetNpc) {
-          addChat("System", `${targetNpc.name} 근처에 도착했습니다. 이제 대화할 수 있습니다.`);
+          addChat("System", t("sys_npc_arrived", { name: targetNpc.name }));
           if (chatInputEl) chatInputEl.focus();
         }
         if (player.moveTarget.autoWalk) {
@@ -4198,7 +4199,7 @@ import { GameRenderer } from './renderer/renderer.js';
           if (lineB) upsertSpeechBubble(b.id, lineB, 4000);
         })
         .finally(() => { npcChatLlmPending = false; });
-      addLog(`${a.name}과 ${b.name}이 대화합니다.`);
+      addLog(t("log_npc_chat", { a: a.name, b: b.name }));
     } else {
       upsertSpeechBubble(a.id, ambientEmoji(a, true), 2800);
       upsertSpeechBubble(b.id, ambientEmoji(b, true), 2800);
@@ -4244,7 +4245,7 @@ import { GameRenderer } from './renderer/renderer.js';
     cameraPan.x = 0;
     cameraPan.y = 0;
     world.zoom = DEFAULT_ZOOM;
-    addLog("시점을 초기화했습니다.");
+    addLog(t("log_view_reset"));
   }
 
   function touchDistance(t1, t2) {
@@ -5595,7 +5596,7 @@ import { GameRenderer } from './renderer/renderer.js';
 
   function drawWeatherIndicator() {
     if (weather.current === "clear") return;
-    const names = { cloudy: "☁️ 흐림", rain: "🌧️ 비", storm: "⛈️ 폭풍", snow: "❄️ 눈", fog: "🌫️ 안개" };
+    const names = { cloudy: t("weather_cloudy"), rain: t("weather_rain"), storm: t("weather_storm"), snow: t("weather_snow"), fog: t("weather_fog") };
     const text = names[weather.current] || "";
     if (!text) return;
     ctx.save();
@@ -5831,7 +5832,7 @@ import { GameRenderer } from './renderer/renderer.js';
       ctx.fillStyle = "#fff";
       const pgFont = Math.max(14, Math.round(12 * pgScale));
       ctx.font = `700 ${pgFont}px sans-serif`;
-      ctx.fillText("🏃 놀이터", lx + 8 * pgScale, ly + labelH - 6 * pgScale);
+      ctx.fillText(t("canvas_playground"), lx + 8 * pgScale, ly + labelH - 6 * pgScale);
     }
 
     for (const hs of hotspots) {
@@ -5861,7 +5862,7 @@ import { GameRenderer } from './renderer/renderer.js';
         ctx.fillStyle = "#4f3a25";
         const exitFont = Math.max(18, Math.round(16 * exitScale));
         ctx.font = `800 ${exitFont}px sans-serif`;
-        ctx.fillText("출구", tx + 10 * exitScale, ty + labelH - 6 * exitScale);
+        ctx.fillText(t("canvas_exit"), tx + 10 * exitScale, ty + labelH - 6 * exitScale);
       }
 
       // 퀘스트 게시판 떠다니는 라벨
@@ -6030,7 +6031,7 @@ import { GameRenderer } from './renderer/renderer.js';
       mctx.fillText("🏠 " + label, w * 0.5, h * 0.45);
       mctx.font = "600 11px sans-serif";
       mctx.fillStyle = "rgba(255,255,255,0.6)";
-      mctx.fillText("실내", w * 0.5, h * 0.65);
+      mctx.fillText(t("canvas_indoor"), w * 0.5, h * 0.65);
       mctx.textAlign = "start";
       mctx.restore();
       return;
@@ -6144,11 +6145,11 @@ import { GameRenderer } from './renderer/renderer.js';
     uiPlayer.textContent = player.name;
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
-    const stateKo = { idle: "대기", moving: "이동 중", chatting: "대화 중" };
-    uiNearby.textContent = near ? `근처: ${near.npc.name} (${stateKo[near.npc.state] || near.npc.state})` : "근처: 없음";
+    const stateLabels = { idle: t("npc_state_idle"), moving: t("npc_state_moving"), chatting: t("npc_state_chatting") };
+    uiNearby.textContent = near ? t("ui_nearby", { name: near.npc.name, state: stateLabels[near.npc.state] || near.npc.state }) : t("ui_nearby_none");
 
-    if (quest.done && !quest.dynamic) uiQuest.textContent = `퀘스트: ${quest.title} - 완료`;
-    else uiQuest.textContent = `퀘스트: ${quest.title} - ${quest.objective}`;
+    if (quest.done && !quest.dynamic) uiQuest.textContent = t("ui_quest_done", { title: quest.title });
+    else uiQuest.textContent = t("ui_quest_active", { title: quest.title, objective: quest.objective });
 
     if (mobileInteractBtn) {
       const hs = nearestHotspot(1.6);
@@ -6165,7 +6166,7 @@ import { GameRenderer } from './renderer/renderer.js';
         mobileInteractBtn.textContent = hsLabels[hs.id] || (isDoor ? t("mobile_interact") : t("mobile_interact"));
       } else if (nearestGroundItem(1.5)) {
         const gi = nearestGroundItem(1.5);
-        mobileInteractBtn.textContent = `줍기 ${itemTypes[gi.type].emoji}`;
+        mobileInteractBtn.textContent = t("mobile_pickup", { emoji: itemTypes[gi.type].emoji });
       } else if (nearNpc) {
         mobileInteractBtn.textContent = t("mobile_talk");
       } else {
@@ -6210,18 +6211,18 @@ import { GameRenderer } from './renderer/renderer.js';
     }
     if (chatActiveTargetEl) chatActiveTargetEl.textContent = npcNear ? t("chat_target_npc", { name: target.npc.name }) : (mpChat ? t("chat_target_mp") : t("chat_target_none"));
     if (chatActiveStateEl) {
-      if (mpChat) chatActiveStateEl.textContent = "상태: 전체 채팅";
-      else if (!target) chatActiveStateEl.textContent = "상태: 대화 불가";
-      else if (!target.near) chatActiveStateEl.textContent = "상태: 대상에게 이동 중";
-      else if (conversationFocusNpcId && target.npc.id === conversationFocusNpcId) chatActiveStateEl.textContent = "상태: 대화 고정";
-      else if (chatSessionActiveFor(target.npc.id)) chatActiveStateEl.textContent = "상태: 대화 중";
-      else if (target.focused) chatActiveStateEl.textContent = "상태: 클릭 선택됨";
-      else chatActiveStateEl.textContent = "상태: 근거리 대화 가능";
+      if (mpChat) chatActiveStateEl.textContent = t("chat_state_global");
+      else if (!target) chatActiveStateEl.textContent = t("chat_state_unavailable");
+      else if (!target.near) chatActiveStateEl.textContent = t("chat_state_moving");
+      else if (conversationFocusNpcId && target.npc.id === conversationFocusNpcId) chatActiveStateEl.textContent = t("chat_state_locked");
+      else if (chatSessionActiveFor(target.npc.id)) chatActiveStateEl.textContent = t("chat_state_chatting");
+      else if (target.focused) chatActiveStateEl.textContent = t("chat_state_selected");
+      else chatActiveStateEl.textContent = t("chat_state_nearby");
     }
     if (chatModelEl) {
-      if (!LLM_API_URL) chatModelEl.textContent = "모델: 로컬 응답";
-      else if (llmAvailable) chatModelEl.textContent = `모델: ${lastLlmModel}`;
-      else chatModelEl.textContent = `모델: 로컬 응답 (LLM 오류)`;
+      if (!LLM_API_URL) chatModelEl.textContent = t("chat_model_local");
+      else if (llmAvailable) chatModelEl.textContent = t("chat_model_active", { model: lastLlmModel });
+      else chatModelEl.textContent = t("chat_model_error");
       if (!llmAvailable && lastLlmError) chatModelEl.title = lastLlmError;
       else chatModelEl.removeAttribute("title");
     }
@@ -6258,16 +6259,16 @@ import { GameRenderer } from './renderer/renderer.js';
   let mouseDownX = 0;
   let mouseDownY = 0;
   initPlayerName().then(() => { initMultiplayer(); });
-  addLog("월드가 초기화되었습니다. NPC와 상호작용해 보세요.");
-  if (LLM_API_URL) addChat("System", "근처 NPC와 한국어 LLM 채팅이 활성화되었습니다.");
-  else addChat("System", "LLM 엔드포인트가 없어 로컬 대화 모드로 동작합니다.");
+  addLog(t("log_world_init"));
+  if (LLM_API_URL) addChat("System", t("sys_llm_chat_on"));
+  else addChat("System", t("sys_llm_chat_off"));
 
   function ensureAutoWalkControl() {
     if (!controlActionsEl || autoWalkBtn) return;
     const btn = document.createElement("button");
     btn.id = "pg-auto-walk";
     btn.type = "button";
-    btn.textContent = "자동산책 켜기";
+    btn.textContent = t("autowalk_on");
     btn.setAttribute("aria-pressed", "false");
     controlActionsEl.appendChild(btn);
     autoWalkBtn = btn;
@@ -6281,7 +6282,7 @@ import { GameRenderer } from './renderer/renderer.js';
     const btn = document.createElement("button");
     btn.id = "pg-mobile-autowalk";
     btn.type = "button";
-    btn.textContent = "산책켜기";
+    btn.textContent = t("autowalk_on_short");
     btn.setAttribute("aria-pressed", "false");
     mobileUtilityBtn.insertAdjacentElement("afterend", btn);
     mobileAutoWalkBtn = btn;
@@ -6331,7 +6332,7 @@ import { GameRenderer } from './renderer/renderer.js';
     }
 
     if (mp.enabled && uiOnlineEl) {
-      uiOnlineEl.textContent = `접속자: ${mpOnlineCount()}명`;
+      uiOnlineEl.textContent = t("ui_online", { count: mpOnlineCount() });
     }
 
     updateUI();
@@ -6388,8 +6389,8 @@ import { GameRenderer } from './renderer/renderer.js';
       weather.next = weather.current;
       weather.intensity = weather.current === "clear" ? 0 : 0.7;
       weather.transitionProgress = 1;
-      const names = { clear: "맑음", cloudy: "흐림", rain: "비", storm: "폭풍우", snow: "눈", fog: "안개" };
-      addLog("날씨 변경: " + (names[weather.current] || weather.current));
+      const names = { clear: t("weather_clear_name"), cloudy: t("weather_cloudy_name"), rain: t("weather_rain_name"), storm: t("weather_storm_name"), snow: t("weather_snow_name"), fog: t("weather_fog_name") };
+      addLog(t("log_weather_change", { name: names[weather.current] || weather.current }));
     }
     keys.add(code);
   });
@@ -6421,9 +6422,9 @@ import { GameRenderer } from './renderer/renderer.js';
         conversationFocusNpcId = clickedNpc.id;
         const moved = moveNearNpcTarget(clickedNpc);
         if (moved) {
-          addChat("System", `${clickedNpc.name}에게 이동합니다. 도착하면 대화할 수 있습니다.`);
+          addChat("System", t("sys_moving_to_npc", { name: clickedNpc.name }));
         } else {
-          addChat("System", `${clickedNpc.name} 주변으로 이동할 수 없습니다.`);
+          addChat("System", t("sys_cannot_move_to_npc", { name: clickedNpc.name }));
         }
       } else {
         // 3D 모드: 클릭 위치로 이동
@@ -6658,7 +6659,7 @@ import { GameRenderer } from './renderer/renderer.js';
         return;
       }
       if (createBtnEl) createBtnEl.disabled = true;
-      if (createStatusEl) createStatusEl.textContent = "생성 중...";
+      if (createStatusEl) createStatusEl.textContent = t("npc_creating");
       try {
         if (WORLD_NPC_API_URL) {
           const sharedNpc = await createSharedNpc(result.npc.name, result.npc.personality || "");
@@ -6672,14 +6673,14 @@ import { GameRenderer } from './renderer/renderer.js';
           }
         }
       } catch (err) {
-        addLog(`공유 NPC 생성 실패: ${err.message || err}`);
+        addLog(t("log_shared_npc_create_fail", { err: err.message || err }));
       } finally {
         if (createBtnEl) createBtnEl.disabled = false;
       }
       if (createNameEl) createNameEl.value = "";
       if (createPersonalityEl) createPersonalityEl.value = "";
-      if (createStatusEl) createStatusEl.textContent = `생성됨: ${result.npc.name}`;
-      addLog(`새 캐릭터가 합류했습니다: ${result.npc.name}`);
+      if (createStatusEl) createStatusEl.textContent = t("npc_created", { name: result.npc.name });
+      addLog(t("log_npc_joined", { name: result.npc.name }));
     });
   }
   if (createNameEl) {
@@ -6692,7 +6693,7 @@ import { GameRenderer } from './renderer/renderer.js';
   }
   function refreshRemoveSelect() {
     if (!removeSelectEl) return;
-    removeSelectEl.innerHTML = '<option value="">NPC 선택</option>';
+    removeSelectEl.innerHTML = `<option value="">${t("npc_select")}</option>`;
     for (const n of npcs) {
       const opt = document.createElement("option");
       opt.value = n.id;
@@ -6705,8 +6706,8 @@ import { GameRenderer } from './renderer/renderer.js';
       if (!removeSelectEl || !removeSelectEl.value) return;
       const result = removeNpc(removeSelectEl.value);
       if (result.ok) {
-        addChat("System", `${result.name}이(가) 월드에서 제거되었습니다.`);
-        addLog(`${result.name} NPC가 제거되었습니다.`);
+        addChat("System", t("sys_npc_removed", { name: result.name }));
+        addLog(t("log_npc_removed", { name: result.name }));
         refreshRemoveSelect();
       }
     });
@@ -6718,7 +6719,7 @@ import { GameRenderer } from './renderer/renderer.js';
   if (uiToggleBtn && stageEl) {
     uiToggleBtn.addEventListener("click", () => {
       const collapsed = stageEl.classList.toggle("pg-ui-collapsed");
-      uiToggleBtn.textContent = collapsed ? "UI 보기" : "UI 숨기기";
+      uiToggleBtn.textContent = collapsed ? t("ui_show") : t("ui_hide");
       uiToggleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
     });
   }
@@ -6879,10 +6880,10 @@ import { GameRenderer } from './renderer/renderer.js';
       });
 
       if (uiOnlineEl) uiOnlineEl.hidden = false;
-      addLog("멀티플레이어 연결됨!");
+      addLog(t("log_mp_connected"));
       addChat("System", t("sys_mp_connected"));
     } catch (err) {
-      addLog("멀티플레이어 초기화 실패: " + (err.message || err));
+      addLog(t("log_mp_fail", { err: err.message || err }));
     }
   }
 
