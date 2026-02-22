@@ -674,12 +674,17 @@ async function callGemini(prompt, useStructured = false) {
   for (const model of MODEL_CHAIN) {
     const isGemini = model.startsWith("gemini-");
     const needsThinkingOff = isGemini && (model.includes("2.5") || model.includes("3-"));
-    // Gemma doesn't support structured output — strip responseMimeType/responseSchema
+    // Gemma doesn't support structured output — strip schema + add JSON instruction to prompt
     let modelPayload = payload;
     if (useStructured && !isGemini) {
-      modelPayload = { ...payload, generationConfig: { ...payload.generationConfig } };
+      modelPayload = JSON.parse(JSON.stringify(payload));
       delete modelPayload.generationConfig.responseMimeType;
       delete modelPayload.generationConfig.responseSchema;
+      // 프롬프트에 JSON 형식 지시 추가
+      const jsonHint = '\n\n반드시 다음 JSON 형식으로만 응답하세요 (다른 텍스트 없이 순수 JSON만):\n{"reply":"대사","suggestions":["선택지1","선택지2","선택지3"],"emotion":"happy|sad|angry|neutral","farewell":false,"action":{"type":"none","target":""},"mention":{"npc":null,"place":null}}';
+      if (modelPayload.contents?.[0]?.parts?.[0]?.text) {
+        modelPayload.contents[0].parts[0].text += jsonHint;
+      }
     }
     const body = needsThinkingOff
       ? { ...modelPayload, generationConfig: { ...modelPayload.generationConfig, thinkingConfig: { thinkingBudget: 0 } } }
@@ -704,20 +709,30 @@ async function callGemini(prompt, useStructured = false) {
       if (rawText) {
         // Structured output → JSON 파싱 시도
         if (useStructured) {
-          try {
-            const parsed = JSON.parse(rawText);
-            if (parsed.reply) {
-              return {
-                reply: parsed.reply,
-                model,
-                suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
-                emotion: parsed.emotion || "neutral",
-                farewell: !!parsed.farewell,
-                action: parsed.action || { type: "none", target: "" },
-                mention: parsed.mention || { npc: null, place: null },
-              };
-            }
-          } catch { /* JSON 파싱 실패 → 일반 텍스트로 폴백 */ }
+          let parsed = null;
+          // 1차: 전체 텍스트를 JSON으로 파싱
+          try { parsed = JSON.parse(rawText); } catch { /* */ }
+          // 2차: ```json ... ``` 블록 추출
+          if (!parsed) {
+            const jsonBlock = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (jsonBlock) try { parsed = JSON.parse(jsonBlock[1].trim()); } catch { /* */ }
+          }
+          // 3차: 텍스트 안의 첫 번째 {...} 추출
+          if (!parsed) {
+            const braceMatch = rawText.match(/\{[\s\S]*\}/);
+            if (braceMatch) try { parsed = JSON.parse(braceMatch[0]); } catch { /* */ }
+          }
+          if (parsed && parsed.reply) {
+            return {
+              reply: String(parsed.reply),
+              model,
+              suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+              emotion: parsed.emotion || "neutral",
+              farewell: !!parsed.farewell,
+              action: parsed.action || { type: "none", target: "" },
+              mention: parsed.mention || { npc: null, place: null },
+            };
+          }
         }
         return { reply: rawText, model };
       }
