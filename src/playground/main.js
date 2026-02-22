@@ -6833,6 +6833,15 @@ import { GameRenderer } from './renderer/renderer.js';
         waterTileFn: waterTile,
       });
       console.log("[Playground] Three.js 3D renderer initialized");
+
+      // 3D 캔버스 클릭 → 이동
+      canvas3D.addEventListener("click", (ev) => {
+        if (dragging || isMobileViewport()) return;
+        const pos = gameRenderer3D.screenToWorld(ev.clientX, ev.clientY);
+        if (pos && canStand(pos.x, pos.z)) {
+          player.moveTarget = { x: pos.x, y: pos.z };
+        }
+      });
     } catch (e) {
       console.warn("[Playground] Three.js init failed, falling back to 2D:", e);
       gameRenderer3D = null;
