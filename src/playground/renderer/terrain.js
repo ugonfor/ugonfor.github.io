@@ -18,6 +18,9 @@ export class Terrain {
     const pos = groundGeo.attributes.position;
     const colors = new Float32Array(pos.count * 3);
     const grassBase = new THREE.Color(0x7db85a);
+    const parkGrass = new THREE.Color(0x8ecc6a);
+    const parkBorder = new THREE.Color(0x6aaa4a);
+    const parkPath = new THREE.Color(0xd4c4a0);
     const roadColor = new THREE.Color(0xc8b48a);
     const crosswalkColor = new THREE.Color(0xe8e0d0);
     const waterColor = new THREE.Color(0x5fb8e8);
@@ -49,12 +52,39 @@ export class Terrain {
         }
         tmpColor.copy(isCrosswalk ? crosswalkColor : roadColor);
       } else {
-        // Grass with noise variation
+        // Park zone: y 3–13, x 10–50
+        const inPark = gx >= 10 && gx <= 50 && gy >= 3 && gy <= 13;
+        const onParkBorder = inPark && (
+          Math.abs(gx - 10) < 0.6 || Math.abs(gx - 50) < 0.6 ||
+          Math.abs(gy - 3) < 0.6 || Math.abs(gy - 13) < 0.6
+        );
+        // Cross-shaped park paths
+        const onParkPath = inPark && (
+          (Math.abs(gx - 30) < 0.4 && gy >= 3 && gy <= 13) ||
+          (Math.abs(gy - 8) < 0.4 && gx >= 10 && gx <= 50)
+        );
+
         const noise = (Math.sin(gx * 3.7 + gy * 2.3) * 0.5 + 0.5) * 0.08;
-        tmpColor.copy(grassBase);
-        tmpColor.r += noise - 0.04;
-        tmpColor.g += noise * 0.6;
-        tmpColor.b -= noise * 0.3;
+        if (onParkPath) {
+          tmpColor.copy(parkPath);
+          tmpColor.r += noise * 0.3 - 0.02;
+          tmpColor.g += noise * 0.2;
+        } else if (onParkBorder) {
+          tmpColor.copy(parkBorder);
+          tmpColor.r += noise - 0.04;
+          tmpColor.g += noise * 0.4;
+        } else if (inPark) {
+          tmpColor.copy(parkGrass);
+          tmpColor.r += noise - 0.03;
+          tmpColor.g += noise * 0.5;
+          tmpColor.b -= noise * 0.2;
+        } else {
+          // Default grass with noise variation
+          tmpColor.copy(grassBase);
+          tmpColor.r += noise - 0.04;
+          tmpColor.g += noise * 0.6;
+          tmpColor.b -= noise * 0.3;
+        }
       }
       colors[i * 3] = tmpColor.r;
       colors[i * 3 + 1] = tmpColor.g;

@@ -32,7 +32,11 @@ export class BuildingFactory {
     group.userData = { type: 'building', id: bDef.id };
 
     const bodyW = bDef.w;
-    const bodyH = bDef.z; // building height -> three.y
+    // Height multipliers for distinctive buildings
+    const heightScale = bDef.id === 'korea_univ' ? 1.3
+                      : bDef.id === 'kaist_ai'   ? 1.15
+                      : 1.0;
+    const bodyH = bDef.z * heightScale; // building height -> three.y
     const bodyD = bDef.h; // building depth -> three.z
 
     // --- Body ---
@@ -349,6 +353,10 @@ export class BuildingFactory {
       const basket = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), t('#ff6b9d'));
       basket.position.set(0.4, h * 0.8, d / 2 + 0.15);
       group.add(basket);
+      // Pink awning overhang
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, 0.04, 0.5), t('#ff85b3'));
+      awning.position.set(0, h * 0.7, d / 2 + 0.25);
+      group.add(awning);
     }
 
     if (id === 'library') {
@@ -411,6 +419,13 @@ export class BuildingFactory {
       const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.3), t('#003478'));
       flag.position.set(0.25, 2.3, d / 2 + 0.5);
       group.add(flag);
+      // Entrance columns (2 thin white cylinders at front)
+      for (const cx of [-w / 4, w / 4]) {
+        const column = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, h * 0.85, 8), t('#f0ebe0'));
+        column.position.set(cx, h * 0.425, d / 2 + 0.12);
+        column.castShadow = true;
+        group.add(column);
+      }
       // Entrance steps
       const step = new THREE.Mesh(new THREE.BoxGeometry(w * 0.5, 0.08, 0.3), t('#c0b8a8'));
       step.position.set(0, 0.04, d / 2 + 0.15);
@@ -442,6 +457,13 @@ export class BuildingFactory {
     }
 
     if (id === 'korea_univ') {
+      // Rooftop flag (red banner/flag on top)
+      const flagPole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.0, 6), t('#aaaaaa'));
+      flagPole.position.set(0, h + 0.5, 0);
+      group.add(flagPole);
+      const roofFlag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.3), t('#cc0033'));
+      roofFlag.position.set(0.25, h + 0.85, 0);
+      group.add(roofFlag);
       // Entrance gate arch (2 pillars + top beam)
       for (const px of [-w / 2 + 0.3, w / 2 - 0.3]) {
         const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.15, h * 0.7, 0.15), t('#8B0029'));
@@ -482,6 +504,22 @@ export class BuildingFactory {
         new THREE.MeshBasicMaterial({ color: '#00ffcc', transparent: true, opacity: 0.8 }));
       ledSign.position.set(0, h * 0.75, d / 2 + 0.04);
       group.add(ledSign);
+      // Glowing accent line around building base (emissive cyan)
+      const accentMat = new THREE.MeshStandardMaterial({
+        color: '#00e5cc', emissive: '#00e5cc', emissiveIntensity: 0.6,
+      });
+      const accentFront = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 0.06, 0.04), accentMat);
+      accentFront.position.set(0, 0.03, d / 2 + 0.02);
+      group.add(accentFront);
+      const accentBack = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 0.06, 0.04), accentMat);
+      accentBack.position.set(0, 0.03, -d / 2 - 0.02);
+      group.add(accentBack);
+      const accentLeft = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.06, d + 0.04), accentMat);
+      accentLeft.position.set(-w / 2 - 0.02, 0.03, 0);
+      group.add(accentLeft);
+      const accentRight = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.06, d + 0.04), accentMat);
+      accentRight.position.set(w / 2 + 0.02, 0.03, 0);
+      group.add(accentRight);
       // Entrance planter
       const planter = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.3), t('#333333'));
       planter.position.set(-w / 3, 0.09, d / 2 + 0.25);
@@ -514,7 +552,14 @@ export class BuildingFactory {
     }
 
     if (id === 'hospital') {
-      // Red cross symbol (2 crossed boxes)
+      // Red cross on roof (small red box cross on top)
+      const roofCrossH = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.15), t('#ff0000'));
+      roofCrossH.position.set(0, h + 0.25, 0);
+      group.add(roofCrossH);
+      const roofCrossV = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.5), t('#ff0000'));
+      roofCrossV.position.set(0, h + 0.25, 0);
+      group.add(roofCrossV);
+      // Red cross symbol on front face
       const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.05), t('#ff0000'));
       crossH.position.set(0, h * 0.7, d / 2 + 0.03);
       group.add(crossH);

@@ -3132,6 +3132,7 @@ import { GameRenderer } from './renderer/renderer.js';
       let model = "gemini";
       let reply = "";
       let done = false;
+      let streamMeta = {};
       const findBoundary = (text) => {
         const a = text.indexOf("\n\n");
         const b = text.indexOf("\r\n\r\n");
@@ -3170,6 +3171,7 @@ import { GameRenderer } from './renderer/renderer.js';
           throw new Error(data.message || "stream error");
         } else if (event === "done") {
           done = true;
+          streamMeta = data || {};
         }
       };
 
@@ -3188,10 +3190,73 @@ import { GameRenderer } from './renderer/renderer.js';
       }
       if (buffer.trim()) parseSseBlock(buffer);
       if (!done && !reply.trim()) throw new Error("empty stream reply");
-      return { reply, model };
+      return {
+        reply, model,
+        suggestions: Array.isArray(streamMeta.suggestions) ? streamMeta.suggestions : [],
+        emotion: streamMeta.emotion || "neutral",
+        farewell: !!streamMeta.farewell,
+        action: streamMeta.action || { type: "none", target: "" },
+        mention: streamMeta.mention || { npc: null, place: null },
+      };
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  // 키워드 기반 액션 감지 (스트리밍 폴백)
+  // NPC 응답 텍스트에서 follow/guide 의도를 감지하여 action 객체를 반환
+  function detectActionFromReply(npc, replyText) {
+    const text = replyText.toLowerCase();
+
+    // 동행해제 감지 (follow 해제보다 먼저 체크)
+    if (/(그만\s*따라|동행.*끝|헤어지|각자|따로\s*가|이만\s*가|그럼\s*여기서|돌아가|다시\s*내\s*할\s*일|stop\s*follow|unfollow)/i.test(replyText)) {
+      return { type: "unfollow", target: "" };
+    }
+
+    // 동행 감지
+    if (/(따라갈|같이\s*가|함께\s*가|동행|따라올|따라가|같이\s*다니|같이\s*걸|데려다|나를\s*따|내가\s*따|follow|let'?s\s*go\s*together|come\s*with|i'?ll\s*follow)/i.test(replyText)) {
+      return { type: "follow", target: "" };
+    }
+
+    // NPC 안내 감지 — "~에게 가자" / "~를 만나러" / "~한테 데려다줄게"
+    const npcGuidePatterns = [
+      /(?:에게|한테|만나러|찾아|소개해|데려다|안내해)\s*(?:가자|갈게|줄게|주|가|보자)/,
+      /(?:take\s*you\s*to|show\s*you\s*where|let\s*me\s*introduce|bring\s*you\s*to)/i,
+    ];
+    if (npcGuidePatterns.some(p => p.test(replyText))) {
+      // NPC 이름으로 대상 감지
+      for (const otherNpc of npcs) {
+        if (otherNpc.id === npc.id) continue;
+        if (replyText.includes(otherNpc.name) || replyText.includes(otherNpc.id)) {
+          return { type: "guide_npc", target: otherNpc.id };
+        }
+      }
+    }
+
+    // 장소 안내 감지 — "~로 가자" / "~에 데려다줄게" / "보여줄게"
+    const placeGuidePatterns = [
+      /(안내|가자|데려다|보여줄|가\s*볼래|가\s*볼까|같이.*가|따라.*와|따라.*오|알려\s*줄)/,
+      /(take\s*you|show\s*you|let'?s\s*go\s*to|guide\s*you|head\s*to)/i,
+    ];
+    if (placeGuidePatterns.some(p => p.test(replyText))) {
+      // 장소 이름 매칭 (한국어 label → place key)
+      const placeAliases = {
+        "공원": "park", "광장": "plaza", "안내소": "infoCenter", "게시판": "questBoard",
+        "카페": "cafe", "빵집": "bakery", "사무실": "office", "시장": "market",
+        "꽃집": "florist", "도서관": "library", "편의점": "convenience", "음식점": "restaurant",
+        "주택": "homeA", "체육관": "gym", "병원": "hospital", "경찰서": "police",
+        "고려대": "korea_univ", "고려대학교": "korea_univ",
+        "크래프톤": "krafton_ai", "KAIST": "kaist_ai", "카이스트": "kaist_ai",
+        "KSA": "ksa_main", "본관": "ksa_main", "기숙사": "ksa_dorm",
+      };
+      for (const [alias, key] of Object.entries(placeAliases)) {
+        if (replyText.includes(alias) && places[key]) {
+          return { type: "guide_place", target: key };
+        }
+      }
+    }
+
+    return { type: "none", target: "" };
   }
 
   async function sendChatMessage(msg) {
@@ -3310,6 +3375,11 @@ import { GameRenderer } from './renderer/renderer.js';
         });
         reply = (streamingDraft && streamingDraft.text()) || llm.reply;
         if (streamingDraft) streamingDraft.done();
+        if (llm.suggestions && llm.suggestions.length) serverSuggestions = llm.suggestions;
+        serverEmotion = llm.emotion || "neutral";
+        serverFarewell = !!llm.farewell;
+        serverAction = llm.action || { type: "none", target: "" };
+        serverMention = llm.mention || { npc: null, place: null };
         lastLlmModel = llm.model || "gemini";
         if (!llmAvailable) addLog(t("log_llm_restored"));
         llmAvailable = true;
@@ -3371,77 +3441,65 @@ import { GameRenderer } from './renderer/renderer.js';
 
     let cleanReply = reply;
 
-    // 스트리밍 모드에서는 태그 파싱 폴백 사용
-    if (streamedRendered) {
-      // [부탁:종류:대상] 태그 파싱 (스트리밍 폴백)
-      const favorTagMatch = cleanReply.match(/\[부탁:(\w+):(\w+)\]/);
-      if (favorTagMatch) {
-        cleanReply = cleanReply.replace(/\s*\[부탁:\w+:\w+\]\s*/, "").trim();
-        const reqType = favorTagMatch[1];
-        const reqTarget = favorTagMatch[2];
-        if (!npc.activeRequest) {
-          if (reqType === "bring_item" && itemTypes[reqTarget]) {
+    // ── 태그 파싱 (reply 텍스트에서 태그 제거 + serverAction 보강) ──
+    // 스트리밍/비스트리밍 모두 태그가 있을 수 있으므로 항상 파싱
+    const favorTagMatch = cleanReply.match(/\[부탁:(\w+):(\w+)\]/);
+    if (favorTagMatch) {
+      cleanReply = cleanReply.replace(/\s*\[부탁:\w+:\w+\]\s*/, "").trim();
+      const reqType = favorTagMatch[1];
+      const reqTarget = favorTagMatch[2];
+      if (!npc.activeRequest) {
+        if (reqType === "bring_item" && itemTypes[reqTarget]) {
+          npc.activeRequest = {
+            type: "bring_item",
+            title: t("favor_request_title", { name: npc.name }),
+            description: t("favor_request_bring", { label: itemTypes[reqTarget].label }),
+            itemNeeded: reqTarget,
+            expiresAt: nowMs() + 300_000,
+            reward: { favorPoints: 20, relationBoost: 8, items: [] },
+          };
+        } else if (reqType === "deliver") {
+          const targetNpc = npcs.find(n => n.id === reqTarget);
+          if (targetNpc) {
             npc.activeRequest = {
-              type: "bring_item",
-              title: t("favor_request_title", { name: npc.name }),
-              description: t("favor_request_bring", { label: itemTypes[reqTarget].label }),
-              itemNeeded: reqTarget,
+              type: "deliver_to",
+              title: t("favor_deliver_title", { name: targetNpc.name }),
+              description: t("favor_deliver_desc", { name: targetNpc.name }),
+              targetNpcId: targetNpc.id,
               expiresAt: nowMs() + 300_000,
-              reward: { favorPoints: 20, relationBoost: 8, items: [] },
+              reward: { favorPoints: 25, relationBoost: 10, items: [] },
             };
-          } else if (reqType === "deliver") {
-            const targetNpc = npcs.find(n => n.id === reqTarget);
-            if (targetNpc) {
-              npc.activeRequest = {
-                type: "deliver_to",
-                title: t("favor_deliver_title", { name: targetNpc.name }),
-                description: t("favor_deliver_desc", { name: targetNpc.name }),
-                targetNpcId: targetNpc.id,
-                expiresAt: nowMs() + 300_000,
-                reward: { favorPoints: 25, relationBoost: 10, items: [] },
-              };
-            }
           }
         }
       }
-      // [동행] / [동행해제] 태그 파싱 (스트리밍 폴백)
-      if (/\[동행\]/.test(cleanReply)) {
-        cleanReply = cleanReply.replace(/\s*\[동행\]\s*/, "").trim();
-        npc.following = true;
-        npc.roamTarget = null;
-        addLog(t("sys_companion_start", { name: npc.name }));
-      }
-      if (/\[동행해제\]/.test(cleanReply)) {
-        cleanReply = cleanReply.replace(/\s*\[동행해제\]\s*/, "").trim();
-        npc.following = false;
-        addLog(t("sys_companion_end", { name: npc.name }));
-      }
-      // [안내:npc:id] / [안내:장소] 태그 파싱 (스트리밍 폴백)
-      const guideNpcMatch = cleanReply.match(/\[안내:npc:(\w+)\]/);
-      const guidePlaceMatch = cleanReply.match(/\[안내:(\w+)\]/);
-      if (guideNpcMatch) {
-        cleanReply = cleanReply.replace(/\s*\[안내:npc:\w+\]\s*/, "").trim();
-        const targetNpc = npcs.find(n => n.id === guideNpcMatch[1]);
-        if (targetNpc) {
-          npc.following = false;
-          npc.guideTargetNpcId = targetNpc.id;
-          npc.roamWait = 0;
-          addLog(t("log_guide_to_npc", { npc: npc.name, target: targetNpc.name }));
-        }
-      } else if (guidePlaceMatch && !guideNpcMatch) {
-        cleanReply = cleanReply.replace(/\s*\[안내:\w+\]\s*/, "").trim();
-        const dest = places[guidePlaceMatch[1]];
-        if (dest) {
-          npc.following = false;
-          npc.guideTargetNpcId = null;
-          npc.roamTarget = { x: dest.x, y: dest.y };
-          npc.roamWait = 0;
-          player.moveTarget = { x: dest.x, y: dest.y + 1 };
-          addLog(t("log_guide_to_place", { npc: npc.name, place: guidePlaceMatch[1] }));
-        }
-      }
-    } else {
-      // Non-streaming: structured action handling
+    }
+    // [동행] / [동행해제] 태그 → serverAction 보강
+    if (/\[동행\]/.test(cleanReply)) {
+      cleanReply = cleanReply.replace(/\s*\[동행\]\s*/, "").trim();
+      if (serverAction.type === "none") serverAction = { type: "follow", target: "" };
+    }
+    if (/\[동행해제\]/.test(cleanReply)) {
+      cleanReply = cleanReply.replace(/\s*\[동행해제\]\s*/, "").trim();
+      if (serverAction.type === "none") serverAction = { type: "unfollow", target: "" };
+    }
+    // [안내:npc:id] / [안내:장소] 태그 → serverAction 보강
+    const guideNpcMatch = cleanReply.match(/\[안내:npc:(\w+)\]/);
+    const guidePlaceMatch = cleanReply.match(/\[안내:(\w+)\]/);
+    if (guideNpcMatch) {
+      cleanReply = cleanReply.replace(/\s*\[안내:npc:\w+\]\s*/, "").trim();
+      if (serverAction.type === "none") serverAction = { type: "guide_npc", target: guideNpcMatch[1] };
+    } else if (guidePlaceMatch && !guideNpcMatch) {
+      cleanReply = cleanReply.replace(/\s*\[안내:\w+\]\s*/, "").trim();
+      if (serverAction.type === "none") serverAction = { type: "guide_place", target: guidePlaceMatch[1] };
+    }
+
+    // ── 키워드 기반 폴백: 서버 액션도 태그도 없으면 reply 텍스트에서 감지 ──
+    if (serverAction.type === "none") {
+      serverAction = detectActionFromReply(npc, cleanReply);
+    }
+
+    // ── 통합 액션 실행 (스트리밍/비스트리밍 모두 동일 경로) ──
+    {
       const act = serverAction;
       if (act.type === "follow") {
         npc.following = true;
@@ -3903,10 +3961,18 @@ import { GameRenderer } from './renderer/renderer.js';
       // 가만히 있으면 idle 시간 누적 → 자동 앉기
       player.idleTime += dt;
       if (player.idleTime > 5 && player.pose === "standing") {
-        const bench = props.find(p => p.type === "bench" && dist(player, p) < 1.0);
-        if (bench) {
-          player.x = bench.x;
-          player.y = bench.y;
+        const sittable = ["bench", "chair", "stool", "armchair", "bean_bag", "floor_cushion", "gaming_chair"];
+        // 실외: props에서 찾기, 실내: furniture에서 찾기
+        let seat = props.find(p => sittable.includes(p.type) && dist(player, p) < 1.0);
+        if (!seat && sceneState.current !== "outdoor") {
+          const interior = interiorDefs && interiorDefs[sceneState.current];
+          if (interior && interior.furniture) {
+            seat = interior.furniture.find(f => sittable.includes(f.type) && Math.hypot(f.x - player.x, f.y - player.y) < 1.0);
+          }
+        }
+        if (seat) {
+          player.x = seat.x;
+          player.y = seat.y;
           player.pose = "sitting";
         }
       }
@@ -4136,7 +4202,7 @@ import { GameRenderer } from './renderer/renderer.js';
         const h = hourOfDay();
         const atHome = dist(npc, npc.home) < 2;
         const closestBench = props
-          .filter(p => p.type === "bench" && dist(npc, p) < 1.0)
+          .filter(p => ["bench", "chair", "stool", "armchair", "bean_bag", "floor_cushion"].includes(p.type) && dist(npc, p) < 1.0)
           .sort((a, b) => dist(npc, a) - dist(npc, b))[0];
         if (closestBench && Math.random() < 0.4) {
           // 벤치에 정확히 앉기
