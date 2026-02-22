@@ -46,6 +46,15 @@ export const npcPersonas = {
   jang: { age: "20대", gender: "남성", personality: "신중하고 인내심이 강한 성격" },
   yoo: { age: "20대", gender: "남성", personality: "침착하고 집요한 탐구형 성격" },
   guide: { age: "20대", gender: "여성", personality: "밝고 친절한 마을 안내원", isDocent: true },
+  barista: { age: "20대", gender: "여성", personality: "쾌활하고 커피를 사랑하는 성격" },
+  florist_owner: { age: "20대", gender: "여성", personality: "꽃을 사랑하고 낭만적인 성격" },
+  chef: { age: "30대", gender: "남성", personality: "열정적이고 음식에 진심인 성격" },
+  officer: { age: "30대", gender: "남성", personality: "정의감 있고 책임감 강한 성격" },
+  athlete: { age: "20대", gender: "남성", personality: "활발하고 운동을 좋아하는 성격" },
+  doctor: { age: "40대", gender: "여성", personality: "따뜻하고 차분한 의사" },
+  student_a: { age: "10대", gender: "남성", personality: "호기심 많고 장난기 있는 학생" },
+  student_b: { age: "10대", gender: "여성", personality: "성실하고 꿈이 큰 학생" },
+  grandpa: { age: "60대", gender: "남성", personality: "느긋하고 마을의 오래된 이야기를 많이 아는 성격" },
 };
 
 // ─── Color Palette ───
@@ -470,24 +479,40 @@ export const interiorDefs = {
     spawnPoint: { x: 5, y: 7 },
     exitPoint: { x: 5, y: 7.5 },
     furniture: [
+      // 카운터 & 장비
       { type: "counter", x: 3, y: 1, w: 4, h: 1 },
+      { type: "espresso_machine", x: 3.5, y: 0.5 },
+      { type: "menu_board", x: 8, y: 0.5, w: 2, h: 1 },
+      // 테이블 5개
       { type: "table_round", x: 2, y: 3 },
       { type: "table_round", x: 5, y: 3 },
       { type: "table_round", x: 8, y: 3 },
-      { type: "table_round", x: 3.5, y: 5.5 },
+      { type: "table_round", x: 3, y: 5.5 },
+      { type: "table_round", x: 7, y: 5.5 },
+      // 의자
       { type: "chair", x: 1.5, y: 3 }, { type: "chair", x: 2.5, y: 3 },
       { type: "chair", x: 4.5, y: 3 }, { type: "chair", x: 5.5, y: 3 },
       { type: "chair", x: 7.5, y: 3 }, { type: "chair", x: 8.5, y: 3 },
-      { type: "chair", x: 3, y: 5.5 }, { type: "chair", x: 4, y: 5.5 },
-      { type: "plant_pot", x: 1, y: 1 },
-      { type: "plant_pot", x: 9, y: 1 },
+      { type: "chair", x: 2.5, y: 5.5 }, { type: "chair", x: 3.5, y: 5.5 },
+      { type: "chair", x: 6.5, y: 5.5 }, { type: "chair", x: 7.5, y: 5.5 },
+      // 창가 좌석
+      { type: "window_seat", x: 0.5, y: 4, w: 1, h: 2 },
+      // 장식
+      { type: "hanging_plant", x: 1, y: 1 },
+      { type: "hanging_plant", x: 9, y: 1 },
+      { type: "hanging_plant", x: 5, y: 0.5 },
+      { type: "plant_pot", x: 9, y: 6 },
+      { type: "painting", x: 0.5, y: 1.5 },
     ],
     collision: [
       { x: 3, y: 1, w: 4, h: 1 },
+      { x: 8, y: 0.5, w: 2, h: 1 },
       { x: 1.5, y: 2.5, w: 2, h: 1 },
       { x: 4.5, y: 2.5, w: 2, h: 1 },
       { x: 7.5, y: 2.5, w: 2, h: 1 },
-      { x: 3, y: 5, w: 2, h: 1 },
+      { x: 2.5, y: 5, w: 2, h: 1 },
+      { x: 6.5, y: 5, w: 2, h: 1 },
+      { x: 0.5, y: 4, w: 1, h: 2 },
     ],
     npcSpots: [
       { x: 5, y: 1.5, id: "barista" },
@@ -502,27 +527,42 @@ export const interiorDefs = {
     spawnPoint: { x: 6, y: 7 },
     exitPoint: { x: 6, y: 7.5 },
     furniture: [
+      // 책상 5개
       { type: "desk", x: 2, y: 2, w: 2, h: 1 },
       { type: "desk", x: 5, y: 2, w: 2, h: 1 },
       { type: "desk", x: 8, y: 2, w: 2, h: 1 },
-      { type: "desk", x: 5, y: 5, w: 2, h: 1 },
+      { type: "desk", x: 3, y: 5, w: 2, h: 1 },
+      { type: "desk", x: 7, y: 5, w: 2, h: 1 },
+      // 의자
+      { type: "chair", x: 3, y: 3 }, { type: "chair", x: 6, y: 3 },
+      { type: "chair", x: 9, y: 3 },
+      { type: "chair", x: 4, y: 6 }, { type: "chair", x: 8, y: 6 },
+      // 장비 & 가구
       { type: "whiteboard", x: 1, y: 1, w: 1, h: 2 },
       { type: "water_cooler", x: 11, y: 1 },
-      { type: "chair", x: 3, y: 3 }, { type: "chair", x: 6, y: 3 },
-      { type: "chair", x: 9, y: 3 }, { type: "chair", x: 6, y: 6 },
+      { type: "filing_cabinet", x: 11, y: 3, w: 1, h: 2 },
+      { type: "printer", x: 11, y: 6 },
+      { type: "clock", x: 6, y: 0.5 },
+      { type: "coat_rack", x: 1, y: 6 },
+      // 장식
+      { type: "plant_pot", x: 1, y: 4 },
+      { type: "plant_pot", x: 10, y: 7 },
     ],
     collision: [
       { x: 2, y: 2, w: 2, h: 1 },
       { x: 5, y: 2, w: 2, h: 1 },
       { x: 8, y: 2, w: 2, h: 1 },
-      { x: 5, y: 5, w: 2, h: 1 },
+      { x: 3, y: 5, w: 2, h: 1 },
+      { x: 7, y: 5, w: 2, h: 1 },
       { x: 1, y: 1, w: 1, h: 2 },
       { x: 11, y: 1, w: 1, h: 1 },
+      { x: 11, y: 3, w: 1, h: 2 },
+      { x: 11, y: 6, w: 1, h: 1 },
     ],
     npcSpots: [
       { x: 3, y: 3, id: "worker_1" },
       { x: 9, y: 3, id: "worker_2" },
-      { x: 6, y: 6, id: "worker_3" },
+      { x: 4, y: 6, id: "worker_3" },
     ],
   },
 
@@ -532,13 +572,22 @@ export const interiorDefs = {
     spawnPoint: { x: 6, y: 9 },
     exitPoint: { x: 6, y: 9.5 },
     furniture: [
+      // 진열대
       { type: "shelf", x: 2, y: 2, w: 3, h: 1 },
       { type: "shelf", x: 2, y: 4, w: 3, h: 1 },
       { type: "shelf", x: 2, y: 6, w: 3, h: 1 },
       { type: "shelf", x: 7, y: 2, w: 3, h: 1 },
       { type: "shelf", x: 7, y: 4, w: 3, h: 1 },
       { type: "shelf", x: 7, y: 6, w: 3, h: 1 },
+      // 계산대 & 간판
       { type: "checkout_counter", x: 5, y: 8, w: 2, h: 1 },
+      { type: "sign_board", x: 5.5, y: 0.5, w: 2, h: 1 },
+      // 바구니 진열대
+      { type: "basket_display", x: 1, y: 1 },
+      { type: "basket_display", x: 11, y: 1 },
+      // 냉동 코너 & 저울
+      { type: "freezer", x: 11, y: 4, w: 1, h: 2 },
+      { type: "scale", x: 1, y: 8 },
     ],
     collision: [
       { x: 2, y: 2, w: 3, h: 1 },
@@ -548,6 +597,8 @@ export const interiorDefs = {
       { x: 7, y: 4, w: 3, h: 1 },
       { x: 7, y: 6, w: 3, h: 1 },
       { x: 5, y: 8, w: 2, h: 1 },
+      { x: 5.5, y: 0.5, w: 2, h: 1 },
+      { x: 11, y: 4, w: 1, h: 2 },
     ],
     npcSpots: [
       { x: 6, y: 8.5, id: "cashier" },
@@ -562,8 +613,10 @@ export const interiorDefs = {
     spawnPoint: { x: 7, y: 9 },
     exitPoint: { x: 7, y: 9.5 },
     furniture: [
+      // 교단
       { type: "podium", x: 7, y: 1 },
       { type: "blackboard", x: 4, y: 0.5, w: 6, h: 1 },
+      { type: "projector", x: 7, y: 0.3 },
       // 학생 책상 3x4 배치
       { type: "student_desk", x: 3, y: 3 }, { type: "student_desk", x: 5, y: 3 },
       { type: "student_desk", x: 7, y: 3 }, { type: "student_desk", x: 9, y: 3 },
@@ -571,6 +624,12 @@ export const interiorDefs = {
       { type: "student_desk", x: 7, y: 5 }, { type: "student_desk", x: 9, y: 5 },
       { type: "student_desk", x: 3, y: 7 }, { type: "student_desk", x: 5, y: 7 },
       { type: "student_desk", x: 7, y: 7 }, { type: "student_desk", x: 9, y: 7 },
+      // 벽면 가구
+      { type: "trophy_case", x: 1, y: 1, w: 1, h: 2 },
+      { type: "notice_board", x: 13, y: 1, w: 1, h: 2 },
+      { type: "lab_equipment", x: 12, y: 5 },
+      { type: "lab_equipment", x: 12, y: 7 },
+      { type: "clock", x: 7, y: 0.3 },
     ],
     collision: [
       { x: 4, y: 0.5, w: 6, h: 1 },
@@ -581,6 +640,8 @@ export const interiorDefs = {
       { x: 7, y: 5, w: 1, h: 1 }, { x: 9, y: 5, w: 1, h: 1 },
       { x: 3, y: 7, w: 1, h: 1 }, { x: 5, y: 7, w: 1, h: 1 },
       { x: 7, y: 7, w: 1, h: 1 }, { x: 9, y: 7, w: 1, h: 1 },
+      { x: 1, y: 1, w: 1, h: 2 },
+      { x: 13, y: 1, w: 1, h: 2 },
     ],
     npcSpots: [
       { x: 7, y: 1.5, id: "teacher" },
@@ -595,17 +656,31 @@ export const interiorDefs = {
     spawnPoint: { x: 5, y: 7 },
     exitPoint: { x: 5, y: 7.5 },
     furniture: [
+      // 침대
       { type: "bunk_bed", x: 1, y: 1, w: 2, h: 3 },
       { type: "bunk_bed", x: 1, y: 5, w: 2, h: 3 },
+      // 공용 테이블
       { type: "shared_table", x: 5, y: 3, w: 2, h: 2 },
-      { type: "vending_machine", x: 9, y: 1, w: 1, h: 1 },
       { type: "chair", x: 4.5, y: 4 }, { type: "chair", x: 7, y: 4 },
+      // 편의시설
+      { type: "vending_machine", x: 9, y: 1, w: 1, h: 1 },
+      { type: "mini_fridge", x: 9, y: 3 },
+      { type: "shoe_rack", x: 4, y: 7, w: 2, h: 0.8 },
+      // 학습 공간
+      { type: "study_lamp", x: 4, y: 1 },
+      { type: "study_lamp", x: 8, y: 1 },
+      { type: "bookshelf", x: 8, y: 5, w: 1, h: 2 },
+      // 장식
+      { type: "poster", x: 3.5, y: 0.5 },
     ],
     collision: [
       { x: 1, y: 1, w: 2, h: 3 },
       { x: 1, y: 5, w: 2, h: 3 },
       { x: 5, y: 3, w: 2, h: 2 },
       { x: 9, y: 1, w: 1, h: 1 },
+      { x: 9, y: 3, w: 1, h: 1 },
+      { x: 8, y: 5, w: 1, h: 2 },
+      { x: 4, y: 7, w: 2, h: 0.8 },
     ],
     npcSpots: [
       { x: 5, y: 5, id: "dorm_resident_1" },
@@ -619,18 +694,32 @@ export const interiorDefs = {
     spawnPoint: { x: 4, y: 7 },
     exitPoint: { x: 4, y: 7.5 },
     furniture: [
+      // 진열 & 조리
       { type: "display_case", x: 2, y: 1, w: 4, h: 1 },
+      { type: "cake_display", x: 1, y: 1, w: 1, h: 1 },
       { type: "oven", x: 7, y: 1, w: 1, h: 2 },
-      { type: "flour_sack", x: 7, y: 4 },
-      { type: "flour_sack", x: 7, y: 5 },
+      { type: "mixer", x: 7, y: 3.5 },
+      // 작업대
       { type: "work_table", x: 2, y: 4, w: 3, h: 1 },
       { type: "stool", x: 2, y: 5 }, { type: "stool", x: 4, y: 5 },
+      // 빵 선반
+      { type: "bread_rack", x: 0.5, y: 3, w: 1, h: 2 },
+      { type: "bread_rack", x: 0.5, y: 5.5, w: 1, h: 2 },
+      // 재료
+      { type: "flour_sack", x: 7, y: 5 },
+      { type: "flour_sack", x: 7, y: 6 },
+      // 장식
+      { type: "rolling_pin_rack", x: 6, y: 4 },
+      { type: "apron_hook", x: 6, y: 0.5 },
     ],
     collision: [
       { x: 2, y: 1, w: 4, h: 1 },
+      { x: 1, y: 1, w: 1, h: 1 },
       { x: 7, y: 1, w: 1, h: 2 },
-      { x: 7, y: 4, w: 1, h: 2 },
+      { x: 7, y: 5, w: 1, h: 2 },
       { x: 2, y: 4, w: 3, h: 1 },
+      { x: 0.5, y: 3, w: 1, h: 2 },
+      { x: 0.5, y: 5.5, w: 1, h: 2 },
     ],
     npcSpots: [
       { x: 4, y: 2, id: "baker" },
@@ -644,23 +733,33 @@ export const interiorDefs = {
     spawnPoint: { x: 4, y: 7 },
     exitPoint: { x: 4, y: 7.5 },
     furniture: [
+      // 꽃 진열
       { type: "flower_display", x: 1, y: 1, w: 2, h: 1 },
       { type: "flower_display", x: 4, y: 1, w: 2, h: 1 },
       { type: "flower_display", x: 1, y: 3, w: 2, h: 1 },
-      { type: "workbench", x: 5, y: 4, w: 2, h: 1 },
+      { type: "seed_display", x: 4, y: 3, w: 2, h: 1 },
+      // 작업대 & 장비
+      { type: "workbench", x: 5, y: 5, w: 2, h: 1 },
       { type: "fridge", x: 7, y: 1, w: 1, h: 2 },
+      { type: "watering_can", x: 7, y: 4 },
+      { type: "ribbon_rack", x: 7, y: 5 },
+      // 장식
+      { type: "hanging_basket", x: 2, y: 0.5 },
+      { type: "hanging_basket", x: 5, y: 0.5 },
       { type: "plant_pot", x: 1, y: 6 },
       { type: "plant_pot", x: 7, y: 6 },
+      { type: "plant_pot", x: 4, y: 6 },
     ],
     collision: [
       { x: 1, y: 1, w: 2, h: 1 },
       { x: 4, y: 1, w: 2, h: 1 },
       { x: 1, y: 3, w: 2, h: 1 },
-      { x: 5, y: 4, w: 2, h: 1 },
+      { x: 4, y: 3, w: 2, h: 1 },
+      { x: 5, y: 5, w: 2, h: 1 },
       { x: 7, y: 1, w: 1, h: 2 },
     ],
     npcSpots: [
-      { x: 6, y: 5, id: "florist_owner" },
+      { x: 6, y: 6, id: "florist_owner" },
       { x: 3, y: 5, id: "florist_customer" },
     ],
   },
@@ -671,24 +770,36 @@ export const interiorDefs = {
     spawnPoint: { x: 5, y: 7 },
     exitPoint: { x: 5, y: 7.5 },
     furniture: [
+      // 책장 6개
       { type: "bookshelf", x: 1, y: 1, w: 1, h: 3 },
-      { type: "bookshelf", x: 3, y: 1, w: 1, h: 3 },
+      { type: "bookshelf", x: 2.5, y: 1, w: 1, h: 3 },
+      { type: "bookshelf", x: 4, y: 1, w: 1, h: 3 },
       { type: "bookshelf", x: 6, y: 1, w: 1, h: 3 },
-      { type: "bookshelf", x: 8, y: 1, w: 1, h: 3 },
+      { type: "bookshelf", x: 7.5, y: 1, w: 1, h: 3 },
+      { type: "bookshelf", x: 9, y: 1, w: 1, h: 3 },
+      // 열람실
       { type: "reading_table", x: 2, y: 5, w: 2, h: 1 },
       { type: "reading_table", x: 6, y: 5, w: 2, h: 1 },
-      { type: "armchair", x: 9, y: 6 },
+      { type: "study_carrel", x: 1, y: 5 },
+      { type: "study_carrel", x: 9, y: 5 },
+      // 의자
       { type: "chair", x: 2, y: 6 }, { type: "chair", x: 3, y: 6 },
       { type: "chair", x: 6, y: 6 }, { type: "chair", x: 7, y: 6 },
+      // 장식
+      { type: "globe", x: 5, y: 4 },
+      { type: "newspaper_rack", x: 1, y: 7, w: 1, h: 1 },
+      { type: "ladder", x: 5, y: 2 },
     ],
     collision: [
       { x: 1, y: 1, w: 1, h: 3 },
-      { x: 3, y: 1, w: 1, h: 3 },
+      { x: 2.5, y: 1, w: 1, h: 3 },
+      { x: 4, y: 1, w: 1, h: 3 },
       { x: 6, y: 1, w: 1, h: 3 },
-      { x: 8, y: 1, w: 1, h: 3 },
+      { x: 7.5, y: 1, w: 1, h: 3 },
+      { x: 9, y: 1, w: 1, h: 3 },
       { x: 2, y: 5, w: 2, h: 1 },
       { x: 6, y: 5, w: 2, h: 1 },
-      { x: 9, y: 6, w: 1, h: 1 },
+      { x: 1, y: 7, w: 1, h: 1 },
     ],
     npcSpots: [
       { x: 5, y: 3, id: "librarian" },
@@ -703,16 +814,25 @@ export const interiorDefs = {
     spawnPoint: { x: 4, y: 5 },
     exitPoint: { x: 4, y: 5.5 },
     furniture: [
+      // 아늑한 전통 스타일
       { type: "bed", x: 1, y: 1, w: 2, h: 2 },
-      { type: "dining_table", x: 5, y: 1, w: 2, h: 1 },
-      { type: "fireplace", x: 1, y: 4, w: 2, h: 1 },
-      { type: "chair", x: 5, y: 2 }, { type: "chair", x: 6, y: 2 },
-      { type: "rug", x: 4, y: 3, w: 2, h: 1 },
+      { type: "fireplace", x: 6, y: 1, w: 2, h: 1 },
+      { type: "dining_table", x: 4, y: 1, w: 2, h: 1 },
+      { type: "floor_cushion", x: 4, y: 2 }, { type: "floor_cushion", x: 5, y: 2 },
+      { type: "rug", x: 3, y: 3, w: 3, h: 1 },
+      // 벽면
+      { type: "bookshelf", x: 7, y: 3, w: 1, h: 2 },
+      { type: "painting", x: 3, y: 0.5 },
+      { type: "clock", x: 6, y: 0.5 },
+      // 장식
+      { type: "plant_pot", x: 1, y: 4 },
+      { type: "hanging_pots", x: 2, y: 0.5 },
     ],
     collision: [
       { x: 1, y: 1, w: 2, h: 2 },
-      { x: 5, y: 1, w: 2, h: 1 },
-      { x: 1, y: 4, w: 2, h: 1 },
+      { x: 6, y: 1, w: 2, h: 1 },
+      { x: 4, y: 1, w: 2, h: 1 },
+      { x: 7, y: 3, w: 1, h: 2 },
     ],
     npcSpots: [
       { x: 4, y: 3, id: "resident_a1" },
@@ -726,18 +846,27 @@ export const interiorDefs = {
     spawnPoint: { x: 4, y: 5 },
     exitPoint: { x: 4, y: 5.5 },
     furniture: [
+      // 모던 테크 스타일
       { type: "desk_with_monitor", x: 1, y: 1, w: 2, h: 1 },
-      { type: "sofa", x: 5, y: 1, w: 2, h: 1 },
+      { type: "desk_with_monitor", x: 4, y: 1, w: 2, h: 1 },
+      { type: "gaming_chair", x: 2, y: 2 },
+      { type: "gaming_chair", x: 5, y: 2 },
+      // 거실
+      { type: "sofa", x: 1, y: 4, w: 2, h: 1 },
+      { type: "coffee_table", x: 3, y: 4, w: 1, h: 1 },
+      { type: "rug", x: 1, y: 3, w: 4, h: 1 },
+      // 장비 & 장식
       { type: "bookshelf", x: 7, y: 1, w: 1, h: 2 },
-      { type: "chair", x: 1, y: 2 },
-      { type: "coffee_table", x: 5, y: 3, w: 1, h: 1 },
-      { type: "rug", x: 3, y: 3, w: 3, h: 1 },
+      { type: "led_strip", x: 0.5, y: 0.5, w: 7, h: 0.2 },
+      { type: "plant_pot", x: 7, y: 4 },
+      { type: "poster", x: 6.5, y: 0.5 },
     ],
     collision: [
       { x: 1, y: 1, w: 2, h: 1 },
-      { x: 5, y: 1, w: 2, h: 1 },
+      { x: 4, y: 1, w: 2, h: 1 },
       { x: 7, y: 1, w: 1, h: 2 },
-      { x: 5, y: 3, w: 1, h: 1 },
+      { x: 1, y: 4, w: 2, h: 1 },
+      { x: 3, y: 4, w: 1, h: 1 },
     ],
     npcSpots: [
       { x: 2, y: 3, id: "resident_b1" },
@@ -751,15 +880,24 @@ export const interiorDefs = {
     spawnPoint: { x: 4, y: 5 },
     exitPoint: { x: 4, y: 5.5 },
     furniture: [
+      // 따뜻한 주방 중심 스타일
+      { type: "kitchen_island", x: 3, y: 2, w: 2, h: 1 },
       { type: "kitchen_counter", x: 1, y: 1, w: 3, h: 1 },
-      { type: "dining_table", x: 5, y: 1, w: 2, h: 1 },
-      { type: "hanging_pots", x: 2, y: 0.5 },
-      { type: "chair", x: 5, y: 2 }, { type: "chair", x: 6, y: 2 },
       { type: "stove", x: 1, y: 3, w: 1, h: 1 },
       { type: "fridge", x: 7, y: 1, w: 1, h: 1 },
+      // 식탁
+      { type: "dining_table", x: 5, y: 1, w: 2, h: 1 },
+      { type: "chair", x: 5, y: 2 }, { type: "chair", x: 6, y: 2 },
+      // 장식
+      { type: "spice_rack", x: 4, y: 0.5, w: 1, h: 1 },
+      { type: "herb_garden", x: 7, y: 3 },
+      { type: "hanging_pots", x: 2, y: 0.5 },
+      { type: "rug", x: 4, y: 4, w: 2, h: 1 },
+      { type: "plant_pot", x: 1, y: 4 },
     ],
     collision: [
       { x: 1, y: 1, w: 3, h: 1 },
+      { x: 3, y: 2, w: 2, h: 1 },
       { x: 5, y: 1, w: 2, h: 1 },
       { x: 1, y: 3, w: 1, h: 1 },
       { x: 7, y: 1, w: 1, h: 1 },
@@ -776,8 +914,12 @@ export const interiorDefs = {
     spawnPoint: { x: 7, y: 9 },
     exitPoint: { x: 7, y: 9.5 },
     furniture: [
+      // 강의실 전면
       { type: "podium", x: 7, y: 1 },
       { type: "blackboard", x: 4, y: 0.5, w: 6, h: 1 },
+      { type: "projector", x: 7, y: 0.3 },
+      { type: "university_banner", x: 1, y: 0.5, w: 2, h: 1 },
+      // 학생 책상 (계단식 5열x3행)
       { type: "student_desk", x: 3, y: 3 }, { type: "student_desk", x: 5, y: 3 },
       { type: "student_desk", x: 7, y: 3 }, { type: "student_desk", x: 9, y: 3 },
       { type: "student_desk", x: 11, y: 3 },
@@ -787,11 +929,15 @@ export const interiorDefs = {
       { type: "student_desk", x: 3, y: 7 }, { type: "student_desk", x: 5, y: 7 },
       { type: "student_desk", x: 7, y: 7 }, { type: "student_desk", x: 9, y: 7 },
       { type: "student_desk", x: 11, y: 7 },
+      // 벽면
       { type: "bookshelf", x: 13, y: 1, w: 1, h: 3 },
+      { type: "clock", x: 12, y: 0.5 },
+      { type: "notice_board", x: 1, y: 3, w: 1, h: 2 },
     ],
     collision: [
       { x: 4, y: 0.5, w: 6, h: 1 },
       { x: 6.5, y: 1, w: 1, h: 1 },
+      { x: 1, y: 0.5, w: 2, h: 1 },
       { x: 3, y: 3, w: 1, h: 1 }, { x: 5, y: 3, w: 1, h: 1 },
       { x: 7, y: 3, w: 1, h: 1 }, { x: 9, y: 3, w: 1, h: 1 },
       { x: 11, y: 3, w: 1, h: 1 },
@@ -802,6 +948,7 @@ export const interiorDefs = {
       { x: 7, y: 7, w: 1, h: 1 }, { x: 9, y: 7, w: 1, h: 1 },
       { x: 11, y: 7, w: 1, h: 1 },
       { x: 13, y: 1, w: 1, h: 3 },
+      { x: 1, y: 3, w: 1, h: 2 },
     ],
     npcSpots: [
       { x: 7, y: 1.5, id: "professor" },
@@ -816,19 +963,27 @@ export const interiorDefs = {
     spawnPoint: { x: 6, y: 9 },
     exitPoint: { x: 6, y: 9.5 },
     furniture: [
+      // 연구 책상
       { type: "desk", x: 2, y: 2, w: 2, h: 1 },
       { type: "desk", x: 5, y: 2, w: 2, h: 1 },
       { type: "desk", x: 8, y: 2, w: 2, h: 1 },
       { type: "desk", x: 2, y: 5, w: 2, h: 1 },
       { type: "desk", x: 5, y: 5, w: 2, h: 1 },
       { type: "desk", x: 8, y: 5, w: 2, h: 1 },
-      { type: "whiteboard", x: 1, y: 1, w: 1, h: 2 },
-      { type: "bookshelf", x: 11, y: 1, w: 1, h: 3 },
-      { type: "plant_pot", x: 1, y: 8 },
+      // 의자
       { type: "chair", x: 3, y: 3 }, { type: "chair", x: 6, y: 3 },
       { type: "chair", x: 9, y: 3 },
       { type: "chair", x: 3, y: 6 }, { type: "chair", x: 6, y: 6 },
       { type: "chair", x: 9, y: 6 },
+      // 연구 장비
+      { type: "whiteboard", x: 1, y: 1, w: 1, h: 2 },
+      { type: "bookshelf", x: 11, y: 1, w: 1, h: 3 },
+      { type: "lab_bench", x: 1, y: 4, w: 1, h: 2 },
+      { type: "computer_cluster", x: 11, y: 5, w: 1, h: 2 },
+      { type: "paper_wall", x: 1, y: 7, w: 2, h: 1 },
+      // 편의
+      { type: "coffee_machine", x: 11, y: 8 },
+      { type: "plant_pot", x: 1, y: 8 },
     ],
     collision: [
       { x: 2, y: 2, w: 2, h: 1 },
@@ -839,6 +994,9 @@ export const interiorDefs = {
       { x: 8, y: 5, w: 2, h: 1 },
       { x: 1, y: 1, w: 1, h: 2 },
       { x: 11, y: 1, w: 1, h: 3 },
+      { x: 1, y: 4, w: 1, h: 2 },
+      { x: 11, y: 5, w: 1, h: 2 },
+      { x: 1, y: 7, w: 2, h: 1 },
     ],
     npcSpots: [
       { x: 3, y: 3, id: "ai_researcher_1" },
@@ -853,18 +1011,27 @@ export const interiorDefs = {
     spawnPoint: { x: 6, y: 7 },
     exitPoint: { x: 6, y: 7.5 },
     furniture: [
-      { type: "desk", x: 2, y: 2, w: 2, h: 1 },
-      { type: "desk", x: 5, y: 2, w: 2, h: 1 },
-      { type: "desk", x: 8, y: 2, w: 2, h: 1 },
+      // 스탠딩 데스크
+      { type: "standing_desk", x: 2, y: 2, w: 2, h: 1 },
+      { type: "standing_desk", x: 5, y: 2, w: 2, h: 1 },
+      { type: "standing_desk", x: 8, y: 2, w: 2, h: 1 },
       { type: "desk", x: 2, y: 4, w: 2, h: 1 },
       { type: "desk", x: 5, y: 4, w: 2, h: 1 },
       { type: "desk", x: 8, y: 4, w: 2, h: 1 },
-      { type: "counter", x: 10, y: 1, w: 2, h: 1 },
+      // 의자
       { type: "chair", x: 3, y: 3 }, { type: "chair", x: 6, y: 3 },
       { type: "chair", x: 9, y: 3 },
       { type: "chair", x: 3, y: 5 }, { type: "chair", x: 6, y: 5 },
       { type: "chair", x: 9, y: 5 },
-      { type: "plant_pot", x: 1, y: 1 },
+      // 장비
+      { type: "whiteboard", x: 1, y: 1, w: 1, h: 2 },
+      { type: "neon_sign", x: 5, y: 0.5, w: 2, h: 0.5 },
+      { type: "counter", x: 10, y: 1, w: 2, h: 1 },
+      // 휴식 공간
+      { type: "bean_bag", x: 1, y: 6 },
+      { type: "bean_bag", x: 2.5, y: 6 },
+      // 장식
+      { type: "plant_pot", x: 1, y: 4 },
       { type: "plant_pot", x: 11, y: 6 },
     ],
     collision: [
@@ -874,6 +1041,7 @@ export const interiorDefs = {
       { x: 2, y: 4, w: 2, h: 1 },
       { x: 5, y: 4, w: 2, h: 1 },
       { x: 8, y: 4, w: 2, h: 1 },
+      { x: 1, y: 1, w: 1, h: 2 },
       { x: 10, y: 1, w: 2, h: 1 },
     ],
     npcSpots: [
@@ -889,31 +1057,39 @@ export const interiorDefs = {
     spawnPoint: { x: 5, y: 7 },
     exitPoint: { x: 5, y: 7.5 },
     furniture: [
-      { type: "dining_table", x: 2, y: 2, w: 2, h: 1 },
-      { type: "dining_table", x: 6, y: 2, w: 2, h: 1 },
-      { type: "dining_table", x: 2, y: 5, w: 2, h: 1 },
-      { type: "dining_table", x: 6, y: 5, w: 2, h: 1 },
-      { type: "kitchen_counter", x: 4, y: 0.5, w: 3, h: 1 },
+      // 주방
+      { type: "kitchen_counter", x: 3, y: 0.5, w: 4, h: 1 },
       { type: "stove", x: 8, y: 1, w: 1, h: 1 },
       { type: "fridge", x: 9, y: 1, w: 1, h: 1 },
-      { type: "chair", x: 2, y: 3 }, { type: "chair", x: 3, y: 3 },
-      { type: "chair", x: 6, y: 3 }, { type: "chair", x: 7, y: 3 },
-      { type: "chair", x: 2, y: 6 }, { type: "chair", x: 3, y: 6 },
-      { type: "chair", x: 6, y: 6 }, { type: "chair", x: 7, y: 6 },
+      { type: "menu_board", x: 1, y: 0.5, w: 2, h: 1 },
+      // 식탁 4개
+      { type: "dining_table", x: 2, y: 3, w: 2, h: 1 },
+      { type: "dining_table", x: 6, y: 3, w: 2, h: 1 },
+      { type: "dining_table", x: 2, y: 5.5, w: 2, h: 1 },
+      { type: "dining_table", x: 6, y: 5.5, w: 2, h: 1 },
+      // 의자
+      { type: "chair", x: 2, y: 4 }, { type: "chair", x: 3, y: 4 },
+      { type: "chair", x: 6, y: 4 }, { type: "chair", x: 7, y: 4 },
+      { type: "chair", x: 2, y: 6.5 }, { type: "chair", x: 3, y: 6.5 },
+      { type: "chair", x: 6, y: 6.5 }, { type: "chair", x: 7, y: 6.5 },
+      // 장식
+      { type: "plant_pot", x: 1, y: 3 },
+      { type: "plant_pot", x: 9, y: 6 },
     ],
     collision: [
-      { x: 2, y: 2, w: 2, h: 1 },
-      { x: 6, y: 2, w: 2, h: 1 },
-      { x: 2, y: 5, w: 2, h: 1 },
-      { x: 6, y: 5, w: 2, h: 1 },
-      { x: 4, y: 0.5, w: 3, h: 1 },
+      { x: 3, y: 0.5, w: 4, h: 1 },
       { x: 8, y: 1, w: 1, h: 1 },
       { x: 9, y: 1, w: 1, h: 1 },
+      { x: 1, y: 0.5, w: 2, h: 1 },
+      { x: 2, y: 3, w: 2, h: 1 },
+      { x: 6, y: 3, w: 2, h: 1 },
+      { x: 2, y: 5.5, w: 2, h: 1 },
+      { x: 6, y: 5.5, w: 2, h: 1 },
     ],
     npcSpots: [
       { x: 5, y: 1.5, id: "chef" },
-      { x: 3, y: 4, id: "diner_1" },
-      { x: 7, y: 4, id: "diner_2" },
+      { x: 3, y: 4.5, id: "diner_1" },
+      { x: 7, y: 4.5, id: "diner_2" },
     ],
   },
 
@@ -923,20 +1099,30 @@ export const interiorDefs = {
     spawnPoint: { x: 5, y: 7 },
     exitPoint: { x: 5, y: 7.5 },
     furniture: [
+      // 접수대
       { type: "counter", x: 3, y: 1, w: 4, h: 1 },
+      // 대기석
       { type: "chair", x: 2, y: 3 }, { type: "chair", x: 4, y: 3 },
       { type: "chair", x: 6, y: 3 },
-      { type: "bookshelf", x: 9, y: 1, w: 1, h: 2 },
-      { type: "bed", x: 1, y: 5, w: 2, h: 2 },
+      // 진료실
+      { type: "exam_bed", x: 1, y: 5, w: 2, h: 2 },
+      { type: "curtain_divider", x: 3.5, y: 5, w: 0.3, h: 2 },
       { type: "bed", x: 5, y: 5, w: 2, h: 2 },
-      { type: "shelf", x: 9, y: 5, w: 1, h: 2 },
+      // 장비
+      { type: "medicine_cabinet", x: 9, y: 1, w: 1, h: 2 },
+      { type: "desk", x: 8, y: 4, w: 2, h: 1 },
+      { type: "chair", x: 9, y: 5 },
+      { type: "sink", x: 1, y: 1 },
+      // 장식
+      { type: "plant_pot", x: 9, y: 7 },
     ],
     collision: [
       { x: 3, y: 1, w: 4, h: 1 },
       { x: 9, y: 1, w: 1, h: 2 },
       { x: 1, y: 5, w: 2, h: 2 },
       { x: 5, y: 5, w: 2, h: 2 },
-      { x: 9, y: 5, w: 1, h: 2 },
+      { x: 8, y: 4, w: 2, h: 1 },
+      { x: 1, y: 1, w: 1, h: 1 },
     ],
     npcSpots: [
       { x: 5, y: 1.5, id: "receptionist" },
@@ -951,22 +1137,32 @@ export const interiorDefs = {
     spawnPoint: { x: 4, y: 7 },
     exitPoint: { x: 4, y: 7.5 },
     furniture: [
+      // 선반 3줄
       { type: "shelf", x: 1, y: 1, w: 2, h: 1 },
       { type: "shelf", x: 1, y: 3, w: 2, h: 1 },
+      { type: "shelf", x: 1, y: 5, w: 2, h: 1 },
       { type: "shelf", x: 5, y: 1, w: 2, h: 1 },
       { type: "shelf", x: 5, y: 3, w: 2, h: 1 },
+      // 계산대
       { type: "checkout_counter", x: 3, y: 6, w: 2, h: 1 },
+      // 냉장 코너
       { type: "fridge", x: 7, y: 1, w: 1, h: 2 },
-      { type: "display_case", x: 1, y: 5, w: 2, h: 1 },
+      { type: "fridge", x: 7, y: 4, w: 1, h: 2 },
+      // 잡지/진열
+      { type: "magazine_rack", x: 5, y: 5, w: 2, h: 1 },
+      { type: "display_case", x: 3, y: 1, w: 1, h: 1 },
     ],
     collision: [
       { x: 1, y: 1, w: 2, h: 1 },
       { x: 1, y: 3, w: 2, h: 1 },
+      { x: 1, y: 5, w: 2, h: 1 },
       { x: 5, y: 1, w: 2, h: 1 },
       { x: 5, y: 3, w: 2, h: 1 },
       { x: 3, y: 6, w: 2, h: 1 },
       { x: 7, y: 1, w: 1, h: 2 },
-      { x: 1, y: 5, w: 2, h: 1 },
+      { x: 7, y: 4, w: 1, h: 2 },
+      { x: 5, y: 5, w: 2, h: 1 },
+      { x: 3, y: 1, w: 1, h: 1 },
     ],
     npcSpots: [
       { x: 4, y: 6.5, id: "cashier" },
@@ -980,19 +1176,32 @@ export const interiorDefs = {
     spawnPoint: { x: 5, y: 7 },
     exitPoint: { x: 5, y: 7.5 },
     furniture: [
+      // 사무 공간
       { type: "desk", x: 2, y: 2, w: 2, h: 1 },
       { type: "desk", x: 6, y: 2, w: 2, h: 1 },
-      { type: "bookshelf", x: 9, y: 1, w: 1, h: 3 },
       { type: "chair", x: 3, y: 3 }, { type: "chair", x: 7, y: 3 },
-      { type: "shelf", x: 1, y: 5, w: 3, h: 1 },
-      { type: "whiteboard", x: 5, y: 5, w: 2, h: 1 },
+      // 증거판 & 장비
+      { type: "evidence_board", x: 4, y: 0.5, w: 3, h: 1 },
+      { type: "radio_equipment", x: 9, y: 1 },
+      { type: "filing_cabinet", x: 9, y: 3, w: 1, h: 2 },
+      // 유치장
+      { type: "holding_area", x: 1, y: 5, w: 3, h: 2 },
+      // 서류 선반
+      { type: "shelf", x: 1, y: 1, w: 1, h: 2 },
+      { type: "bookshelf", x: 9, y: 6, w: 1, h: 2 },
+      // 장식
+      { type: "clock", x: 5, y: 0.3 },
+      { type: "plant_pot", x: 5, y: 6 },
     ],
     collision: [
       { x: 2, y: 2, w: 2, h: 1 },
       { x: 6, y: 2, w: 2, h: 1 },
-      { x: 9, y: 1, w: 1, h: 3 },
-      { x: 1, y: 5, w: 3, h: 1 },
-      { x: 5, y: 5, w: 2, h: 1 },
+      { x: 4, y: 0.5, w: 3, h: 1 },
+      { x: 9, y: 1, w: 1, h: 1 },
+      { x: 9, y: 3, w: 1, h: 2 },
+      { x: 1, y: 5, w: 3, h: 2 },
+      { x: 1, y: 1, w: 1, h: 2 },
+      { x: 9, y: 6, w: 1, h: 2 },
     ],
     npcSpots: [
       { x: 3, y: 3, id: "officer_1" },
@@ -1007,20 +1216,31 @@ export const interiorDefs = {
     spawnPoint: { x: 6, y: 9 },
     exitPoint: { x: 6, y: 9.5 },
     furniture: [
-      { type: "desk", x: 2, y: 2, w: 2, h: 1 },
-      { type: "desk", x: 5, y: 2, w: 2, h: 1 },
-      { type: "desk", x: 8, y: 2, w: 2, h: 1 },
-      { type: "shelf", x: 11, y: 2, w: 1, h: 2 },
-      { type: "bench", x: 3, y: 5 }, { type: "bench", x: 7, y: 5 },
-      { type: "bookshelf", x: 11, y: 6, w: 1, h: 3 },
+      // 운동 기구
+      { type: "treadmill", x: 2, y: 2, w: 2, h: 1 },
+      { type: "treadmill", x: 5, y: 2, w: 2, h: 1 },
+      { type: "weight_rack", x: 9, y: 1, w: 2, h: 2 },
+      { type: "bench_press", x: 2, y: 5, w: 2, h: 1 },
+      { type: "bench_press", x: 5, y: 5, w: 2, h: 1 },
+      // 벽면
+      { type: "mirror_wall", x: 1, y: 1, w: 1, h: 3 },
+      { type: "water_fountain", x: 11, y: 5 },
+      { type: "shelf", x: 11, y: 7, w: 1, h: 2 },
+      // 매트 구역
       { type: "rug", x: 2, y: 7, w: 4, h: 2 },
+      { type: "rug", x: 7, y: 7, w: 3, h: 2 },
+      // 벤치 & 장식
+      { type: "bench", x: 8, y: 4 },
+      { type: "clock", x: 6, y: 0.5 },
     ],
     collision: [
       { x: 2, y: 2, w: 2, h: 1 },
       { x: 5, y: 2, w: 2, h: 1 },
-      { x: 8, y: 2, w: 2, h: 1 },
-      { x: 11, y: 2, w: 1, h: 2 },
-      { x: 11, y: 6, w: 1, h: 3 },
+      { x: 9, y: 1, w: 2, h: 2 },
+      { x: 2, y: 5, w: 2, h: 1 },
+      { x: 5, y: 5, w: 2, h: 1 },
+      { x: 1, y: 1, w: 1, h: 3 },
+      { x: 11, y: 7, w: 1, h: 2 },
     ],
     npcSpots: [
       { x: 3, y: 3, id: "trainer" },

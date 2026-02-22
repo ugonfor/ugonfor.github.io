@@ -430,35 +430,35 @@ function buildPromptKo(payload) {
     "  · 친구: 반말, 먼저 화제를 꺼냄, 개인적 이야기",
     "  · 절친/소울메이트: 속마음, 비밀, 고민 상담",
     "",
-    "부탁 시스템:",
-    "- 관계가 '아는 사이' 이상이고 대화가 자연스럽게 흘러갈 때, 가끔 플레이어에게 부탁할 수 있습니다.",
-    "- 부탁할 때는 대화 끝에 태그를 붙이세요: [부탁:종류:대상]",
-    "- 종류: bring_item(아이템 가져다주기), deliver(메시지 전달), visit(장소 확인)",
-    "- 예시: '혹시 커피 한 잔 구해다 줄 수 있어? [부탁:bring_item:coffee]'",
-    "- 예시: '민수한테 안부 좀 전해줄래? [부탁:deliver:kim]'",
-    "- 부탁은 5번 대화에 1번 정도, 자연스러울 때만. 억지로 하지 마세요.",
-    "- 아이템 종류: flower_red, flower_yellow, coffee, snack, letter, gem",
+    "응답 형식:",
+    "- JSON structured output으로 응답합니다. reply에 대사, suggestions에 후속 선택지 3개를 넣으세요.",
+    "- emotion: 이 대화에서 느낀 감정 (happy/sad/angry/neutral)",
+    "- farewell: 대화를 끝내려면 true",
+    "- action: 행동이 필요하면 설정. type과 target.",
+    "  · follow: 플레이어를 따라가기 (target 불필요)",
+    "  · unfollow: 따라가기 중지",
+    "  · guide_place: 장소로 안내 (target: cafe, park, market, bakery, florist, library, office, ksa_main, ksa_dorm, plaza)",
+    "  · guide_npc: NPC에게 안내 (target: heo, kim, choi, jung, seo, lee, park, jang, yoo, baker, guide)",
+    "  · go_place: 대화 후 혼자 이동 (target: place id)",
+    "  · request_item: 아이템 부탁 (target: flower_red, flower_yellow, coffee, snack, letter, gem)",
+    "  · request_deliver: 전달 부탁 (target: npc id)",
+    "  · request_visit: 장소 확인 부탁 (target: place id)",
+    "  · give_item: 선물 (target: item id)",
+    "  · none: 행동 없음 (기본)",
+    "- mention: 대화에서 언급한 npc id나 place id (없으면 null)",
     "",
-    "동행 시스템:",
-    "- 플레이어가 동행을 요청하거나, 어딘가를 안내해달라고 하면 대화 끝에 [동행] 태그를 붙이세요.",
-    "- 예시: '좋아, 같이 가자! 따라와. [동행]'",
-    "- 동행 중 헤어질 때는 [동행해제] 태그를 붙이세요.",
-    "- 예시: '여기까지야. 나는 이만 돌아갈게! [동행해제]'",
-    "- 플레이어를 장소로 안내할 때: [안내:장소명] (예: '카페로 가자! [안내:cafe]')",
-    "- 장소명: plaza, cafe, office, park, market, bakery, florist, library, ksa_main, ksa_dorm",
-    "- 플레이어를 다른 NPC에게 안내할 때: [안내:npc:id] (예: '승준이한테 데려다줄게! [안내:npc:heo]')",
-    "- NPC id: heo(허승준), kim(김민수), choi(최민영), jung(정욱진), seo(서창근), lee(이진원), park(박지호), jang(장동우), yoo(유효곤), baker(한소영), guide(유진)",
-    "",
-    "후속 선택지:",
-    "- 응답에 플레이어가 다음에 할 수 있는 말 3가지를 포함하세요.",
+    "후속 선택지 규칙:",
     "- 선택지는 방금 한 이야기의 자연스러운 후속 질문/반응이어야 합니다.",
     "- 매번 다른 선택지를 만드세요.",
     "- 마지막 선택지는 대화를 끝낼 수 있는 것으로.",
-    "- (JSON structured output으로 자동 분리됩니다)",
+    "",
+    "부탁 규칙:",
+    "- 관계가 '아는 사이' 이상이고 대화가 자연스럽게 흘러갈 때, 가끔 action으로 부탁할 수 있습니다.",
+    "- 부탁은 5번 대화에 1번 정도, 자연스러울 때만. 억지로 하지 마세요.",
     "",
     "대화 마무리:",
-    "- 대화가 자연스럽게 끝났다고 느끼면 작별 인사를 하세요.",
-    "- 같은 이야기가 반복되거나, 할 말이 없어지면 '그럼 나 갈게!', '다음에 또 보자' 처럼 마무리하세요.",
+    "- 대화가 자연스럽게 끝났다고 느끼면 작별 인사를 하고 farewell: true로 설정하세요.",
+    "- 같은 이야기가 반복되거나, 할 말이 없어지면 마무리하세요.",
     "- 3~5번 주고받으면 자연스럽게 마무리를 시도하세요.",
     ...memorySection,
     ...socialSection,
@@ -545,35 +545,35 @@ function buildPromptEn(payload) {
     "  - Friend: Casual, bring up topics first, share personal stories",
     "  - Close Friend/Soulmate: Share inner thoughts, secrets, give advice on worries",
     "",
-    "Favor system:",
-    "- When the relationship is 'Acquaintance' or higher and the conversation flows naturally, you may occasionally ask the player for favors.",
-    "- When making a request, add a tag at the end: [부탁:type:target]",
-    "- Types: bring_item (bring an item), deliver (deliver a message), visit (check a place)",
-    "- Example: 'Could you grab me a coffee? [부탁:bring_item:coffee]'",
-    "- Example: 'Can you say hi to Minsu for me? [부탁:deliver:kim]'",
-    "- Only ask about once every 5 exchanges, and only when it feels natural. Don't force it.",
-    "- Item types: flower_red, flower_yellow, coffee, snack, letter, gem",
+    "Response format:",
+    "- Respond using JSON structured output. Put dialogue in reply, 3 follow-up choices in suggestions.",
+    "- emotion: the feeling in this conversation (happy/sad/angry/neutral)",
+    "- farewell: set to true when ending the conversation",
+    "- action: set when an action is needed. type and target.",
+    "  - follow: follow the player (no target needed)",
+    "  - unfollow: stop following",
+    "  - guide_place: guide to a place (target: cafe, park, market, bakery, florist, library, office, ksa_main, ksa_dorm, plaza)",
+    "  - guide_npc: guide to an NPC (target: heo, kim, choi, jung, seo, lee, park, jang, yoo, baker, guide)",
+    "  - go_place: go somewhere alone after conversation (target: place id)",
+    "  - request_item: ask for an item (target: flower_red, flower_yellow, coffee, snack, letter, gem)",
+    "  - request_deliver: ask to deliver a message (target: npc id)",
+    "  - request_visit: ask to check a place (target: place id)",
+    "  - give_item: give a gift (target: item id)",
+    "  - none: no action (default)",
+    "- mention: npc id or place id mentioned in conversation (null if none)",
     "",
-    "Companion system:",
-    "- If the player asks you to come along or guide them somewhere, add [동행] at the end.",
-    "- Example: 'Sure, let's go! Follow me. [동행]'",
-    "- When parting during companionship, add [동행해제].",
-    "- Example: 'This is as far as I go. See you around! [동행해제]'",
-    "- When guiding the player to a place: [안내:place_name] (e.g., 'Let's head to the cafe! [안내:cafe]')",
-    "- Place names: plaza, cafe, office, park, market, bakery, florist, library, ksa_main, ksa_dorm",
-    "- When guiding the player to another NPC: [안내:npc:id] (e.g., 'I'll take you to Seungjun! [안내:npc:heo]')",
-    "- NPC ids: heo(허승준), kim(김민수), choi(최민영), jung(정욱진), seo(서창근), lee(이진원), park(박지호), jang(장동우), yoo(유효곤), baker(한소영), guide(유진)",
-    "",
-    "Follow-up choices:",
-    "- Include 3 things the player could say next.",
+    "Follow-up choice rules:",
     "- Choices should be natural follow-ups to what you just said.",
     "- Make different choices each time.",
     "- The last choice should let the player end the conversation.",
-    "- (JSON structured output handles separation automatically)",
+    "",
+    "Favor rules:",
+    "- When the relationship is 'Acquaintance' or higher and the conversation flows naturally, you may occasionally use action to ask favors.",
+    "- Only ask about once every 5 exchanges, and only when it feels natural. Don't force it.",
     "",
     "Ending conversations:",
-    "- When the conversation feels like it's naturally ending, say goodbye.",
-    "- If the same topic keeps repeating or there's nothing left to say, wrap up with something like 'Well, I should get going!' or 'Let's chat again next time.'",
+    "- When the conversation feels like it's naturally ending, say goodbye and set farewell: true.",
+    "- If the same topic keeps repeating or there's nothing left to say, wrap things up.",
     "- After 3-5 exchanges, naturally try to wrap things up.",
     ...memorySection,
     ...socialSection,
@@ -621,15 +621,27 @@ function buildAuditBase(req, endpoint, requestId, payload, prompt, startedAtMs) 
 const STRUCTURED_SCHEMA = {
   type: "object",
   properties: {
-    reply: { type: "string", description: "NPC의 대화 응답" },
-    suggestions: {
-      type: "array",
-      items: { type: "string" },
-      description: "플레이어의 후속 선택지 3개",
+    reply: { type: "string" },
+    suggestions: { type: "array", items: { type: "string" } },
+    emotion: { type: "string", enum: ["happy", "sad", "angry", "neutral"] },
+    farewell: { type: "boolean" },
+    action: {
+      type: "object",
+      properties: {
+        type: { type: "string", enum: ["none", "follow", "unfollow", "guide_place", "guide_npc", "go_place", "request_item", "request_deliver", "request_visit", "give_item"] },
+        target: { type: "string" },
+      },
+      required: ["type"],
     },
-    tags: { type: "string", description: "시스템 태그 (예: [동행], [부탁:bring_item:coffee], [안내:cafe]). 없으면 빈 문자열." },
+    mention: {
+      type: "object",
+      properties: {
+        npc: { type: "string" },
+        place: { type: "string" },
+      },
+    },
   },
-  required: ["reply", "suggestions"],
+  required: ["reply", "suggestions", "emotion", "farewell"],
 };
 
 async function callGemini(prompt, useStructured = false) {
@@ -687,8 +699,15 @@ async function callGemini(prompt, useStructured = false) {
           try {
             const parsed = JSON.parse(rawText);
             if (parsed.reply) {
-              const fullReply = parsed.tags ? `${parsed.reply} ${parsed.tags}` : parsed.reply;
-              return { reply: fullReply, model, suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [] };
+              return {
+                reply: parsed.reply,
+                model,
+                suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+                emotion: parsed.emotion || "neutral",
+                farewell: !!parsed.farewell,
+                action: parsed.action || { type: "none", target: "" },
+                mention: parsed.mention || { npc: null, place: null },
+              };
             }
           } catch { /* JSON 파싱 실패 → 일반 텍스트로 폴백 */ }
         }
@@ -1069,6 +1088,10 @@ const server = createServer(async (req, res) => {
     reply = result.reply;
     model = result.model;
     const suggestions = result.suggestions || [];
+    const emotion = result.emotion || "neutral";
+    const farewell = !!result.farewell;
+    const action = result.action || { type: "none", target: "" };
+    const mention = result.mention || { npc: null, place: null };
     const auditRecord = {
       ...buildAuditBase(req, "/api/npc-chat", requestId, payload, prompt, startedAtMs),
       response: {
@@ -1090,7 +1113,7 @@ const server = createServer(async (req, res) => {
         return writeJson(res, 503, { error: "audit logging unavailable", requestId }, origin);
       }
     }
-    return writeJson(res, 200, { reply, model, requestId, suggestions }, origin);
+    return writeJson(res, 200, { reply, model, requestId, suggestions, emotion, farewell, action, mention }, origin);
   } catch (err) {
     const status = Number(err?.statusCode || 500);
     const message = status >= 500 ? "LLM proxy error" : (err?.message || "invalid request");
