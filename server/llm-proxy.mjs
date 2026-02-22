@@ -672,10 +672,18 @@ async function callGemini(prompt, useStructured = false) {
 
   const errors = [];
   for (const model of MODEL_CHAIN) {
-    const needsThinkingOff = model.startsWith("gemini-") && (model.includes("2.5") || model.includes("3-"));
+    const isGemini = model.startsWith("gemini-");
+    const needsThinkingOff = isGemini && (model.includes("2.5") || model.includes("3-"));
+    // Gemma doesn't support structured output — strip responseMimeType/responseSchema
+    let modelPayload = payload;
+    if (useStructured && !isGemini) {
+      modelPayload = { ...payload, generationConfig: { ...payload.generationConfig } };
+      delete modelPayload.generationConfig.responseMimeType;
+      delete modelPayload.generationConfig.responseSchema;
+    }
     const body = needsThinkingOff
-      ? { ...payload, generationConfig: { ...payload.generationConfig, thinkingConfig: { thinkingBudget: 0 } } }
-      : payload;
+      ? { ...modelPayload, generationConfig: { ...modelPayload.generationConfig, thinkingConfig: { thinkingBudget: 0 } } }
+      : modelPayload;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
     const response = await fetch(url, {
       method: "POST",
