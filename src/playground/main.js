@@ -228,7 +228,13 @@ import { GameRenderer } from './renderer/renderer.js';
       nextLongTripAt: 8 + Math.random() * 14,
       mood: "neutral",
       moodUntil: 0,
-      needs: { hunger: Math.random() * 30, energy: 80 + Math.random() * 20, social: 50 + Math.random() * 30 },
+      needs: {
+        hunger: Math.random() * 30,
+        energy: 80 + Math.random() * 20,
+        social: 50 + Math.random() * 30,
+        fun: 50 + Math.random() * 30,
+        duty: Math.random() * 20,
+      },
       favorLevel: 0,
       favorPoints: 0,
       activeRequest: null,
@@ -1851,7 +1857,7 @@ import { GameRenderer } from './renderer/renderer.js';
           ambientLlmPending = true;
           upsertSpeechBubble(closest.id, "...", 6000);
           const n = closest.needs || {};
-          const needHint = n.hunger > 60 ? "배가 고픈 상태." : n.energy < 30 ? "피곤한 상태." : n.social < 30 ? "외로운 상태." : "";
+          const needHint = n.hunger > 60 ? "배가 고픈 상태." : n.energy < 30 ? "피곤한 상태." : n.social < 30 ? "외로운 상태." : n.fun < 20 ? "심심한 상태." : n.duty > 70 ? "일해야 하는 상태." : "";
           llmReplyOrEmpty(closest, `(혼잣말을 해주세요. ${needHint} 지금 시간, 날씨, 기분에 맞게 짧은 한마디. 10자 이내.)`)
             .then((line) => {
               if (line) upsertSpeechBubble(closest.id, line, 4000);
@@ -1995,14 +2001,19 @@ import { GameRenderer } from './renderer/renderer.js';
   function targetFor(npc) {
     const h = hourOfDay();
     const n = npc.needs;
-    // 욕구 기반 행동 결정
-    if (n.energy < 20) return npc.home;              // 피곤하면 집
-    if (n.hunger > 70) {                              // 배고프면 음식점
+    // 욕구 우선순위: 가장 급한 것부터
+    if (n.energy < 20) return npc.home;              // 피곤 → 집에서 쉬기
+    if (n.hunger > 70) {                              // 배고픔 → 음식점
       const eatPlaces = [places.cafe, places.bakery];
       return eatPlaces[npc.id.charCodeAt(0) % eatPlaces.length];
     }
-    if (n.social < 30) return places.plaza;           // 외로우면 광장
-    // 기본 시간 기반 스케줄
+    if (n.duty > 70) return npc.work;                 // 할 일 쌓임 → 출근
+    if (n.fun < 20) {                                 // 심심함 → 놀이/산책
+      const funPlaces = [places.park, npc.hobby, places.florist];
+      return funPlaces[npc.id.charCodeAt(0) % funPlaces.length];
+    }
+    if (n.social < 30) return places.plaza;           // 외로움 → 광장에서 사교
+    // 기본 시간 기반 스케줄 (욕구가 다 적당할 때)
     if (h < 7) return npc.home;
     if (h < 17) return npc.work;
     if (h < 21) return npc.hobby;
@@ -2948,7 +2959,7 @@ import { GameRenderer } from './renderer/renderer.js';
       tone: getMemoryBasedTone(npc),
       socialContext: getNpcSocialContext(npc),
       favorLevel: npc.favorLevel || 0,
-      npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social) } : null,
+      npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social), fun: Math.round(npc.needs.fun), duty: Math.round(npc.needs.duty) } : null,
     };
 
     const controller = new AbortController();
@@ -3005,7 +3016,7 @@ import { GameRenderer } from './renderer/renderer.js';
       tone: getMemoryBasedTone(npc),
       socialContext: getNpcSocialContext(npc),
       favorLevel: npc.favorLevel || 0,
-      npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social) } : null,
+      npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social), fun: Math.round(npc.needs.fun), duty: Math.round(npc.needs.duty) } : null,
     };
 
     const controller = new AbortController();
@@ -3732,21 +3743,34 @@ import { GameRenderer } from './renderer/renderer.js';
       // 욕구 변화 (dt는 초 단위, 실시간 1:1)
       if (npc.needs) {
         const n = npc.needs;
-        n.hunger += dt * 0.08;   // 약 20분에 1 증가 → 하루 ~70 채움
-        n.energy -= dt * 0.05;   // 약 33분에 1 감소
-        n.social -= dt * 0.03;   // 약 55분에 1 감소
+        // 시간에 따른 자연 변화
+        n.hunger += dt * 0.08;    // 배고픔 증가
+        n.energy -= dt * 0.05;    // 에너지 감소
+        n.social -= dt * 0.03;    // 사교 감소
+        n.fun -= dt * 0.04;       // 즐거움 감소
+        n.duty += dt * 0.06;      // 할 일 쌓임
+
         // 장소에 따른 욕구 해소
         const atCafe = dist(npc, places.cafe) < 2;
         const atBakery = dist(npc, places.bakery) < 2;
         const atHome = dist(npc, npc.home) < 2;
+        const atWork = dist(npc, npc.work) < 2;
+        const atPark = dist(npc, places.park) < 2;
+        const atFlorist = places.florist && dist(npc, places.florist) < 2;
         const nearOtherNpc = npcs.some(o => o.id !== npc.id && dist(npc, o) < 3);
+
         if ((atCafe || atBakery) && n.hunger > 30) n.hunger = Math.max(0, n.hunger - dt * 2);
         if (atHome) n.energy = Math.min(100, n.energy + dt * 0.5);
         if (nearOtherNpc) n.social = Math.min(100, n.social + dt * 0.3);
+        if (atPark || atFlorist) n.fun = Math.min(100, n.fun + dt * 0.4);
+        if (atWork) n.duty = Math.max(0, n.duty - dt * 0.8);
+
         // 범위 제한
         n.hunger = Math.min(100, Math.max(0, n.hunger));
         n.energy = Math.min(100, Math.max(0, n.energy));
         n.social = Math.min(100, Math.max(0, n.social));
+        n.fun = Math.min(100, Math.max(0, n.fun));
+        n.duty = Math.min(100, Math.max(0, n.duty));
       }
 
       // 동행 모드: 플레이어를 따라감
