@@ -3423,16 +3423,30 @@ import { GameRenderer } from './renderer/renderer.js';
       // LLM이 생성한 선택지 우선 사용
       suggestions = llmSuggestions.slice(0, 3);
     } else if (lastReply) {
-      // 폴백: 키워드 기반 후속 선택지
+      // 폴백: NPC 응답에서 주제 감지 → 맞춤 선택지
       const r = lastReply;
-      if (/(먹|음식|빵|커피|카페|배고|맛|food|eat|cafe|hungry)/.test(r)) {
-        suggestions = [t("suggest_food_1"), t("suggest_food_2"), t("suggest_bye")];
-      } else if (/(누구|사람|주민|친구|이름|who|name|friend)/.test(r)) {
-        suggestions = [t("suggest_people_1"), t("suggest_people_2"), t("suggest_bye")];
-      } else if (/(어디|장소|안내|가자|따라)/.test(r)) {
+      // NPC 이름 언급 감지
+      const mentionedNpc = npcs.find(n => n.id !== npc.id && r.includes(n.name));
+      // 장소 언급 감지
+      const mentionedPlace = /(카페|빵집|시장|공원|광장|도서관|꽃집|사무실|학교|기숙사|cafe|park|market|library|office)/.test(r);
+
+      if (mentionedNpc) {
+        suggestions = [`${mentionedNpc.name} 어디 있어?`, `${mentionedNpc.name}한테 데려다줘`, t("suggest_bye")];
+      } else if (mentionedPlace) {
         suggestions = [t("suggest_place_1"), t("suggest_place_2"), t("suggest_bye")];
-      } else if (/(힘들|슬프|걱정|미안|괜찮)/.test(r)) {
+      } else if (/(먹|음식|빵|커피|카페|배고|맛|요리|크로아상|food|eat|cafe|hungry|cook|bread)/.test(r)) {
+        suggestions = [t("suggest_food_1"), t("suggest_food_2"), t("suggest_bye")];
+      } else if (/(힘들|슬프|걱정|미안|괜찮|외로|피곤|아프|worried|tired|sorry|sad|lonely)/.test(r)) {
         suggestions = [t("suggest_care_1"), t("suggest_care_2"), t("suggest_bye")];
+      } else if (/(재미|놀|게임|술래|fun|play|game)/.test(r)) {
+        suggestions = [t("suggest_more"), "같이 놀자!", t("suggest_bye")];
+      } else if (/(비밀|전설|옛날|역사|이야기|secret|legend|story|history)/.test(r)) {
+        suggestions = [t("suggest_more"), "진짜야?", t("suggest_bye")];
+      } else if (/(날씨|비|눈|해|바람|weather|rain|snow|sun)/.test(r)) {
+        suggestions = ["산책 갈래?", t("suggest_more"), t("suggest_bye")];
+      } else if (r.endsWith("?") || /(뭐|어떻|왜|what|how|why)/.test(r)) {
+        // NPC가 질문했을 때
+        suggestions = ["응!", "아니", t("suggest_more")];
       } else {
         suggestions = [t("suggest_more"), t("suggest_thanks"), t("suggest_bye")];
       }
