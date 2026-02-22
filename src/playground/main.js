@@ -185,8 +185,8 @@ import { GameRenderer } from './renderer/renderer.js';
   };
 
   const world = {
-    width: 75,
-    height: 75,
+    width: 60,
+    height: 80,
     totalMinutes: (() => { const s = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })); return s.getHours() * 60 + s.getMinutes(); })(),
     paused: false,
     baseTileW: 40,
@@ -3374,6 +3374,8 @@ import { GameRenderer } from './renderer/renderer.js';
 
     if (cleanReply && !streamedRendered) addNpcChat(npc.id, npc.name, cleanReply);
     if (cleanReply) upsertSpeechBubble(npc.id, cleanReply, 4000);
+    // 대화 후 추천 선택지 갱신
+    if (cleanReply) renderSuggestions(npc, cleanReply);
 
     if (cleanReply) {
       applyConversationEffect(npc, msg, cleanReply);
@@ -3398,6 +3400,52 @@ import { GameRenderer } from './renderer/renderer.js';
         }, 2500);
       }
     }
+  }
+
+  // 대화 추천 선택지 (맥락에 따라 동적 변경)
+  function renderSuggestions(npc, lastReply) {
+    if (!chatSuggestionsEl) return;
+    chatSuggestionsEl.dataset.npcId = npc.id;
+    const persona = npcPersonas[npc.id];
+    const isDocent = persona && persona.isDocent;
+    const friendly = npc.favorLevel >= 2;
+    let suggestions;
+
+    if (lastReply) {
+      // 대화 후 — NPC 응답에 맞는 후속 선택지
+      const r = lastReply;
+      if (/(먹|음식|빵|커피|카페|배고|맛)/.test(r)) {
+        suggestions = [t("suggest_food_1"), t("suggest_food_2"), t("suggest_bye")];
+      } else if (/(누구|사람|주민|친구|이름)/.test(r)) {
+        suggestions = [t("suggest_people_1"), t("suggest_people_2"), t("suggest_bye")];
+      } else if (/(어디|장소|안내|가자|따라)/.test(r)) {
+        suggestions = [t("suggest_place_1"), t("suggest_place_2"), t("suggest_bye")];
+      } else if (/(힘들|슬프|걱정|미안|괜찮)/.test(r)) {
+        suggestions = [t("suggest_care_1"), t("suggest_care_2"), t("suggest_bye")];
+      } else {
+        suggestions = [t("suggest_more"), t("suggest_thanks"), t("suggest_bye")];
+      }
+    } else {
+      // 첫 대화 — 관계/역할 기반
+      if (isDocent) {
+        suggestions = [t("suggest_docent_1"), t("suggest_docent_2"), t("suggest_docent_3")];
+      } else if (friendly) {
+        suggestions = [t("suggest_friend_1"), t("suggest_friend_2"), t("suggest_friend_3")];
+      } else {
+        suggestions = [t("suggest_stranger_1"), t("suggest_stranger_2"), t("suggest_stranger_3")];
+      }
+    }
+
+    chatSuggestionsEl.innerHTML = suggestions.map(s =>
+      `<button type="button">${s}</button>`
+    ).join("");
+    chatSuggestionsEl.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (chatInputEl) chatInputEl.value = btn.textContent;
+        sendCardChat();
+        chatSuggestionsEl.innerHTML = "";
+      });
+    });
   }
 
   async function sendCardChat() {
@@ -5995,30 +6043,7 @@ import { GameRenderer } from './renderer/renderer.js';
     // 추천 응답 표시
     if (chatSuggestionsEl) {
       if (npcNear && chatSuggestionsEl.dataset.npcId !== target.npc.id) {
-        chatSuggestionsEl.dataset.npcId = target.npc.id;
-        const npc = target.npc;
-        const persona = npcPersonas[npc.id];
-        const isDocent = persona && persona.isDocent;
-        const friendly = npc.favorLevel >= 2;
-        let suggestions;
-        if (isDocent) {
-          suggestions = [t("suggest_docent_1"), t("suggest_docent_2"), t("suggest_docent_3")];
-        } else if (friendly) {
-          suggestions = [t("suggest_friend_1"), t("suggest_friend_2"), t("suggest_friend_3")];
-        } else {
-          suggestions = [t("suggest_stranger_1"), t("suggest_stranger_2"), t("suggest_stranger_3")];
-        }
-        chatSuggestionsEl.innerHTML = suggestions.map(s =>
-          `<button type="button">${s}</button>`
-        ).join("");
-        chatSuggestionsEl.querySelectorAll("button").forEach(btn => {
-          btn.addEventListener("click", () => {
-            if (chatInputEl) chatInputEl.value = btn.textContent;
-            sendCardChat();
-            chatSuggestionsEl.innerHTML = "";
-            chatSuggestionsEl.dataset.npcId = "";
-          });
-        });
+        renderSuggestions(target.npc);
       } else if (!npcNear) {
         chatSuggestionsEl.innerHTML = "";
         chatSuggestionsEl.dataset.npcId = "";

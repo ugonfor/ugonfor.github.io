@@ -48,6 +48,19 @@ export const translations = {
     suggest_stranger_2: "여기는 어떤 곳이에요?",
     suggest_stranger_3: "이름이 뭐예요?",
 
+    // Follow-up suggestions (after NPC reply)
+    suggest_food_1: "맛있겠다!",
+    suggest_food_2: "추천해줘",
+    suggest_people_1: "그 사람 어디 있어?",
+    suggest_people_2: "소개해줘",
+    suggest_place_1: "같이 가자",
+    suggest_place_2: "거기 어디야?",
+    suggest_care_1: "괜찮아?",
+    suggest_care_2: "내가 도와줄까?",
+    suggest_more: "더 얘기해줘",
+    suggest_thanks: "고마워!",
+    suggest_bye: "다음에 보자",
+
     // Quest board
     board_title: "📜 ━━ 마을 게시판 ━━",
     board_prompt: "채팅창에 번호를 입력하세요:",
@@ -125,6 +138,19 @@ export const translations = {
     suggest_stranger_1: "Hello",
     suggest_stranger_2: "What is this place?",
     suggest_stranger_3: "What's your name?",
+
+    // Follow-up suggestions
+    suggest_food_1: "That sounds yummy!",
+    suggest_food_2: "Any recommendations?",
+    suggest_people_1: "Where are they?",
+    suggest_people_2: "Introduce me",
+    suggest_place_1: "Let's go together",
+    suggest_place_2: "Where is it?",
+    suggest_care_1: "Are you okay?",
+    suggest_care_2: "Can I help?",
+    suggest_more: "Tell me more",
+    suggest_thanks: "Thanks!",
+    suggest_bye: "See you later",
 
     // Quest board
     board_title: "📜 ━━ Village Board ━━",
