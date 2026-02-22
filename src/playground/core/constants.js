@@ -69,318 +69,308 @@ export const palette = {
 // ─── Places (NPC Routing Table) ───
 export const places = {
   // 공원 & 광장
-  park: { x: 30, y: 10 },             // 큰 공원 중앙
-  plaza: { x: 30, y: 22 },            // 광장 (상가 1열 중앙)
-  infoCenter: { x: 29, y: 22 },       // 안내소 (광장 서쪽)
-  questBoard: { x: 31, y: 22 },       // 게시판 (광장 동쪽)
-  // 상가 1열 (y=18)
-  cafe: { x: 13.5, y: 20.5 },         // (12, 18, h=2)
-  bakery: { x: 21, y: 20.5 },         // (20, 18, h=2)
-  office: { x: 42, y: 20.5 },         // (40, 18, h=2)
-  market: { x: 50, y: 21.5 },         // (48, 18, h=3)
+  park: { x: 30, y: 10 },             // 공원 중앙
+  plaza: { x: 30, y: 25 },            // 광장 중앙
+  infoCenter: { x: 28, y: 25 },       // 안내소 (광장 서쪽)
+  questBoard: { x: 32, y: 25 },       // 게시판 (광장 동쪽)
+  // 상가 1열 (y=16)
+  cafe: { x: 15.5, y: 18.5 },         // (14, 16, h=2)
+  bakery: { x: 23, y: 18.5 },         // (22, 16, h=2)
+  office: { x: 38, y: 18.5 },         // (36, 16, h=2)
+  market: { x: 46, y: 19.5 },         // (44, 16, h=3)
   // 상가 2열 (y=30)
   florist: { x: 15, y: 32.5 },        // (14, 30, h=2)
   library: { x: 23.5, y: 32.5 },      // (22, 30, h=2)
-  convenience: { x: 39, y: 32.5 },    // (38, 30, h=2)
-  restaurant: { x: 47.5, y: 32.5 },   // (46, 30, h=2)
-  // 주택 (y=40)
-  homeA: { x: 15, y: 42.5 },          // (14, 40, h=2)
-  homeB: { x: 31, y: 42.5 },          // (30, 40, h=2)
-  homeC: { x: 47, y: 42.5 },          // (46, 40, h=2)
-  // 병원 & 체육관 (y=44)
-  hospital: { x: 41.5, y: 46.5 },     // (40, 44, h=2)
-  gym: { x: 54, y: 47.5 },            // (52, 44, h=3)
-  // 남쪽 캠퍼스 (y=52)
-  korea_univ: { x: 14.5, y: 55.5 },   // (12, 52, h=3)
-  krafton_ai: { x: 30, y: 54.5 },     // (28, 52, h=2)
-  kaist_ai: { x: 42, y: 55.5 },       // (40, 52, h=3)
-  ksa_main: { x: 52.5, y: 55.5 },     // (50, 52, h=3)
-  ksa_dorm: { x: 51.5, y: 60.5 },     // (50, 58, h=2)
-  // 경찰서 (y=60)
-  police: { x: 13.5, y: 62.5 },       // (12, 60, h=2)
+  convenience: { x: 37, y: 32.5 },    // (36, 30, h=2)
+  restaurant: { x: 45.5, y: 32.5 },   // (44, 30, h=2)
+  // 주택 (y=38)
+  homeA: { x: 15, y: 40.5 },          // (14, 38, h=2)
+  homeB: { x: 31, y: 40.5 },          // (30, 38, h=2)
+  homeC: { x: 47, y: 40.5 },          // (46, 38, h=2)
+  // 캠퍼스/기관 (y=48~56)
+  korea_univ: { x: 13, y: 52.5 },     // (10, 48, h=4)
+  krafton_ai: { x: 26.5, y: 51.5 },   // (24, 48, h=3)
+  kaist_ai: { x: 40.5, y: 51.5 },     // (38, 48, h=3)
+  ksa_main: { x: 20.5, y: 58.5 },     // (18, 55, h=3)
+  ksa_dorm: { x: 35.5, y: 57.5 },     // (34, 55, h=2)
+  hospital: { x: 45.5, y: 57.5 },     // (44, 55, h=2)
+  police: { x: 11.5, y: 57.5 },       // (10, 55, h=2)
+  gym: { x: 50, y: 51.5 },            // (48, 48, h=3)
 };
 
 // ─── Buildings ───
 export const buildings = [
-  // 상가 1열 (y=18, 공원 바로 아래)
-  { id: "cafe", x: 12, y: 18, w: 3, h: 2, z: 2.3, color: "#f7b6b5", roof: "#e68a84", label: "카페" },
-  { id: "bakery", x: 20, y: 18, w: 2, h: 2, z: 2.2, color: "#f4d6a3", roof: "#dab977", label: "빵집" },
-  { id: "office", x: 40, y: 18, w: 4, h: 2, z: 2.9, color: "#f8d28d", roof: "#d79956", label: "사무실" },
-  { id: "market", x: 48, y: 18, w: 4, h: 3, z: 2.5, color: "#9ecbf0", roof: "#6ea2d4", label: "시장" },
+  // 상가 1열 (y=16)
+  { id: "cafe", x: 14, y: 16, w: 3, h: 2, z: 2.3, color: "#f7b6b5", roof: "#e68a84", label: "카페" },
+  { id: "bakery", x: 22, y: 16, w: 2, h: 2, z: 2.2, color: "#f4d6a3", roof: "#dab977", label: "빵집" },
+  { id: "office", x: 36, y: 16, w: 4, h: 2, z: 2.9, color: "#f8d28d", roof: "#d79956", label: "사무실" },
+  { id: "market", x: 44, y: 16, w: 4, h: 3, z: 2.5, color: "#9ecbf0", roof: "#6ea2d4", label: "시장" },
   // 상가 2열 (y=30)
   { id: "florist", x: 14, y: 30, w: 2, h: 2, z: 2.1, color: "#ffc9e0", roof: "#e8a1c1", label: "꽃집" },
   { id: "library", x: 22, y: 30, w: 3, h: 2, z: 2.6, color: "#b0c9d4", roof: "#8aa3b8", label: "도서관" },
-  { id: "convenience", x: 38, y: 30, w: 2, h: 2, z: 2.0, color: "#00a651", roof: "#008040", label: "편의점" },
-  { id: "restaurant", x: 46, y: 30, w: 3, h: 2, z: 2.2, color: "#e8a060", roof: "#c88040", label: "음식점" },
-  // 주택 (y=40)
-  { id: "houseA", x: 14, y: 40, w: 2, h: 2, z: 2.0, color: "#e8c9a6", roof: "#c4a073", label: "주택" },
-  { id: "houseB", x: 30, y: 40, w: 2, h: 2, z: 2.0, color: "#d4b89a", roof: "#b09572", label: "주택" },
-  { id: "houseC", x: 46, y: 40, w: 2, h: 2, z: 2.0, color: "#ceb798", roof: "#a89370", label: "주택" },
-  // 병원 & 체육관 (y=44)
-  { id: "hospital", x: 40, y: 44, w: 3, h: 2, z: 2.4, color: "#ffffff", roof: "#d0d0d0", label: "병원" },
-  { id: "gym", x: 52, y: 44, w: 4, h: 3, z: 2.8, color: "#d4d4d4", roof: "#b0b0b0", label: "체육관" },
-  // 남쪽 캠퍼스 (y=52)
-  { id: "korea_univ", x: 12, y: 52, w: 5, h: 3, z: 3.0, color: "#8B0029", roof: "#6a0020", label: "고려대학교" },
-  { id: "krafton_ai", x: 28, y: 52, w: 4, h: 2, z: 2.6, color: "#1a1a2e", roof: "#0f0f1e", label: "크래프톤 AI" },
-  { id: "kaist_ai", x: 40, y: 52, w: 4, h: 3, z: 2.8, color: "#003478", roof: "#002458", label: "KAIST AI대학원" },
-  { id: "ksa_main", x: 50, y: 52, w: 5, h: 3, z: 3.2, color: "#d4c4a8", roof: "#b8a88c", label: "KSA 본관" },
-  { id: "ksa_dorm", x: 50, y: 58, w: 3, h: 2, z: 2.4, color: "#c9b896", roof: "#a89878", label: "KSA 기숙사" },
-  // 경찰서 (y=60)
-  { id: "police", x: 12, y: 60, w: 3, h: 2, z: 2.3, color: "#4a6fa5", roof: "#3a5f95", label: "경찰서" },
+  { id: "convenience", x: 36, y: 30, w: 2, h: 2, z: 2.0, color: "#00a651", roof: "#008040", label: "편의점" },
+  { id: "restaurant", x: 44, y: 30, w: 3, h: 2, z: 2.2, color: "#e8a060", roof: "#c88040", label: "음식점" },
+  // 주택 (y=38)
+  { id: "houseA", x: 14, y: 38, w: 2, h: 2, z: 2.0, color: "#e8c9a6", roof: "#c4a073", label: "주택" },
+  { id: "houseB", x: 30, y: 38, w: 2, h: 2, z: 2.0, color: "#d4b89a", roof: "#b09572", label: "주택" },
+  { id: "houseC", x: 46, y: 38, w: 2, h: 2, z: 2.0, color: "#ceb798", roof: "#a89370", label: "주택" },
+  // 캠퍼스/기관 (y=48~56)
+  { id: "korea_univ", x: 10, y: 48, w: 6, h: 4, z: 3.0, color: "#8B0029", roof: "#6a0020", label: "고려대학교" },
+  { id: "krafton_ai", x: 24, y: 48, w: 5, h: 3, z: 2.6, color: "#1a1a2e", roof: "#0f0f1e", label: "크래프톤 AI" },
+  { id: "kaist_ai", x: 38, y: 48, w: 5, h: 3, z: 2.8, color: "#003478", roof: "#002458", label: "KAIST AI대학원" },
+  { id: "gym", x: 48, y: 48, w: 4, h: 3, z: 2.8, color: "#d4d4d4", roof: "#b0b0b0", label: "체육관" },
+  { id: "ksa_main", x: 18, y: 55, w: 5, h: 3, z: 3.2, color: "#d4c4a8", roof: "#b8a88c", label: "KSA 본관" },
+  { id: "ksa_dorm", x: 34, y: 55, w: 3, h: 2, z: 2.4, color: "#c9b896", roof: "#a89878", label: "KSA 기숙사" },
+  { id: "hospital", x: 44, y: 55, w: 3, h: 2, z: 2.4, color: "#ffffff", roof: "#d0d0d0", label: "병원" },
+  { id: "police", x: 10, y: 55, w: 3, h: 2, z: 2.3, color: "#4a6fa5", roof: "#3a5f95", label: "경찰서" },
 ];
 
 // ─── Hotspots ───
 export const hotspots = [
   { id: "exitGate", x: 30, y: 77, label: "출구" },
   // 상가 1열
-  { id: "cafeDoor", x: 13.5, y: 20, label: "카페 입구" },
-  { id: "bakeryDoor", x: 21, y: 20, label: "빵집 입구" },
-  { id: "officeDoor", x: 42, y: 20, label: "사무실 입구" },
-  { id: "marketDoor", x: 50, y: 21, label: "시장 입구" },
+  { id: "cafeDoor", x: 15.5, y: 18, label: "카페 입구" },
+  { id: "bakeryDoor", x: 23, y: 18, label: "빵집 입구" },
+  { id: "officeDoor", x: 38, y: 18, label: "사무실 입구" },
+  { id: "marketDoor", x: 46, y: 19, label: "시장 입구" },
   // 상가 2열
   { id: "floristDoor", x: 15, y: 32, label: "꽃집 입구" },
   { id: "libraryDoor", x: 23.5, y: 32, label: "도서관 입구" },
-  { id: "convenienceDoor", x: 39, y: 32, label: "편의점" },
-  { id: "restaurantDoor", x: 47.5, y: 32, label: "음식점" },
+  { id: "convenienceDoor", x: 37, y: 32, label: "편의점" },
+  { id: "restaurantDoor", x: 45.5, y: 32, label: "음식점" },
   // 주택
-  { id: "houseADoor", x: 15, y: 42, label: "주택" },
-  { id: "houseBDoor", x: 31, y: 42, label: "주택" },
-  { id: "houseCDoor", x: 47, y: 42, label: "주택" },
-  // 병원 & 체육관
-  { id: "hospitalDoor", x: 41.5, y: 46, label: "병원" },
-  { id: "gymDoor", x: 54, y: 47, label: "체육관" },
-  // 남쪽 캠퍼스
-  { id: "koreaUnivDoor", x: 14.5, y: 55, label: "고려대학교" },
-  { id: "kraftonAiDoor", x: 30, y: 54, label: "크래프톤 AI" },
-  { id: "kaistAiDoor", x: 42, y: 55, label: "KAIST AI대학원" },
-  { id: "ksaMainDoor", x: 52.5, y: 55, label: "KSA 본관" },
-  { id: "ksaDormDoor", x: 51.5, y: 60, label: "KSA 기숙사" },
-  // 경찰서
-  { id: "policeDoor", x: 13.5, y: 62, label: "경찰서" },
+  { id: "houseADoor", x: 15, y: 40, label: "주택" },
+  { id: "houseBDoor", x: 31, y: 40, label: "주택" },
+  { id: "houseCDoor", x: 47, y: 40, label: "주택" },
+  // 캠퍼스/기관
+  { id: "koreaUnivDoor", x: 13, y: 52, label: "고려대학교" },
+  { id: "kraftonAiDoor", x: 26.5, y: 51, label: "크래프톤 AI" },
+  { id: "kaistAiDoor", x: 40.5, y: 51, label: "KAIST AI대학원" },
+  { id: "gymDoor", x: 50, y: 51, label: "체육관" },
+  { id: "ksaMainDoor", x: 20.5, y: 58, label: "KSA 본관" },
+  { id: "ksaDormDoor", x: 35.5, y: 57, label: "KSA 기숙사" },
+  { id: "hospitalDoor", x: 45.5, y: 57, label: "병원" },
+  { id: "policeDoor", x: 11.5, y: 57, label: "경찰서" },
   // 공원 & 광장
   { id: "parkMonument", x: 30, y: 10, label: "공원 기념비" },
   { id: "minigameZone", x: 30, y: 25, label: "놀이터" },
-  { id: "infoCenter", x: 29, y: 22, label: "안내소" },
-  { id: "questBoard", x: 31, y: 22, label: "게시판" },
+  { id: "infoCenter", x: 28, y: 25, label: "안내소" },
+  { id: "questBoard", x: 32, y: 25, label: "게시판" },
 ];
 
 // ─── Props (Decorations) ───
 export const props = [
-  // ─── 공원 (15, 10) ───
-  { type: "fountain", x: 15, y: 10 },
-  { type: "bench", x: 13, y: 9 }, { type: "bench", x: 17, y: 9 },
-  { type: "bench", x: 13, y: 11.5 }, { type: "bench", x: 17, y: 11.5 },
-  { type: "tree", x: 12, y: 7.5 }, { type: "tree", x: 18, y: 7.8 },
-  { type: "tree", x: 12, y: 13 }, { type: "tree", x: 18, y: 13 },
-  { type: "flower", x: 13.5, y: 8 }, { type: "flower", x: 16.5, y: 8.2 },
-  { type: "flower", x: 14, y: 12 }, { type: "flower", x: 16, y: 12.2 },
-  { type: "bush", x: 11.5, y: 10 }, { type: "bush", x: 18.5, y: 10.5 },
-  { type: "statue", x: 15, y: 8 },
-  { type: "bench", x: 14, y: 12.5 }, { type: "bench", x: 16, y: 12.5 },
+  // ═══════════════════════════════════════════════
+  // 센트럴 파크 (y=3~13, x=10~50)
+  // ═══════════════════════════════════════════════
+  // 중앙 분수
+  { type: "fountain", x: 30, y: 8 },
+  // 공원 벤치 (분수 주변)
+  { type: "bench", x: 25, y: 6 }, { type: "bench", x: 35, y: 6 },
+  { type: "bench", x: 25, y: 10 }, { type: "bench", x: 35, y: 10 },
+  { type: "bench", x: 20, y: 8 }, { type: "bench", x: 40, y: 8 },
+  // 공원 나무 — 가장자리에만
+  { type: "tree", x: 10, y: 3 }, { type: "tree", x: 12, y: 4 },
+  { type: "tree", x: 48, y: 3 }, { type: "tree", x: 50, y: 4 },
+  { type: "tree", x: 10, y: 12 }, { type: "tree", x: 50, y: 12 },
+  { type: "tree", x: 11, y: 7 }, { type: "tree", x: 49, y: 7 },
+  // 공원 꽃밭
+  { type: "flower", x: 28, y: 6 }, { type: "flower", x: 32, y: 6 },
+  { type: "flower", x: 27, y: 9 }, { type: "flower", x: 33, y: 9 },
+  { type: "flower", x: 26, y: 11 }, { type: "flower", x: 34, y: 11 },
+  // 공원 가로등 (모서리)
+  { type: "lamp", x: 12, y: 5 }, { type: "lamp", x: 48, y: 5 },
+  { type: "lamp", x: 12, y: 11 }, { type: "lamp", x: 48, y: 11 },
 
-  // ─── 대로 (x=25) 가로등 — 5타일 간격 ───
-  { type: "lamp", x: 24, y: 5 }, { type: "lamp", x: 26, y: 5 },
-  { type: "lamp", x: 24, y: 10 }, { type: "lamp", x: 26, y: 10 },
-  { type: "lamp", x: 24, y: 15 }, { type: "lamp", x: 26, y: 15 },
-  { type: "lamp", x: 24, y: 20 }, { type: "lamp", x: 26, y: 20 },
-  { type: "lamp", x: 24, y: 25 }, { type: "lamp", x: 26, y: 25 },
-  { type: "lamp", x: 24, y: 35 }, { type: "lamp", x: 26, y: 35 },
-  { type: "lamp", x: 24, y: 40 }, { type: "lamp", x: 26, y: 40 },
-  { type: "lamp", x: 24, y: 45 }, { type: "lamp", x: 26, y: 45 },
-  { type: "lamp", x: 24, y: 50 }, { type: "lamp", x: 26, y: 50 },
-  { type: "lamp", x: 24, y: 55 }, { type: "lamp", x: 26, y: 55 },
-  { type: "lamp", x: 24, y: 60 }, { type: "lamp", x: 26, y: 60 },
-  { type: "lamp", x: 24, y: 65 }, { type: "lamp", x: 26, y: 65 },
-  { type: "lamp", x: 24, y: 70 }, { type: "lamp", x: 26, y: 70 },
+  // ═══════════════════════════════════════════════
+  // 대로 가로등 (x=28, x=32) — 5타일 간격, y=14~75
+  // ═══════════════════════════════════════════════
+  { type: "lamp", x: 28, y: 14 }, { type: "lamp", x: 32, y: 14 },
+  { type: "lamp", x: 28, y: 19 }, { type: "lamp", x: 32, y: 19 },
+  { type: "lamp", x: 28, y: 24 }, { type: "lamp", x: 32, y: 24 },
+  { type: "lamp", x: 28, y: 29 }, { type: "lamp", x: 32, y: 29 },
+  { type: "lamp", x: 28, y: 34 }, { type: "lamp", x: 32, y: 34 },
+  { type: "lamp", x: 28, y: 39 }, { type: "lamp", x: 32, y: 39 },
+  { type: "lamp", x: 28, y: 49 }, { type: "lamp", x: 32, y: 49 },
+  { type: "lamp", x: 28, y: 54 }, { type: "lamp", x: 32, y: 54 },
+  { type: "lamp", x: 28, y: 59 }, { type: "lamp", x: 32, y: 59 },
+  { type: "lamp", x: 28, y: 64 }, { type: "lamp", x: 32, y: 64 },
+  { type: "lamp", x: 28, y: 69 }, { type: "lamp", x: 32, y: 69 },
+  { type: "lamp", x: 28, y: 74 }, { type: "lamp", x: 32, y: 74 },
 
-  // ─── 대로 벤치 (건물 사이 빈 공간에 배치) ───
-  { type: "bench", x: 24, y: 13 }, { type: "bench", x: 26, y: 13 },
-  { type: "bench", x: 24, y: 23 }, { type: "bench", x: 26, y: 23 },
-  { type: "bench", x: 24, y: 37 }, { type: "bench", x: 26, y: 37 },
+  // ═══════════════════════════════════════════════
+  // 상가 뒤 나무 (도로 아닌 곳)
+  // ═══════════════════════════════════════════════
+  { type: "tree", x: 12, y: 16 }, { type: "tree", x: 12, y: 30 },
+  { type: "tree", x: 50, y: 16 }, { type: "tree", x: 50, y: 30 },
 
-  // ─── 대로 가로수 (x=23.5/26.5, 도로에서 1.5타일 거리) ───
-  // 북쪽부터 남쪽까지, 건물/광장과 겹치지 않는 위치
-  { type: "tree", x: 23.5, y: 6 }, { type: "tree", x: 26.5, y: 6 },
-  { type: "tree", x: 23.5, y: 13 }, { type: "tree", x: 26.5, y: 13 },
-  { type: "tree", x: 23.5, y: 23 }, { type: "tree", x: 26.5, y: 23 },
-  { type: "tree", x: 23.5, y: 37 }, { type: "tree", x: 26.5, y: 37 },
-  { type: "tree", x: 23.5, y: 44 }, { type: "tree", x: 26.5, y: 44 },
-  { type: "tree", x: 23.5, y: 48 }, { type: "tree", x: 26.5, y: 48 },
-  { type: "tree", x: 23.5, y: 52 }, { type: "tree", x: 26.5, y: 52 },
-  { type: "tree", x: 23.5, y: 56 }, { type: "tree", x: 26.5, y: 56 },
-  { type: "tree", x: 23.5, y: 60 }, { type: "tree", x: 26.5, y: 60 },
-  { type: "tree", x: 23.5, y: 64 }, { type: "tree", x: 26.5, y: 64 },
-  { type: "tree", x: 23.5, y: 68 }, { type: "tree", x: 26.5, y: 68 },
+  // ═══════════════════════════════════════════════
+  // 광장 (x=30, y=22~28) — 안내소 + 게시판 + 놀이터
+  // ═══════════════════════════════════════════════
+  { type: "clock_tower", x: 30, y: 23 },
+  { type: "signpost", x: 28, y: 25 },
+  { type: "questboard", x: 32, y: 25 },
+  { type: "bench", x: 26, y: 24 }, { type: "bench", x: 34, y: 24 },
+  { type: "bench", x: 26, y: 26 }, { type: "bench", x: 34, y: 26 },
 
-  // ─── 서쪽 상가 주변 (카페 20,8 / 빵집 20,16 / 꽃집 20,24 / 음식점 20,32) ───
-  // 나무는 건물 뒤쪽(서쪽)에, 도로(x=25)에서 2타일 이상 떨어지게
-  { type: "tree", x: 18, y: 7 }, { type: "tree", x: 18, y: 15 },
-  { type: "tree", x: 18, y: 23 }, { type: "tree", x: 18, y: 31 },
-  { type: "bush", x: 19, y: 12 }, { type: "bush", x: 19, y: 20 },
-  { type: "bush", x: 19, y: 28 },
-  { type: "flower", x: 19.5, y: 18.5 }, { type: "flower", x: 22, y: 17 },
-  { type: "flower", x: 19.5, y: 26.5 }, { type: "flower", x: 22, y: 25 },
-  { type: "flower", x: 19.5, y: 34.5 }, { type: "flower", x: 22.5, y: 33 },
+  // ═══════════════════════════════════════════════
+  // 상가 1열 주변 (카페14,16 / 빵집22,16 / 사무실36,16 / 시장44,16)
+  // ═══════════════════════════════════════════════
+  { type: "lamp", x: 15.5, y: 19 }, { type: "lamp", x: 23, y: 19 },
+  { type: "lamp", x: 38, y: 19 }, { type: "lamp", x: 46, y: 20 },
+  { type: "flower", x: 13, y: 16 }, { type: "flower", x: 18, y: 16 },
+  { type: "flower", x: 21, y: 19 }, { type: "flower", x: 25, y: 17 },
+  { type: "flower", x: 35, y: 16 }, { type: "flower", x: 43, y: 17 },
+  { type: "bush", x: 20, y: 17 }, { type: "bush", x: 34, y: 17 },
 
-  // ─── 동쪽 상가 주변 (사무실 28,8 / 시장 28,18 / 편의점 28,28) ───
-  { type: "tree", x: 34, y: 8 }, { type: "tree", x: 34, y: 18 },
-  { type: "tree", x: 34, y: 28 },
-  { type: "bush", x: 33, y: 12 }, { type: "bush", x: 33, y: 23 },
-  { type: "flower", x: 32.5, y: 10 }, { type: "flower", x: 32.5, y: 20 },
+  // ═══════════════════════════════════════════════
+  // 상가 2열 주변 (꽃집14,30 / 도서관22,30 / 편의점36,30 / 음식점44,30)
+  // ═══════════════════════════════════════════════
+  { type: "lamp", x: 15, y: 33 }, { type: "lamp", x: 23.5, y: 33 },
+  { type: "lamp", x: 37, y: 33 }, { type: "lamp", x: 45.5, y: 33 },
+  { type: "flower", x: 13, y: 30 }, { type: "flower", x: 17, y: 31 },
+  { type: "flower", x: 21, y: 30 }, { type: "flower", x: 26, y: 31 },
+  { type: "flower", x: 35, y: 30 }, { type: "flower", x: 39, y: 31 },
+  { type: "flower", x: 43, y: 30 }, { type: "flower", x: 48, y: 31 },
+  { type: "bush", x: 19, y: 32 }, { type: "bush", x: 33, y: 32 },
 
-  // ─── KSA 캠퍼스 (38-43, 8-18) ───
-  { type: "tree", x: 37, y: 6 }, { type: "tree", x: 44, y: 6.5 },
-  { type: "tree", x: 37, y: 20 }, { type: "tree", x: 43, y: 20 },
-  { type: "bush", x: 38, y: 13 }, { type: "bush", x: 43, y: 13.5 },
-  { type: "bench", x: 38, y: 10 }, { type: "bench", x: 42, y: 10 },
-  { type: "lamp", x: 40.5, y: 11.5 }, { type: "lamp", x: 40.5, y: 18.5 },
-  { type: "fence", x: 37, y: 7 }, { type: "fence", x: 38, y: 7 },
-  { type: "fence", x: 43, y: 7 }, { type: "fence", x: 44, y: 7 },
-  { type: "flower", x: 39, y: 7 }, { type: "flower", x: 41, y: 7 },
-  { type: "signpost", x: 38, y: 20 },
+  // ═══════════════════════════════════════════════
+  // 주택A (14,38) 주변
+  // ═══════════════════════════════════════════════
+  { type: "fence", x: 13, y: 40.5 }, { type: "fence", x: 14, y: 40.5 },
+  { type: "fence", x: 15, y: 40.5 }, { type: "fence", x: 16, y: 40.5 },
+  { type: "flower", x: 13.5, y: 37.5 }, { type: "flower", x: 16.5, y: 37.5 },
+  { type: "bush", x: 17, y: 39 },
 
-  // ─── 도서관 (19, 38) 주변 ───
-  { type: "tree", x: 17, y: 37 }, { type: "tree", x: 17, y: 41 },
-  { type: "bench", x: 18, y: 40.5 }, { type: "bush", x: 22.5, y: 38 },
+  // ═══════════════════════════════════════════════
+  // 주택B (30,38) 주변
+  // ═══════════════════════════════════════════════
+  { type: "fence", x: 29, y: 40.5 }, { type: "fence", x: 30, y: 40.5 },
+  { type: "fence", x: 31, y: 40.5 }, { type: "fence", x: 32, y: 40.5 },
+  { type: "flower", x: 29.5, y: 37.5 }, { type: "flower", x: 32.5, y: 37.5 },
+  { type: "bush", x: 33, y: 39 },
 
-  // ─── 광장 (25, 30) ───
-  { type: "clock_tower", x: 25, y: 30 },
-  { type: "lamp", x: 22, y: 28 }, { type: "lamp", x: 28, y: 28 },
-  { type: "lamp", x: 22, y: 32 }, { type: "lamp", x: 28, y: 32 },
-  { type: "bench", x: 23, y: 29 }, { type: "bench", x: 27, y: 29 },
-  { type: "bench", x: 23, y: 31 }, { type: "bench", x: 27, y: 31 },
-  { type: "signpost", x: 25, y: 28.5 },
-  { type: "questboard", x: 26, y: 28 }, { type: "bush", x: 28.5, y: 30 },
+  // ═══════════════════════════════════════════════
+  // 주택C (46,38) 주변
+  // ═══════════════════════════════════════════════
+  { type: "fence", x: 45, y: 40.5 }, { type: "fence", x: 46, y: 40.5 },
+  { type: "fence", x: 47, y: 40.5 }, { type: "fence", x: 48, y: 40.5 },
+  { type: "flower", x: 45.5, y: 37.5 }, { type: "flower", x: 48.5, y: 37.5 },
+  { type: "bush", x: 49, y: 39 },
 
-  // ─── 놀이터 (25, 20) ───
-  { type: "fence", x: 23, y: 19 }, { type: "fence", x: 24, y: 19 },
-  { type: "fence", x: 26, y: 19 }, { type: "fence", x: 27, y: 19 },
-  { type: "bench", x: 23, y: 21 }, { type: "bench", x: 27, y: 21 },
+  // ═══════════════════════════════════════════════
+  // 고려대학교 (10,48) 주변
+  // ═══════════════════════════════════════════════
+  { type: "tree", x: 8, y: 47 }, { type: "tree", x: 17, y: 47 },
+  { type: "tree", x: 8, y: 53 }, { type: "tree", x: 17, y: 53 },
+  { type: "bench", x: 9, y: 53 }, { type: "bench", x: 16, y: 50 },
+  { type: "lamp", x: 13, y: 53 },
+  { type: "flower", x: 9, y: 48 }, { type: "flower", x: 16, y: 48 },
 
-  // ─── 음식점 (20, 32) 주변 ───
-  { type: "lamp", x: 21.5, y: 35 },
-  { type: "flower", x: 19.5, y: 32 }, { type: "flower", x: 23.5, y: 32 },
+  // ═══════════════════════════════════════════════
+  // 크래프톤 AI (24,48) 주변
+  // ═══════════════════════════════════════════════
+  { type: "lamp", x: 26.5, y: 52 },
+  { type: "bush", x: 23, y: 48 }, { type: "bush", x: 30, y: 48 },
 
-  // ─── 병원 (36, 36) 주변 ───
-  { type: "lamp", x: 37.5, y: 39 },
-  { type: "signpost", x: 35, y: 37 },
-  { type: "bench", x: 39, y: 37 },
+  // ═══════════════════════════════════════════════
+  // KAIST AI (38,48) 주변
+  // ═══════════════════════════════════════════════
+  { type: "tree", x: 37, y: 47 }, { type: "tree", x: 44, y: 47 },
+  { type: "bench", x: 38, y: 52 }, { type: "bench", x: 42, y: 52 },
+  { type: "lamp", x: 40.5, y: 52 },
 
-  // ─── 편의점 (28, 28) 주변 ───
-  { type: "lamp", x: 29, y: 31 },
+  // ═══════════════════════════════════════════════
+  // 체육관 (48,48) 주변
+  // ═══════════════════════════════════════════════
+  { type: "bench", x: 49, y: 52 }, { type: "bench", x: 51, y: 52 },
+  { type: "lamp", x: 50, y: 52 },
 
-  // ─── 주택A (12, 40) 주변 ───
-  { type: "fence", x: 11, y: 42.5 }, { type: "fence", x: 12, y: 42.5 },
-  { type: "fence", x: 13, y: 42.5 }, { type: "fence", x: 14, y: 42.5 },
-  { type: "flower", x: 11.5, y: 39.5 }, { type: "flower", x: 14.5, y: 39.5 },
-  { type: "tree", x: 10, y: 38 }, { type: "bush", x: 15, y: 41 },
+  // ═══════════════════════════════════════════════
+  // KSA 본관 (18,55) & 기숙사 (34,55) 주변
+  // ═══════════════════════════════════════════════
+  { type: "bench", x: 19, y: 59 }, { type: "bench", x: 22, y: 59 },
+  { type: "lamp", x: 20.5, y: 59 }, { type: "lamp", x: 35.5, y: 58 },
+  { type: "flower", x: 17, y: 55 }, { type: "flower", x: 23, y: 55 },
+  { type: "signpost", x: 18, y: 59 },
 
-  // ─── 주택B (30, 40) 주변 ───
-  { type: "fence", x: 29, y: 42.5 }, { type: "fence", x: 30, y: 42.5 },
-  { type: "fence", x: 31, y: 42.5 }, { type: "fence", x: 32, y: 42.5 },
-  { type: "flower", x: 29.5, y: 39.5 }, { type: "flower", x: 32.5, y: 39.5 },
-  { type: "tree", x: 28, y: 38 }, { type: "bush", x: 33, y: 41 },
+  // ═══════════════════════════════════════════════
+  // 병원 (44,55) 주변
+  // ═══════════════════════════════════════════════
+  { type: "lamp", x: 45.5, y: 58 },
+  { type: "signpost", x: 43, y: 56 },
+  { type: "bench", x: 48, y: 56 },
 
-  // ─── 주택C (44, 40) 주변 ───
-  { type: "fence", x: 43, y: 42.5 }, { type: "fence", x: 44, y: 42.5 },
-  { type: "fence", x: 45, y: 42.5 }, { type: "fence", x: 46, y: 42.5 },
-  { type: "flower", x: 43.5, y: 39.5 }, { type: "flower", x: 46.5, y: 39.5 },
-  { type: "tree", x: 42, y: 38 }, { type: "bush", x: 47, y: 41 },
+  // ═══════════════════════════════════════════════
+  // 경찰서 (10,55) 주변
+  // ═══════════════════════════════════════════════
+  { type: "lamp", x: 11.5, y: 58 },
+  { type: "signpost", x: 9, y: 56 },
+  { type: "bench", x: 14, y: 56 },
 
-  // ─── 도로 교차점 가로등 ───
-  { type: "lamp", x: 15, y: 30 }, { type: "lamp", x: 35, y: 30 },
-  { type: "lamp", x: 15, y: 42 }, { type: "lamp", x: 35, y: 42 },
-  { type: "lamp", x: 40, y: 30 }, { type: "lamp", x: 45, y: 42 },
+  // ═══════════════════════════════════════════════
+  // 도로 교차점 가로등 & 이정표
+  // ═══════════════════════════════════════════════
+  { type: "lamp", x: 15, y: 18 }, { type: "lamp", x: 45, y: 18 },
+  { type: "lamp", x: 15, y: 32 }, { type: "lamp", x: 45, y: 32 },
+  { type: "lamp", x: 15, y: 40 }, { type: "lamp", x: 45, y: 40 },
+  { type: "signpost", x: 30, y: 75 },
+  { type: "signpost", x: 8, y: 18 }, { type: "signpost", x: 8, y: 40 },
 
-  // ─── 도로 교차점 이정표 ───
-  { type: "signpost", x: 25, y: 65 },
-  { type: "signpost", x: 8, y: 30 }, { type: "signpost", x: 15, y: 42 },
-  { type: "signpost", x: 40, y: 30 },
-  { type: "signpost", x: 25, y: 70 },
+  // ═══════════════════════════════════════════════
+  // 외곽 자연 소품
+  // ═══════════════════════════════════════════════
+  { type: "tree", x: 5, y: 4 }, { type: "tree", x: 7, y: 10 },
+  { type: "tree", x: 5, y: 20 }, { type: "tree", x: 5, y: 35 },
+  { type: "tree", x: 57, y: 4 }, { type: "tree", x: 57, y: 20 },
+  { type: "tree", x: 57, y: 35 },
+  { type: "rock", x: 6, y: 25 }, { type: "rock", x: 6, y: 42 },
+  { type: "rock", x: 56, y: 28 }, { type: "rock", x: 56, y: 42 },
+  { type: "bush", x: 7, y: 28 }, { type: "bush", x: 55, y: 22 },
 
-  // ─── Road-side lamp posts at key intersections ───
-  { type: "lamp", x: 25, y: 15 }, { type: "lamp", x: 25, y: 42 },
-  { type: "lamp", x: 42, y: 12 }, { type: "lamp", x: 42, y: 18 },
+  // ═══════════════════════════════════════════════
+  // 남쪽 숲 (y=60~75) — 탐험 구간
+  // ═══════════════════════════════════════════════
+  { type: "tree", x: 8, y: 62 }, { type: "tree", x: 14, y: 63 },
+  { type: "tree", x: 20, y: 61 }, { type: "tree", x: 38, y: 62 },
+  { type: "tree", x: 44, y: 63 }, { type: "tree", x: 52, y: 61 },
+  { type: "tree", x: 10, y: 66 }, { type: "tree", x: 18, y: 67 },
+  { type: "tree", x: 24, y: 65 }, { type: "tree", x: 36, y: 66 },
+  { type: "tree", x: 42, y: 68 }, { type: "tree", x: 50, y: 66 },
+  { type: "tree", x: 7, y: 70 }, { type: "tree", x: 15, y: 72 },
+  { type: "tree", x: 22, y: 71 }, { type: "tree", x: 38, y: 72 },
+  { type: "tree", x: 46, y: 70 }, { type: "tree", x: 53, y: 71 },
+  { type: "rock", x: 12, y: 64 }, { type: "rock", x: 48, y: 65 },
+  { type: "rock", x: 25, y: 69 }, { type: "rock", x: 40, y: 74 },
+  { type: "bush", x: 16, y: 65 }, { type: "bush", x: 34, y: 64 },
+  { type: "bush", x: 50, y: 69 }, { type: "bush", x: 8, y: 73 },
+  { type: "flower", x: 19, y: 64 }, { type: "flower", x: 33, y: 67 },
+  { type: "flower", x: 45, y: 71 }, { type: "flower", x: 11, y: 69 },
 
-  // ─── 자연 소품 — 외곽 및 빈 공간 (나무는 도로에서 2타일 이상 거리) ───
-  { type: "tree", x: 8, y: 5 }, { type: "tree", x: 10, y: 4.5 },
-  { type: "tree", x: 35, y: 5 }, { type: "tree", x: 8, y: 20 },
-  { type: "tree", x: 8, y: 34 }, { type: "tree", x: 35, y: 34 },
-  { type: "bush", x: 9, y: 15 }, { type: "bush", x: 35, y: 24 },
-  { type: "rock", x: 10, y: 7 }, { type: "rock", x: 8, y: 18 },
-  { type: "rock", x: 8, y: 26 }, { type: "rock", x: 9, y: 36 },
-
-  // ─── 확장 영역 (남쪽/동쪽 외곽) ───
-  { type: "tree", x: 18, y: 55 }, { type: "tree", x: 35, y: 62 },
-  { type: "tree", x: 55, y: 20 },
-  { type: "tree", x: 55, y: 35 }, { type: "tree", x: 55, y: 55 },
-  { type: "rock", x: 55, y: 48 }, { type: "rock", x: 55, y: 42 },
-  { type: "bush", x: 20, y: 55 }, { type: "bush", x: 55, y: 38 },
-  { type: "bush", x: 55, y: 25 },
-
-  // ─── 고려대학교 (10, 50) 주변 ───
-  { type: "tree", x: 8, y: 49 }, { type: "tree", x: 16, y: 49 },
-  { type: "tree", x: 8, y: 54 }, { type: "tree", x: 16, y: 54 },
-  { type: "bench", x: 9, y: 52 }, { type: "bench", x: 16, y: 52 },
-  { type: "lamp", x: 12.5, y: 54 },
-  { type: "flower", x: 9.5, y: 50 }, { type: "flower", x: 15.5, y: 50 },
-
-  // ─── KAIST AI대학원 (40, 58) 주변 ───
-  { type: "tree", x: 38, y: 57 }, { type: "tree", x: 45, y: 57 },
-  { type: "tree", x: 38, y: 62 }, { type: "tree", x: 45, y: 62 },
-  { type: "bench", x: 39, y: 62 }, { type: "bench", x: 43, y: 62 },
-  { type: "lamp", x: 42, y: 62 },
-
-  // ─── 크래프톤 AI (28, 56) 주변 ───
-  { type: "lamp", x: 30, y: 59 },
-  { type: "bush", x: 27, y: 56 }, { type: "bush", x: 33, y: 56 },
-
-  // ─── 경찰서 (10, 62) 주변 ───
-  { type: "lamp", x: 11.5, y: 65 },
-  { type: "signpost", x: 10, y: 65 },
-  { type: "bench", x: 14, y: 63 },
-  { type: "tree", x: 8, y: 61 }, { type: "tree", x: 14, y: 65 },
-
-  // ─── 체육관 (50, 50) 주변 ───
-  { type: "tree", x: 48, y: 49 }, { type: "tree", x: 55, y: 49 },
-  { type: "bench", x: 49, y: 54 }, { type: "bench", x: 53, y: 54 },
-  { type: "lamp", x: 52, y: 54 },
-
-  // ─── Bridge over river ───
-  { type: "bridge", x: 4, y: 30 },
-
-  // ─── 확장 외곽 자연 소품 ───
-  { type: "tree", x: 60, y: 50 }, { type: "tree", x: 65, y: 45 },
-  { type: "tree", x: 70, y: 40 }, { type: "tree", x: 60, y: 60 },
-  { type: "tree", x: 10, y: 67 }, { type: "tree", x: 40, y: 65 },
-  { type: "tree", x: 55, y: 65 }, { type: "tree", x: 15, y: 70 },
-  { type: "rock", x: 65, y: 55 }, { type: "rock", x: 8, y: 58 },
-  { type: "bush", x: 60, y: 35 }, { type: "bush", x: 65, y: 50 },
-
-  // ─── Flower patches near residential area ───
-  { type: "flower", x: 12, y: 43 }, { type: "flower", x: 31.5, y: 43 },
-
-  // ─── Grass tufts (scattered small decorative props) ───
-  // 대로 양쪽 (boulevard x=23-27)
-  { type: "grass_tuft", x: 23, y: 7 }, { type: "grass_tuft", x: 27, y: 8 },
-  { type: "grass_tuft", x: 23, y: 16 }, { type: "grass_tuft", x: 27, y: 17 },
-  { type: "grass_tuft", x: 23, y: 26 }, { type: "grass_tuft", x: 27, y: 27 },
-  { type: "grass_tuft", x: 23, y: 38 }, { type: "grass_tuft", x: 27, y: 39 },
-  { type: "grass_tuft", x: 23, y: 47 }, { type: "grass_tuft", x: 27, y: 48 },
+  // ═══════════════════════════════════════════════
+  // Grass tufts (작은 장식)
+  // ═══════════════════════════════════════════════
+  // 공원 내부
+  { type: "grass_tuft", x: 16, y: 7 }, { type: "grass_tuft", x: 44, y: 9 },
+  { type: "grass_tuft", x: 22, y: 9 }, { type: "grass_tuft", x: 38, y: 7 },
+  { type: "grass_tuft", x: 28, y: 5 }, { type: "grass_tuft", x: 32, y: 10 },
+  // 대로 양쪽
+  { type: "grass_tuft", x: 27, y: 27 }, { type: "grass_tuft", x: 33, y: 28 },
+  { type: "grass_tuft", x: 27, y: 37 }, { type: "grass_tuft", x: 33, y: 37 },
+  { type: "grass_tuft", x: 27, y: 47 }, { type: "grass_tuft", x: 33, y: 47 },
   // 건물 근처
-  { type: "grass_tuft", x: 19, y: 10 }, { type: "grass_tuft", x: 22, y: 14 },
-  { type: "grass_tuft", x: 33, y: 10 }, { type: "grass_tuft", x: 33, y: 20 },
-  { type: "grass_tuft", x: 37, y: 8 }, { type: "grass_tuft", x: 44, y: 9 },
-  // 공원 주변
-  { type: "grass_tuft", x: 11, y: 8 }, { type: "grass_tuft", x: 17, y: 12 },
-  { type: "grass_tuft", x: 14, y: 13 }, { type: "grass_tuft", x: 16, y: 7 },
-  // 주택가 주변 (y=40)
-  { type: "grass_tuft", x: 11, y: 41 }, { type: "grass_tuft", x: 15, y: 40 },
-  { type: "grass_tuft", x: 29, y: 41 }, { type: "grass_tuft", x: 33, y: 40 },
-  { type: "grass_tuft", x: 43, y: 41 }, { type: "grass_tuft", x: 47, y: 40 },
-  // 빈 공간 / 외곽
-  { type: "grass_tuft", x: 9, y: 16 }, { type: "grass_tuft", x: 9, y: 24 },
-  { type: "grass_tuft", x: 36, y: 35 }, { type: "grass_tuft", x: 50, y: 48 },
+  { type: "grass_tuft", x: 13, y: 17 }, { type: "grass_tuft", x: 25, y: 17 },
+  { type: "grass_tuft", x: 35, y: 17 }, { type: "grass_tuft", x: 49, y: 17 },
+  // 주택가
+  { type: "grass_tuft", x: 13, y: 39 }, { type: "grass_tuft", x: 17, y: 38 },
+  { type: "grass_tuft", x: 29, y: 39 }, { type: "grass_tuft", x: 33, y: 38 },
+  { type: "grass_tuft", x: 45, y: 39 }, { type: "grass_tuft", x: 49, y: 38 },
+  // 외곽
+  { type: "grass_tuft", x: 8, y: 15 }, { type: "grass_tuft", x: 54, y: 15 },
+  { type: "grass_tuft", x: 8, y: 36 }, { type: "grass_tuft", x: 54, y: 36 },
+  // 남쪽 숲
+  { type: "grass_tuft", x: 13, y: 68 }, { type: "grass_tuft", x: 28, y: 70 },
+  { type: "grass_tuft", x: 43, y: 67 }, { type: "grass_tuft", x: 55, y: 73 },
 ];
 
 // ─── Species Pool ───
@@ -391,27 +381,32 @@ export const WEATHER_TYPES = ["clear", "clear", "clear", "cloudy", "rain", "rain
 
 // ─── Discoveries (Initial Data) ───
 export const discoveries = [
-  { id: "secret_garden", x: 35, y: 8, radius: 1.8, found: false, title: "비밀 정원", desc: "건물 뒤에 숨겨진 작은 정원을 발견했다.", condition: "always", reward: "gem" },
-  { id: "river_message", x: 8, y: 16, radius: 1.5, found: false, title: "강변의 편지", desc: "강가에서 유리병 속 편지를 발견했다.", condition: "always", reward: "letter" },
-  { id: "midnight_glow", x: 15, y: 10, radius: 1.5, found: false, title: "자정의 빛", desc: "공원 분수가 자정에 은은하게 빛나고 있다!", condition: "night", reward: "gem" },
-  { id: "rain_mushrooms", x: 18, y: 15, radius: 2.0, found: false, title: "비 오는 날의 버섯", desc: "비가 오자 길가에 형형색색 버섯이 자라났다.", condition: "rain", reward: "snack" },
-  { id: "hidden_well", x: 35, y: 35, radius: 1.5, found: false, title: "숨겨진 우물", desc: "덤불 사이에서 오래된 우물을 발견했다.", condition: "always", reward: "gem" },
-  { id: "sunset_view", x: 50, y: 6, radius: 2.0, found: false, title: "노을 전망대", desc: "언덕 위에서 아름다운 노을을 볼 수 있다.", condition: "evening", reward: "flower_red" },
-  { id: "fog_figure", x: 10, y: 45, radius: 2.0, found: false, title: "안개 속 그림자", desc: "안개 속에서 희미한 형체를 발견했다...", condition: "fog", reward: "gem" },
-  { id: "market_stash", x: 33, y: 21, radius: 1.5, found: false, title: "시장 뒷골목 비밀", desc: "시장 뒤에서 숨겨진 상자를 발견했다.", condition: "always", reward: "snack" },
-  { id: "night_cats", x: 35, y: 42, radius: 2.0, found: false, title: "밤의 고양이들", desc: "밤에만 나타나는 고양이 무리를 발견했다!", condition: "night", reward: "snack" },
-  { id: "flower_field", x: 10, y: 22, radius: 2.0, found: false, title: "비밀 꽃밭", desc: "수풀 사이에 숨겨진 꽃밭이 있었다.", condition: "always", reward: "flower_red" },
-  { id: "storm_crystal", x: 20, y: 5, radius: 2.0, found: false, title: "폭풍의 수정", desc: "폭풍우 속에서 빛나는 수정을 발견했다!", condition: "storm", reward: "gem" },
-  { id: "snow_angel", x: 25, y: 15, radius: 2.0, found: false, title: "눈 위의 천사", desc: "눈이 온 뒤 땅에 신비한 무늬가 생겼다.", condition: "snow", reward: "gem" },
-  { id: "dawn_song", x: 25, y: 48, radius: 2.0, found: false, title: "새벽의 노래", desc: "이른 새벽, 어디선가 아름다운 노래가 들린다.", condition: "dawn", reward: "letter" },
-  { id: "plaza_dance", x: 25, y: 30, radius: 1.5, found: false, title: "광장의 흔적", desc: "광장 바닥에서 오래된 모자이크 무늬를 발견했다.", condition: "always", reward: "coffee" },
-  { id: "lamp_wish", x: 24, y: 28, radius: 1.2, found: false, title: "소원의 가로등", desc: "이 가로등에는 작은 소원 종이가 매달려 있다.", condition: "night", reward: "letter" },
-  // 확장 영역 발견 장소
-  { id: "ksa_rooftop", x: 42, y: 8, radius: 1.5, found: false, title: "KSA 옥상의 비밀", desc: "본관 옥상에서 밤하늘에 빛나는 무언가를 발견했다.", condition: "night", reward: "gem" },
-  { id: "south_lake", x: 40, y: 65, radius: 2.5, found: false, title: "남쪽 호수", desc: "숲 사이에 숨겨진 고요한 호수를 발견했다.", condition: "always", reward: "gem" },
-  { id: "east_cabin", x: 55, y: 25, radius: 2.0, found: false, title: "동쪽 숲속 오두막", desc: "안개 속에서 오래된 오두막이 보인다...", condition: "fog", reward: "letter" },
-  { id: "cat_village", x: 15, y: 55, radius: 2.0, found: false, title: "고양이 마을", desc: "밤이 되자 고양이들이 모여드는 비밀 장소!", condition: "night", reward: "snack" },
-  { id: "rainbow_spot", x: 50, y: 55, radius: 2.5, found: false, title: "폭풍 후 무지개", desc: "폭풍이 지나간 뒤, 하늘에 거대한 무지개가 떴다.", condition: "storm", reward: "gem" },
+  // 공원 구역 (y=3~13)
+  { id: "secret_garden", x: 12, y: 6, radius: 1.8, found: false, title: "비밀 정원", desc: "공원 구석에 숨겨진 작은 정원을 발견했다.", condition: "always", reward: "gem" },
+  { id: "midnight_glow", x: 30, y: 8, radius: 1.5, found: false, title: "자정의 빛", desc: "공원 분수가 자정에 은은하게 빛나고 있다!", condition: "night", reward: "gem" },
+  { id: "rain_mushrooms", x: 22, y: 11, radius: 2.0, found: false, title: "비 오는 날의 버섯", desc: "비가 오자 공원 남쪽에 형형색색 버섯이 자라났다.", condition: "rain", reward: "snack" },
+  { id: "storm_crystal", x: 18, y: 5, radius: 2.0, found: false, title: "폭풍의 수정", desc: "폭풍우 속 공원에서 빛나는 수정을 발견했다!", condition: "storm", reward: "gem" },
+  { id: "snow_angel", x: 30, y: 11, radius: 2.0, found: false, title: "눈 위의 천사", desc: "눈이 온 뒤 공원에 신비한 무늬가 생겼다.", condition: "snow", reward: "gem" },
+  { id: "sunset_view", x: 48, y: 5, radius: 2.0, found: false, title: "노을 전망대", desc: "공원 동쪽에서 아름다운 노을을 볼 수 있다.", condition: "evening", reward: "flower_red" },
+  // 상가/광장 구역 (y=14~35)
+  { id: "market_stash", x: 49, y: 17, radius: 1.5, found: false, title: "시장 뒷골목 비밀", desc: "시장 뒤에서 숨겨진 상자를 발견했다.", condition: "always", reward: "snack" },
+  { id: "plaza_dance", x: 30, y: 25, radius: 1.5, found: false, title: "광장의 흔적", desc: "광장 바닥에서 오래된 모자이크 무늬를 발견했다.", condition: "always", reward: "coffee" },
+  { id: "lamp_wish", x: 28, y: 25, radius: 1.2, found: false, title: "소원의 가로등", desc: "이 가로등에는 작은 소원 종이가 매달려 있다.", condition: "night", reward: "letter" },
+  { id: "flower_field", x: 8, y: 31, radius: 2.0, found: false, title: "비밀 꽃밭", desc: "수풀 사이에 숨겨진 꽃밭이 있었다.", condition: "always", reward: "flower_red" },
+  // 주택/주거 구역 (y=38~42)
+  { id: "night_cats", x: 40, y: 39, radius: 2.0, found: false, title: "밤의 고양이들", desc: "밤에만 나타나는 고양이 무리를 발견했다!", condition: "night", reward: "snack" },
+  // 강 구역 (y=44~46)
+  { id: "river_message", x: 10, y: 45, radius: 1.5, found: false, title: "강변의 편지", desc: "강 근처에서 유리병 속 편지를 발견했다.", condition: "always", reward: "letter" },
+  { id: "hidden_well", x: 50, y: 45, radius: 1.5, found: false, title: "숨겨진 우물", desc: "강 동쪽에서 오래된 우물을 발견했다.", condition: "always", reward: "gem" },
+  // 캠퍼스 구역 (y=48~58)
+  { id: "ksa_rooftop", x: 20, y: 56, radius: 1.5, found: false, title: "KSA 옥상의 비밀", desc: "본관 옥상에서 밤하늘에 빛나는 무언가를 발견했다.", condition: "night", reward: "gem" },
+  { id: "cat_village", x: 8, y: 53, radius: 2.0, found: false, title: "고양이 마을", desc: "밤이 되자 고양이들이 모여드는 비밀 장소!", condition: "night", reward: "snack" },
+  // 남쪽 숲 구역 (y=60~75)
+  { id: "south_lake", x: 35, y: 68, radius: 2.5, found: false, title: "남쪽 호수", desc: "남쪽 숲 사이에 숨겨진 고요한 호수를 발견했다.", condition: "always", reward: "gem" },
+  { id: "fog_figure", x: 10, y: 67, radius: 2.0, found: false, title: "안개 속 그림자", desc: "안개 속에서 희미한 형체를 발견했다...", condition: "fog", reward: "gem" },
+  { id: "east_cabin", x: 52, y: 65, radius: 2.0, found: false, title: "숲속 오두막", desc: "안개 속에서 오래된 오두막이 보인다...", condition: "fog", reward: "letter" },
+  { id: "dawn_song", x: 30, y: 70, radius: 2.0, found: false, title: "새벽의 노래", desc: "이른 새벽, 숲 속에서 아름다운 노래가 들린다.", condition: "dawn", reward: "letter" },
+  { id: "rainbow_spot", x: 45, y: 73, radius: 2.5, found: false, title: "폭풍 후 무지개", desc: "폭풍이 지나간 뒤, 하늘에 거대한 무지개가 떴다.", condition: "storm", reward: "gem" },
 ];
 
 // ─── Favor Level Names ───
@@ -429,27 +424,34 @@ export const itemTypes = {
 
 // ─── Ground Items (Initial Data) ───
 export const groundItems = [
-  { id: "gi1", type: "flower_red", x: 14, y: 11, pickedAt: 0 },       // 공원 근처
-  { id: "gi2", type: "flower_yellow", x: 16, y: 9, pickedAt: 0 },     // 공원 근처
-  { id: "gi3", type: "coffee", x: 22, y: 9, pickedAt: 0 },            // 카페 근처
-  { id: "gi4", type: "snack", x: 30, y: 20, pickedAt: 0 },            // 시장 근처
-  { id: "gi5", type: "letter", x: 25, y: 31, pickedAt: 0 },           // 광장
-  { id: "gi6", type: "flower_red", x: 35, y: 35, pickedAt: 0 },       // 숨겨진 우물 근처
-  { id: "gi7", type: "coffee", x: 21, y: 11, pickedAt: 0 },           // 카페 문 앞
-  { id: "gi8", type: "snack", x: 13, y: 41, pickedAt: 0 },            // 주택A 근처
-  { id: "gi9", type: "gem", x: 15, y: 10.5, pickedAt: 0 },            // 공원 분수 근처
-  { id: "gi10", type: "letter", x: 30, y: 9, pickedAt: 0 },           // 사무실 근처
-  { id: "gi11", type: "flower_yellow", x: 21, y: 25, pickedAt: 0 },   // 꽃집 근처
-  { id: "gi12", type: "gem", x: 25, y: 29, pickedAt: 0 },             // 광장
-  // 확장 영역
-  { id: "gi13", type: "coffee", x: 40, y: 10, pickedAt: 0 },          // KSA 본관 근처
-  { id: "gi14", type: "snack", x: 41, y: 17, pickedAt: 0 },           // KSA 기숙사 근처
+  // 공원 (y=3~13)
+  { id: "gi1", type: "flower_red", x: 25, y: 7, pickedAt: 0 },        // 공원 서쪽
+  { id: "gi2", type: "flower_yellow", x: 35, y: 9, pickedAt: 0 },     // 공원 동쪽
+  { id: "gi9", type: "gem", x: 30, y: 8.5, pickedAt: 0 },             // 공원 분수 근처
+  // 상가 1열 (y=16~19)
+  { id: "gi3", type: "coffee", x: 16, y: 19, pickedAt: 0 },           // 카페 근처
+  { id: "gi7", type: "coffee", x: 15, y: 17, pickedAt: 0 },           // 카페 문 앞
+  { id: "gi10", type: "letter", x: 38, y: 19, pickedAt: 0 },          // 사무실 근처
+  { id: "gi4", type: "snack", x: 46, y: 20, pickedAt: 0 },            // 시장 근처
+  // 광장 (y=22~28)
+  { id: "gi5", type: "letter", x: 30, y: 26, pickedAt: 0 },           // 광장
+  { id: "gi12", type: "gem", x: 30, y: 24, pickedAt: 0 },             // 광장
+  // 상가 2열 (y=30~33)
+  { id: "gi11", type: "flower_yellow", x: 15, y: 33, pickedAt: 0 },   // 꽃집 근처
+  { id: "gi19", type: "flower_yellow", x: 46, y: 33, pickedAt: 0 },   // 음식점 근처
+  // 주택 (y=38~42)
+  { id: "gi8", type: "snack", x: 15, y: 41, pickedAt: 0 },            // 주택A 근처
   { id: "gi15", type: "flower_red", x: 31, y: 41, pickedAt: 0 },      // 주택B 근처
-  { id: "gi16", type: "gem", x: 45, y: 41, pickedAt: 0 },             // 주택C 근처
-  { id: "gi17", type: "letter", x: 25, y: 55, pickedAt: 0 },          // 남쪽 외곽
-  { id: "gi18", type: "snack", x: 15, y: 48, pickedAt: 0 },           // 남쪽 외곽
-  { id: "gi19", type: "flower_yellow", x: 50, y: 20, pickedAt: 0 },   // 동쪽 외곽
-  { id: "gi20", type: "gem", x: 55, y: 35, pickedAt: 0 },             // 동쪽 외곽
+  { id: "gi16", type: "gem", x: 47, y: 41, pickedAt: 0 },             // 주택C 근처
+  // 강 근처 (y=44~46)
+  { id: "gi6", type: "flower_red", x: 10, y: 43, pickedAt: 0 },       // 강 서쪽
+  // 캠퍼스 (y=48~58)
+  { id: "gi18", type: "snack", x: 13, y: 53, pickedAt: 0 },           // 고려대 근처
+  { id: "gi13", type: "coffee", x: 20, y: 59, pickedAt: 0 },          // KSA 본관 근처
+  { id: "gi14", type: "snack", x: 36, y: 58, pickedAt: 0 },           // KSA 기숙사 근처
+  // 남쪽 숲 (y=60~75)
+  { id: "gi17", type: "letter", x: 30, y: 65, pickedAt: 0 },          // 숲 중앙
+  { id: "gi20", type: "gem", x: 15, y: 70, pickedAt: 0 },             // 숲 서쪽
 ];
 
 // ─── Item Respawn ───
