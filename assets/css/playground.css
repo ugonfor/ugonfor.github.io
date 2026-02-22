@@ -112,6 +112,44 @@ html.playground-page section {
   cursor: grabbing;
 }
 
+.pg-lang-toggle {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 30;
+  display: flex;
+  gap: 0;
+  border: 1px solid #b8c8d5;
+  border-radius: 999px;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+.pg-lang-toggle button {
+  border: none;
+  background: rgba(255, 255, 255, 0.5);
+  color: #1d3954;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.pg-lang-toggle button.active {
+  background: rgba(223, 241, 255, 0.85);
+}
+
+@media print, screen and (max-width: 900px), screen and (max-height: 500px) and (orientation: landscape) {
+  .pg-lang-toggle {
+    top: auto;
+    bottom: calc(var(--pg-mobile-sheet-bottom) + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 37;
+  }
+}
+
 .pg-ui-toggle {
   position: absolute;
   top: 12px;
