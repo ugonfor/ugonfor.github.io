@@ -1,11 +1,38 @@
 import { clamp, dist, shade, randomPastelColor, normalizePlayerName, bubbleText, inferPersonalityFromName, nowMs, socialKey, npcRelationLabel } from './utils/helpers.js';
 import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_KEY, AUTO_WALK_KEY, COUNTRY_LIST, CHAT_NEARBY_DISTANCE, ZOOM_MIN, ZOOM_MAX, DEFAULT_ZOOM, CONVERSATION_MIN_ZOOM, npcPersonas, palette, places, buildings, hotspots, props, speciesPool, WEATHER_TYPES, discoveries, favorLevelNames, itemTypes, groundItems, ITEM_RESPAWN_MS, seasons, interiorDefs } from './core/constants.js';
+import { translations } from './core/i18n.js';
 import { GameRenderer } from './renderer/renderer.js';
 
 (function () {
   const USE_3D = true;
   const canvas = document.getElementById("pg-world-canvas");
   if (!canvas) return;
+
+  // ─── i18n ───
+  let currentLang = localStorage.getItem('playground_lang') || 'ko';
+  function t(key, params = {}) {
+    let text = (translations[currentLang] && translations[currentLang][key]) || (translations.ko && translations.ko[key]) || key;
+    for (const [k, v] of Object.entries(params)) {
+      text = text.replace(`{${k}}`, v);
+    }
+    return text;
+  }
+
+  // Language toggle
+  const langToggleEl = document.getElementById('pg-lang-toggle');
+  if (langToggleEl) {
+    langToggleEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-lang]');
+      if (!btn) return;
+      const lang = btn.dataset.lang;
+      if (lang === currentLang) return;
+      currentLang = lang;
+      localStorage.setItem('playground_lang', lang);
+      langToggleEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+    });
+    // Set initial active state
+    langToggleEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.lang === currentLang));
+  }
 
   // When 3D mode, create a WebGL canvas behind the 2D HUD canvas
   let canvas3D = null;
@@ -393,8 +420,8 @@ import { GameRenderer } from './renderer/renderer.js';
     tagGame._sprintUntil = 0;
     tagGame._nextSprintAt = nowMs() + 4000 + Math.random() * 3000;
     npc.roamTarget = null;
-    addChat("System", `🏃 도망쳐! ${npc.name}에게서 60초간 도망치세요!`);
-    addLog(`술래잡기: ${npc.name}에게서 도망쳐!`);
+    addChat("System", t("sys_tag_start", { name: npc.name }));
+    addLog(t("sys_tag_start", { name: npc.name }));
   }
 
   function updateTagGame(dt) {
@@ -409,7 +436,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (remaining <= 0) {
       tagGame.active = false;
       targetNpc.favorPoints += 8;
-      addChat("System", `🎉 도망 성공! ${targetNpc.name}에게서 60초간 도망쳤습니다!`);
+      addChat("System", t("sys_tag_win", { name: targetNpc.name }));
       addLog(`술래잡기 승리!`);
       return;
     }
@@ -419,7 +446,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (d < 1.5) {
       tagGame.active = false;
       tagGame.caught = true;
-      addChat("System", `😱 잡혔다! ${targetNpc.name}에게 잡혔습니다...`);
+      addChat("System", t("sys_tag_lose", { name: targetNpc.name }));
       addLog("술래잡기 실패...");
       return;
     }
@@ -470,7 +497,7 @@ import { GameRenderer } from './renderer/renderer.js';
 
     const targetNpc = npcs.find(n => n.id === tagGame.targetNpcId);
     const npcName = targetNpc ? targetNpc.name : "???";
-    const text = `🏃 도망쳐! ${npcName}에게서 도망! — ${secs}초`;
+    const text = `🏃 ${npcName} — ${secs}s`;
 
     ctx.save();
     ctx.font = "700 15px sans-serif";
@@ -1836,6 +1863,17 @@ import { GameRenderer } from './renderer/renderer.js';
       });
   }
 
+  // 분위기 표현 (LLM 없이)
+  const ambientSolo = ["🎵", "🎶", "~♪", "흠흠", "후~", "라라~", "음~"];
+  const ambientChat = ["ㅎㅎ", "와~", "그래?", "맞아", "음음", "오~", "헤헤"];
+  const ambientMood = { happy: ["😊", "~♪", "흐흐"], sad: ["😔", "후...", "하아"], neutral: ["🤔", "음", "..."] };
+  function ambientEmoji(npc, nearOther) {
+    if (nearOther) return ambientChat[Math.floor(Math.random() * ambientChat.length)];
+    const mood = (npc.moodUntil > nowMs() && npc.mood !== "neutral") ? npc.mood : "neutral";
+    const pool = ambientMood[mood] || ambientSolo;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   function updateAmbientSpeech(now) {
     for (let i = speechBubbles.length - 1; i >= 0; i -= 1) {
       if (speechBubbles[i].until <= now) speechBubbles.splice(i, 1);
@@ -1848,14 +1886,15 @@ import { GameRenderer } from './renderer/renderer.js';
         // 가장 가까운 NPC → LLM 혼잣말, 나머지 → "..."
         visible.sort((a, b) => dist(a, player) - dist(b, player));
         const closest = visible[0];
-        // 먼 NPC들에게 "..." 말풍선
+        // 먼 NPC들에게 분위기 말풍선
         for (let i = 1; i < Math.min(visible.length, 4); i++) {
-          if (Math.random() < 0.3) upsertSpeechBubble(visible[i].id, "...", 2500);
+          const nearOther = npcs.some(o => o.id !== visible[i].id && dist(visible[i], o) < 3);
+          if (Math.random() < 0.3) upsertSpeechBubble(visible[i].id, ambientEmoji(visible[i], nearOther), 2500);
         }
         // 가장 가까운 NPC는 LLM으로 혼잣말
         if (!ambientLlmPending) {
           ambientLlmPending = true;
-          upsertSpeechBubble(closest.id, "...", 6000);
+          upsertSpeechBubble(closest.id, ambientEmoji(closest, false), 6000);
           const n = closest.needs || {};
           const needHint = n.hunger > 60 ? "배가 고픈 상태." : n.energy < 30 ? "피곤한 상태." : n.social < 30 ? "외로운 상태." : n.fun < 20 ? "심심한 상태." : n.duty > 70 ? "일해야 하는 상태." : "";
           llmReplyOrEmpty(closest, `(혼잣말을 해주세요. ${needHint} 지금 시간, 날씨, 기분에 맞게 짧은 한마디. 10자 이내.)`)
@@ -1985,7 +2024,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (sceneState.current !== "outdoor") {
       const interior = interiorDefs && interiorDefs[sceneState.current];
       if (interior && interior.exitPoint) {
-        const exitHs = { id: "interiorExit", x: interior.exitPoint.x, y: interior.exitPoint.y, label: "나가기" };
+        const exitHs = { id: "interiorExit", x: interior.exitPoint.x, y: interior.exitPoint.y, label: t("hs_exit") };
         const d = dist(player, exitHs);
         return d <= maxDist ? exitHs : null;
       }
@@ -2625,11 +2664,11 @@ import { GameRenderer } from './renderer/renderer.js';
       if (dist(guideNpc, player) < 2.5) {
         guideGreetingPhase = 2;
         guideNpc.pose = "waving";
-        const hi = "안녕하세요! 이 마을에 오신 걸 환영해요.";
+        const hi = t("docent_hi");
         addChat(guideNpc.name, hi);
         upsertSpeechBubble(guideNpc.id, hi, 5000);
         setTimeout(() => {
-          const hi2 = "저는 안내원 유진이에요. 주민들에게 말을 걸어보세요!";
+          const hi2 = t("docent_hi2");
           addChat(guideNpc.name, hi2);
           upsertSpeechBubble(guideNpc.id, hi2, 4000);
           guideNpc.pose = "standing";
@@ -2706,10 +2745,10 @@ import { GameRenderer } from './renderer/renderer.js';
 
   // ─── 퀘스트 게시판 시스템 ───
   function showQuestBoardMenu() {
-    addChat("System", "📜 ━━ 마을 게시판 ━━");
-    addChat("System", "채팅창에 번호를 입력하세요:");
-    addChat("System", "1. 현재 퀘스트 확인");
-    addChat("System", "2. 완료한 퀘스트 목록");
+    addChat("System", t("board_title"));
+    addChat("System", t("board_prompt"));
+    addChat("System", t("board_opt1"));
+    addChat("System", t("board_opt2"));
     questBoardMenuActive = true;
   }
 
@@ -2717,9 +2756,9 @@ import { GameRenderer } from './renderer/renderer.js';
     questBoardMenuActive = false;
 
     if (choice === "1") {
-      addChat("System", "━━ 현재 퀘스트 ━━");
+      addChat("System", t("board_current_title"));
       if (quest.done && !quest.dynamic) {
-        addChat("System", "진행 중인 퀘스트가 없습니다. NPC와 대화하면 새 퀘스트가 생길 수 있어요!");
+        addChat("System", t("board_no_quest"));
       } else {
         const stageInfo = quest.dynamic && quest.dynamicStages
           ? ` (${quest.stage + 1}/${quest.dynamicStages.length}단계)`
@@ -2734,9 +2773,9 @@ import { GameRenderer } from './renderer/renderer.js';
       return true;
     }
     if (choice === "2") {
-      addChat("System", `━━ 완료한 퀘스트 (${questCount}개) ━━`);
+      addChat("System", t("board_completed_title", { count: questCount }));
       if (questHistory.length === 0) {
-        addChat("System", "아직 완료한 퀘스트가 없습니다.");
+        addChat("System", t("board_no_history"));
       } else {
         const questTypeIcons = { deliver: "📦", explore: "🗺️", social: "💬", observe: "🔭", fetch: "🎒", chain: "🔗", investigate: "🔍", gift_quest: "🎁", nightwatch: "🌙", urgent: "⚡", mediate: "🕊️" };
         const show = questHistory.slice(0, 10);
@@ -2810,13 +2849,13 @@ import { GameRenderer } from './renderer/renderer.js';
         return true;
       }
       if (tagGame.active) {
-        addLog("이미 술래잡기 진행 중!");
+        addLog(t("sys_tag_active"));
         return true;
       }
       // 근처 NPC 중 랜덤 하나를 상대로 선택 (도슨트 제외)
       const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < 25 && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
       if (candidates.length === 0) {
-        addLog("주변에 술래잡기할 NPC가 없습니다. NPC가 가까이 올 때 다시 시도하세요.");
+        addLog(t("sys_tag_no_npc"));
         return true;
       }
       const target = candidates[Math.floor(Math.random() * candidates.length)];
@@ -2848,8 +2887,8 @@ import { GameRenderer } from './renderer/renderer.js';
       if (near.npc.pose === "lying") {
         near.npc.pose = "standing";
         near.npc.roamWait = 0;
-        addChat("System", `${near.npc.name}을(를) 깨웠습니다.`);
-        upsertSpeechBubble(near.npc.id, "음... 뭐야...", 3000);
+        addChat("System", t("sys_wake_npc", { name: near.npc.name }));
+        upsertSpeechBubble(near.npc.id, t("sys_wake_bubble"), 3000);
         near.npc.mood = "sad";
         near.npc.moodUntil = nowMs() + 15_000;
         return;
@@ -2868,22 +2907,22 @@ import { GameRenderer } from './renderer/renderer.js';
           (async () => {
             try {
               const reply = await llmReplyOrEmpty(greetNpc, "(플레이어가 E키로 말을 걸었습니다. 짧게 인사해주세요.)");
-              addChat(greetNpc.name, reply || "나 말하는 법을 까먹은 거 같아...");
+              addChat(greetNpc.name, reply || t("sys_llm_lost"));
             } catch {
-              addChat(greetNpc.name, "나 말하는 법을 까먹은 거 같아...");
+              addChat(greetNpc.name, t("sys_llm_lost"));
             }
           })();
           if (greetNpc.id === "heo") adjustRelation("playerToHeo", 1);
           if (greetNpc.id === "kim") adjustRelation("playerToKim", 1);
         }
       } else {
-        addChat("System", `${near.npc.name}은(는) 잠시 바쁩니다.`);
+        addChat("System", t("sys_npc_busy", { name: near.npc.name }));
       }
       if (chatInputEl) chatInputEl.focus();
       return;
     }
 
-    addChat("System", "근처에 대화 가능한 NPC가 없습니다.");
+    addChat("System", t("sys_no_npc_nearby"));
   }
 
   // NPC의 LLM 응답에서 감정 추론 (AI가 맥락을 이해하고 답했으므로 응답 분석이 더 정확)
@@ -2942,6 +2981,7 @@ import { GameRenderer } from './renderer/renderer.js';
       npcName: npc.name,
       persona,
       userMessage,
+      lang: currentLang,
       worldContext: {
         time: formatTime(),
         objective: quest.objective,
@@ -2999,6 +3039,7 @@ import { GameRenderer } from './renderer/renderer.js';
       npcName: npc.name,
       persona,
       userMessage,
+      lang: currentLang,
       worldContext: {
         time: formatTime(),
         objective: quest.objective,
@@ -3135,11 +3176,11 @@ import { GameRenderer } from './renderer/renderer.js';
         return;
       }
       if (tagGame.active) {
-        addChat("System", "이미 술래잡기 진행 중입니다!");
+        addChat("System", t("sys_tag_active"));
       } else {
         const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < 25);
         if (!candidates.length) {
-          addChat("System", "주변에 술래잡기할 NPC가 없습니다.");
+          addChat("System", t("sys_tag_no_npc"));
         } else {
           const target = candidates[Math.floor(Math.random() * candidates.length)];
           addChat("You", "좋아, 술래잡기 하자!");
@@ -3177,7 +3218,7 @@ import { GameRenderer } from './renderer/renderer.js';
     }
     if (!target) {
       addChat("You", msg);
-      addChat("System", "근처에 대화 가능한 NPC가 없습니다.");
+      addChat("System", t("sys_no_npc_nearby"));
       return;
     }
 
@@ -3249,7 +3290,7 @@ import { GameRenderer } from './renderer/renderer.js';
           llmAvailable = false;
           lastLlmModel = "local";
           lastLlmError = (err2 && err2.message ? String(err2.message) : "") || (err && err.message ? String(err.message) : "unknown");
-          reply = "나 말하는 법을 까먹은 거 같아...";
+          reply = t("sys_llm_lost");
         }
       }
     } finally {
@@ -3298,12 +3339,12 @@ import { GameRenderer } from './renderer/renderer.js';
       cleanReply = cleanReply.replace(/\s*\[동행\]\s*/, "").trim();
       npc.following = true;
       npc.roamTarget = null;
-      addLog(`${npc.name}이(가) 동행합니다.`);
+      addLog(t("sys_companion_start", { name: npc.name }));
     }
     if (/\[동행해제\]/.test(cleanReply)) {
       cleanReply = cleanReply.replace(/\s*\[동행해제\]\s*/, "").trim();
       npc.following = false;
-      addLog(`${npc.name}이(가) 동행을 멈춥니다.`);
+      addLog(t("sys_companion_end", { name: npc.name }));
     }
     // [안내:장소] 또는 [안내:npc:id] 태그 파싱
     const guideNpcMatch = cleanReply.match(/\[안내:npc:(\w+)\]/);
@@ -3481,13 +3522,13 @@ import { GameRenderer } from './renderer/renderer.js';
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-    addLog("월드 상태를 저장했습니다.");
+    addLog(t("sys_save_ok"));
   }
 
   function loadState() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) {
-      addLog("저장된 상태가 없습니다.");
+      addLog(t("sys_no_save"));
       return;
     }
 
@@ -3594,7 +3635,7 @@ import { GameRenderer } from './renderer/renderer.js';
         }
       }
       refreshRemoveSelect();
-      addLog("월드 상태를 불러왔습니다.");
+      addLog(t("sys_load_ok"));
     } catch (err) {
       addLog("저장된 상태를 불러오지 못했습니다.");
     }
@@ -3796,8 +3837,8 @@ import { GameRenderer } from './renderer/renderer.js';
           // 도착 또는 대상 없음 → 안내 종료
           npc.guideTargetNpcId = null;
           if (targetNpc) {
-            upsertSpeechBubble(npc.id, `여기 ${targetNpc.name}이(가) 있어요!`, 3000);
-            addChat(npc.name, `여기 ${targetNpc.name}이(가) 있어요!`);
+            upsertSpeechBubble(npc.id, t("sys_guide_arrive", { name: targetNpc.name }), 3000);
+            addChat(npc.name, t("sys_guide_arrive", { name: targetNpc.name }));
           }
           npc.state = "idle";
         } else {
@@ -3864,7 +3905,16 @@ import { GameRenderer } from './renderer/renderer.js';
           npc.y = ny;
           npc.state = "moving";
           npc.pose = "standing";
+          npc._stuckCount = 0;
         } else {
+          npc._stuckCount = (npc._stuckCount || 0) + 1;
+          if (npc._stuckCount > 30) {
+            const escAngle = Math.random() * Math.PI * 2;
+            const ex = npc.x + Math.cos(escAngle) * 1.5;
+            const ey = npc.y + Math.sin(escAngle) * 1.5;
+            if (canStandInScene(ex, ey, npcScene)) { npc.x = ex; npc.y = ey; }
+            npc._stuckCount = 0;
+          }
           npc.roamTarget = null;
           npc.state = "idle";
         }
@@ -3930,8 +3980,8 @@ import { GameRenderer } from './renderer/renderer.js';
     const playerNearby = dist(player, a) < 12 || dist(player, b) < 12;
     if (playerNearby && !npcChatLlmPending) {
       npcChatLlmPending = true;
-      upsertSpeechBubble(a.id, "...", 5000);
-      upsertSpeechBubble(b.id, "...", 5000);
+      upsertSpeechBubble(a.id, ambientEmoji(a, true), 5000);
+      upsertSpeechBubble(b.id, ambientEmoji(b, true), 5000);
       llmReplyOrEmpty(a, `(${b.name}에게 짧게 말을 거세요. 10자 이내 한마디.)`)
         .then((lineA) => {
           if (lineA) upsertSpeechBubble(a.id, lineA, 4000);
@@ -3943,8 +3993,8 @@ import { GameRenderer } from './renderer/renderer.js';
         .finally(() => { npcChatLlmPending = false; });
       addLog(`${a.name}과 ${b.name}이 대화합니다.`);
     } else {
-      upsertSpeechBubble(a.id, "...", 2800);
-      upsertSpeechBubble(b.id, "...", 2800);
+      upsertSpeechBubble(a.id, ambientEmoji(a, true), 2800);
+      upsertSpeechBubble(b.id, ambientEmoji(b, true), 2800);
     }
   }
 
@@ -5487,7 +5537,7 @@ import { GameRenderer } from './renderer/renderer.js';
     ctx.font = `700 ${fontSize}px sans-serif`;
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
-    ctx.fillText("🚪 나가기", p.x, p.y - matH * 0.5 - 4 * z);
+    ctx.fillText("🚪 " + t("hs_exit"), p.x, p.y - matH * 0.5 - 4 * z);
     ctx.textAlign = "start";
 
     // Proximity glow
@@ -5625,7 +5675,7 @@ import { GameRenderer } from './renderer/renderer.js';
         ctx.fillStyle = "#5a3e20";
         const qbFont = Math.max(14, Math.round(13 * qbScale));
         ctx.font = `700 ${qbFont}px sans-serif`;
-        ctx.fillText("📜 게시판", qx - labelW * 0.38, qy + labelH * 0.2);
+        ctx.fillText(t("hs_board"), qx - labelW * 0.38, qy + labelH * 0.2);
       }
     }
 
@@ -5883,7 +5933,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (systemToasts.length && systemToasts[0].until <= performance.now()) renderToasts();
     const weatherKo = { clear: "☀️", cloudy: "☁️", rain: "🌧️", storm: "⛈️", snow: "❄️", fog: "🌫️" };
     const weatherIcon = weatherKo[weather.current] || "☀️";
-    uiTime.textContent = `${formatTime()} ${weatherIcon}${world.paused ? " (일시정지)" : ""}`;
+    uiTime.textContent = `${formatTime()} ${weatherIcon}${world.paused ? " " + t("hud_paused") : ""}`;
     uiPlayer.textContent = player.name;
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
@@ -5898,41 +5948,21 @@ import { GameRenderer } from './renderer/renderer.js';
       const nearNpc = nearestNpc(CHAT_NEARBY_DISTANCE);
       if (hs) {
         const hsLabels = {
-          exitGate: "나가기",
-          cafeDoor: "문 열기",
-          bakeryDoor: "문 열기",
-          floristDoor: "문 열기",
-          libraryDoor: "문 열기",
-          officeDoor: "문 열기",
-          marketDoor: "문 열기",
-          ksaMainDoor: "문 열기",
-          ksaDormDoor: "문 열기",
-          houseADoor: "문 열기",
-          houseBDoor: "문 열기",
-          houseCDoor: "문 열기",
-          koreaUnivDoor: "문 열기",
-          kaistAiDoor: "문 열기",
-          kraftonAiDoor: "문 열기",
-          restaurantDoor: "문 열기",
-          hospitalDoor: "문 열기",
-          convenienceDoor: "문 열기",
-          policeDoor: "문 열기",
-          gymDoor: "문 열기",
-          interiorExit: "나가기",
-          marketBoard: "게시판 보기",
-          parkMonument: "조사하기",
-          minigameZone: "🏃 술래잡기!",
-          infoCenter: "📋 안내소",
-          questBoard: "📜 게시판",
+          exitGate: t("hs_exit"),
+          interiorExit: t("hs_exit"),
+          minigameZone: t("hs_playground"),
+          infoCenter: t("hs_info"),
+          questBoard: t("hs_board"),
         };
-        mobileInteractBtn.textContent = hsLabels[hs.id] || "상호작용";
+        const isDoor = hs.id.endsWith("Door") && !hsLabels[hs.id];
+        mobileInteractBtn.textContent = hsLabels[hs.id] || (isDoor ? t("mobile_interact") : t("mobile_interact"));
       } else if (nearestGroundItem(1.5)) {
         const gi = nearestGroundItem(1.5);
         mobileInteractBtn.textContent = `줍기 ${itemTypes[gi.type].emoji}`;
       } else if (nearNpc) {
-        mobileInteractBtn.textContent = "대화";
+        mobileInteractBtn.textContent = t("mobile_talk");
       } else {
-        mobileInteractBtn.textContent = "대화";
+        mobileInteractBtn.textContent = t("mobile_talk");
       }
     }
 
@@ -5954,13 +5984,13 @@ import { GameRenderer } from './renderer/renderer.js';
     const newChatTargetId = npcNear ? target.npc.id : (mpChat ? "__mp__" : null);
     if (chatTargetEl) {
       const prevLabel = chatTargetEl.textContent;
-      const newLabel = npcNear ? `대상: ${target.npc.name}` : (mpChat ? "대상: 전체 채팅" : "대상: 없음");
+      const newLabel = npcNear ? t("chat_target_npc", { name: target.npc.name }) : (mpChat ? t("chat_target_mp") : t("chat_target_none"));
       if (prevLabel !== newLabel) { chatTargetEl.textContent = newLabel; renderCurrentChat(); }
     }
     if (chatSendEl) chatSendEl.disabled = mpChat ? false : !npcNear;
     if (chatInputEl) {
       chatInputEl.disabled = mpChat ? false : !npcNear;
-      chatInputEl.placeholder = mpChat ? "플레이어에게 말하기..." : "NPC에게 말 걸기...";
+      chatInputEl.placeholder = mpChat ? t("chat_placeholder_mp") : t("chat_placeholder_npc");
     }
     // 추천 응답 표시
     if (chatSuggestionsEl) {
@@ -5972,11 +6002,11 @@ import { GameRenderer } from './renderer/renderer.js';
         const friendly = npc.favorLevel >= 2;
         let suggestions;
         if (isDocent) {
-          suggestions = ["이 마을에 대해 알려줘", "여기서 뭘 할 수 있어?", "주민들을 소개해줘"];
+          suggestions = [t("suggest_docent_1"), t("suggest_docent_2"), t("suggest_docent_3")];
         } else if (friendly) {
-          suggestions = ["요즘 어때?", "뭐 하고 있었어?", "나한테 할 말 있어?"];
+          suggestions = [t("suggest_friend_1"), t("suggest_friend_2"), t("suggest_friend_3")];
         } else {
-          suggestions = ["안녕하세요", "여기는 어떤 곳이에요?", "이름이 뭐예요?"];
+          suggestions = [t("suggest_stranger_1"), t("suggest_stranger_2"), t("suggest_stranger_3")];
         }
         chatSuggestionsEl.innerHTML = suggestions.map(s =>
           `<button type="button">${s}</button>`
@@ -5994,7 +6024,7 @@ import { GameRenderer } from './renderer/renderer.js';
         chatSuggestionsEl.dataset.npcId = "";
       }
     }
-    if (chatActiveTargetEl) chatActiveTargetEl.textContent = npcNear ? `대상: ${target.npc.name}` : (mpChat ? "대상: 전체 채팅" : "대상: 없음");
+    if (chatActiveTargetEl) chatActiveTargetEl.textContent = npcNear ? t("chat_target_npc", { name: target.npc.name }) : (mpChat ? t("chat_target_mp") : t("chat_target_none"));
     if (chatActiveStateEl) {
       if (mpChat) chatActiveStateEl.textContent = "상태: 전체 채팅";
       else if (!target) chatActiveStateEl.textContent = "상태: 대화 불가";
@@ -6161,7 +6191,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (code === "Space") resetView();
     if (code === "KeyP") {
       world.paused = !world.paused;
-      addLog(world.paused ? "시뮬레이션 일시정지" : "시뮬레이션 재개");
+      addLog(world.paused ? t("sys_sim_pause") : t("sys_sim_resume"));
     }
     if (code === "KeyT") {
       setAutoWalkEnabled(!autoWalk.enabled);
@@ -6392,7 +6422,7 @@ import { GameRenderer } from './renderer/renderer.js';
     mobilePauseBtn.addEventListener("click", () => {
       if (isMobileViewport() && mobileChatOpen) return;
       world.paused = !world.paused;
-      addLog(world.paused ? "시뮬레이션 일시정지" : "시뮬레이션 재개");
+      addLog(world.paused ? t("sys_sim_pause") : t("sys_sim_resume"));
     });
   }
   if (mobileSheetToggleBtn) {
@@ -6662,7 +6692,7 @@ import { GameRenderer } from './renderer/renderer.js';
 
       if (uiOnlineEl) uiOnlineEl.hidden = false;
       addLog("멀티플레이어 연결됨!");
-      addChat("System", "멀티플레이어 모드가 활성화되었습니다. 다른 플레이어가 같은 월드에 접속할 수 있습니다.");
+      addChat("System", t("sys_mp_connected"));
     } catch (err) {
       addLog("멀티플레이어 초기화 실패: " + (err.message || err));
     }
