@@ -1937,7 +1937,9 @@ import { GameRenderer } from './renderer/renderer.js';
           upsertSpeechBubble(closest.id, ambientEmoji(closest, false), 6000);
           const n = closest.needs || {};
           const needHint = n.hunger > 60 ? "배가 고픈 상태." : n.energy < 30 ? "피곤한 상태." : n.social < 30 ? "외로운 상태." : n.fun < 20 ? "심심한 상태." : n.duty > 70 ? "일해야 하는 상태." : "";
-          llmReplyOrEmpty(closest, `(혼잣말을 해주세요. ${needHint} 지금 시간, 날씨, 기분에 맞게 짧은 한마디. 10자 이내.)`)
+          const _wKo = { clear: "맑음", cloudy: "흐림", rain: "비", storm: "폭풍", snow: "눈", fog: "안개" };
+          const _tw = `현재 ${formatTime()}, 날씨: ${_wKo[weather.current] || "맑음"}.`;
+          llmReplyOrEmpty(closest, `(혼잣말을 해주세요. ${_tw} ${needHint} 짧은 한마디. 10자 이내.)`)
             .then((line) => {
               if (line) upsertSpeechBubble(closest.id, line, 4000);
             })
