@@ -151,10 +151,15 @@ extra_head: |
   </div>
   <div id="pg-name-modal" class="pg-name-modal" hidden>
     <div class="pg-name-modal-box">
-      <h3>플레이어 설정</h3>
+      <h3>🏘️ 마을에 오신 걸 환영합니다</h3>
       <label for="pg-name-input">이름</label>
       <input id="pg-name-input" type="text" maxlength="18" placeholder="이름을 입력하세요" />
-      <button id="pg-name-confirm" type="button">확인</button>
+      <label>언어 / Language</label>
+      <div class="pg-name-lang-select">
+        <button id="pg-name-lang-ko" type="button" class="active">한국어</button>
+        <button id="pg-name-lang-en" type="button">English</button>
+      </div>
+      <button id="pg-name-confirm" type="button">시작하기</button>
     </div>
   </div>
 </div>

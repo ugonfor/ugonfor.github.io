@@ -898,18 +898,29 @@ import { GameRenderer } from './renderer/renderer.js';
       const modal = document.getElementById("pg-name-modal");
       const nameInput = document.getElementById("pg-name-input");
       const confirmBtn = document.getElementById("pg-name-confirm");
+      const langKoBtn = document.getElementById("pg-name-lang-ko");
+      const langEnBtn = document.getElementById("pg-name-lang-en");
       if (!modal || !nameInput || !confirmBtn) {
-        resolve(defaultName || "플레이어");
+        resolve({ name: defaultName || "플레이어", lang: currentLang });
         return;
       }
       nameInput.value = defaultName || "";
+      // 언어 버튼 초기 상태
+      let selectedLang = currentLang;
+      if (langKoBtn && langEnBtn) {
+        langKoBtn.classList.toggle("active", selectedLang === "ko");
+        langEnBtn.classList.toggle("active", selectedLang === "en");
+        langKoBtn.onclick = () => { selectedLang = "ko"; langKoBtn.classList.add("active"); langEnBtn.classList.remove("active"); };
+        langEnBtn.onclick = () => { selectedLang = "en"; langEnBtn.classList.add("active"); langKoBtn.classList.remove("active"); };
+      }
       modal.hidden = false;
       nameInput.focus();
+      nameInput.select();
       function finish() {
         confirmBtn.removeEventListener("click", finish);
         nameInput.removeEventListener("keydown", onKey);
         modal.hidden = true;
-        resolve(normalizePlayerName(nameInput.value));
+        resolve({ name: normalizePlayerName(nameInput.value), lang: selectedLang });
       }
       function onKey(e) { if (e.key === "Enter") finish(); }
       confirmBtn.addEventListener("click", finish);
@@ -925,7 +936,6 @@ import { GameRenderer } from './renderer/renderer.js';
       storedFlag = localStorage.getItem(PLAYER_FLAG_KEY) || "";
     } catch { /* ignore */ }
 
-    // Auto-detect country via IP (non-blocking for returning users)
     if (!storedFlag) {
       const detected = await detectCountryFlag();
       if (detected) {
@@ -935,13 +945,19 @@ import { GameRenderer } from './renderer/renderer.js';
     }
     player.flag = normalizePlayerFlag(storedFlag);
 
-    if (storedName && storedName !== "플레이어") {
-      player.name = normalizePlayerName(storedName);
-      return;
+    // 매번 시작 시 이름/언어 설정 모달 표시
+    const result = await showNameModal(storedName || "");
+    player.name = result.name;
+    currentLang = result.lang;
+    try {
+      localStorage.setItem(PLAYER_NAME_KEY, player.name);
+      localStorage.setItem("playground_lang", currentLang);
+    } catch { /* ignore */ }
+    // 언어 토글 UI 동기화
+    const langToggleEl = document.getElementById("pg-lang-toggle");
+    if (langToggleEl) {
+      langToggleEl.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.lang === currentLang));
     }
-
-    player.name = await showNameModal("");
-    try { localStorage.setItem(PLAYER_NAME_KEY, player.name); } catch { /* ignore */ }
   }
 
   async function changePlayerName() {
