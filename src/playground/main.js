@@ -130,6 +130,7 @@ import { GameRenderer } from './renderer/renderer.js';
   const globalChats = [];
   const systemToasts = [];
   let llmAvailable = true;
+  let debugMode = localStorage.getItem('playground_debug') === 'true';
   let focusedNpcId = null;
   let conversationFocusNpcId = null;
   let lastLlmModel = "local";
@@ -1844,6 +1845,9 @@ import { GameRenderer } from './renderer/renderer.js';
 
   async function llmReplyOrEmpty(npc, prompt) {
     if (!LLM_API_URL) return "";
+    if (debugMode) {
+      console.log(`%c[LLM DEBUG] llmReplyOrEmpty → ${npc.name}: ${prompt.slice(0, 80)}...`, 'color:#ff9800');
+    }
     try {
       const llm = await requestLlmNpcReply(npc, prompt);
       lastLlmModel = llm.model || "gemini";
@@ -1854,6 +1858,7 @@ import { GameRenderer } from './renderer/renderer.js';
       llmAvailable = false;
       lastLlmModel = "local";
       lastLlmError = err && err.message ? String(err.message) : "unknown";
+      if (debugMode) console.warn(`[LLM DEBUG] llmReplyOrEmpty failed:`, err.message);
       return "";
     }
   }
@@ -1939,7 +1944,7 @@ import { GameRenderer } from './renderer/renderer.js';
           const needHint = n.hunger > 60 ? "배가 고픈 상태." : n.energy < 30 ? "피곤한 상태." : n.social < 30 ? "외로운 상태." : n.fun < 20 ? "심심한 상태." : n.duty > 70 ? "일해야 하는 상태." : "";
           const _wKo = { clear: "맑음", cloudy: "흐림", rain: "비", storm: "폭풍", snow: "눈", fog: "안개" };
           const _tw = `현재 ${formatTime()}, 날씨: ${_wKo[weather.current] || "맑음"}.`;
-          llmReplyOrEmpty(closest, `(혼잣말을 해주세요. ${_tw} ${needHint} 짧은 한마디. 10자 이내.)`)
+          llmReplyOrEmpty(closest, `(${_tw} ${needHint} 지금 느끼는 것을 자연스럽게 중얼거려주세요. "~하다", "~네" 식의 독백. 10자 이내.)`)
             .then((line) => {
               if (line) upsertSpeechBubble(closest.id, line, 4000);
             })
@@ -3051,10 +3056,17 @@ import { GameRenderer } from './renderer/renderer.js';
       npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social), fun: Math.round(npc.needs.fun), duty: Math.round(npc.needs.duty) } : null,
     };
 
+    if (debugMode) {
+      console.group(`%c[LLM DEBUG] Request → ${npc.name} (${npc.id})`, 'color:#00bcd4;font-weight:bold');
+      console.log('Payload:', JSON.parse(JSON.stringify(payload)));
+      console.groupEnd();
+    }
+
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort("LLM request timeout (15s)"), 15000);
     try {
       const headers = await buildApiHeaders("npc_chat");
+      if (debugMode) headers["x-debug"] = "1";
       const res = await fetch(LLM_API_URL, {
         method: "POST",
         headers,
@@ -3069,13 +3081,27 @@ import { GameRenderer } from './renderer/renderer.js';
       if (!reply) throw new Error("Empty LLM reply");
       const model = (data && typeof data.model === "string" && data.model.trim()) || "gemini";
       const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
-      return {
+      const result = {
         reply, model, suggestions,
         emotion: data.emotion || "neutral",
         farewell: !!data.farewell,
         action: data.action || { type: "none", target: "" },
         mention: data.mention || { npc: null, place: null },
       };
+      if (debugMode) {
+        console.group(`%c[LLM DEBUG] Response ← ${npc.name} (${model})`, 'color:#4caf50;font-weight:bold');
+        if (data._debug?.prompt) {
+          console.log('%c── Full Prompt (서버 조립) ──', 'color:#e91e63;font-weight:bold');
+          console.log(data._debug.prompt);
+        }
+        console.log('Reply:', reply);
+        console.log('Emotion:', result.emotion, '| Farewell:', result.farewell);
+        console.log('Action:', result.action);
+        console.log('Suggestions:', suggestions);
+        console.log('Mention:', result.mention);
+        console.groupEnd();
+      }
+      return result;
     } finally {
       clearTimeout(timeout);
     }
@@ -3678,6 +3704,7 @@ import { GameRenderer } from './renderer/renderer.js';
   }
 
   let nextNpcSocialAt = 0;
+  let socialGossipLlmPending = false;
 
   function updateNpcSocialInteractions() {
     const now = nowMs();
@@ -3694,16 +3721,17 @@ import { GameRenderer } from './renderer/renderer.js';
         } else if (rel < 40 && Math.random() < 0.2) {
           adjustNpcRelation(a.id, b.id, -1);
         }
-        if (Math.random() < 0.15 && dist(player, a) < 8) {
-          const label = npcRelationLabel(rel);
-          const lines = rel >= 65
-            ? [`${b.name}이랑은 잘 지내고 있어.`, `${b.name}, 요즘 좋은 친구야.`]
-            : rel < 35
-              ? [`${b.name}이랑은 좀 서먹해...`, `${b.name}이랑 사이가 좀 그래.`]
-              : [`${b.name}이랑은 그냥 평범한 사이야.`];
-          const line = lines[Math.floor(Math.random() * lines.length)];
-          speechBubbles.push({ x: a.x, y: a.y, text: line, until: now + 3500, speaker: a.name });
-          spreadGossip(a.id, b.id, "relationship", rel >= 60 ? "positive" : rel < 35 ? "negative" : "neutral");
+        if (Math.random() < 0.15 && dist(player, a) < 8 && !socialGossipLlmPending) {
+          const relLabel = npcRelationLabel(rel);
+          const sentiment = rel >= 60 ? "positive" : rel < 35 ? "negative" : "neutral";
+          socialGossipLlmPending = true;
+          const gossipPrompt = `(${b.name}과의 관계: ${relLabel}. ${b.name}을 떠올리며 중얼거려주세요. "${b.name} ~하다" 식의 독백. 10자 이내.)`;
+          llmReplyOrEmpty(a, gossipPrompt).then((line) => {
+            if (line) {
+              upsertSpeechBubble(a.id, line, 3500);
+            }
+          }).finally(() => { socialGossipLlmPending = false; });
+          spreadGossip(a.id, b.id, "relationship", sentiment);
         }
       }
     }
@@ -6380,6 +6408,16 @@ import { GameRenderer } from './renderer/renderer.js';
   }
 
   window.addEventListener("keydown", (ev) => {
+    // Ctrl+Shift+D: toggle debug mode (works even when typing)
+    if (ev.ctrlKey && ev.shiftKey && ev.code === "KeyD") {
+      ev.preventDefault();
+      debugMode = !debugMode;
+      localStorage.setItem('playground_debug', debugMode);
+      const msg = debugMode ? "[DEBUG ON] LLM 로그가 콘솔에 출력됩니다. (F12)" : "[DEBUG OFF]";
+      addLog(msg);
+      console.log(`%c${msg}`, 'color:#ff5722;font-size:14px;font-weight:bold');
+      return;
+    }
     const code = ev.code;
     if (isMobileViewport() && mobileChatOpen) {
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", "KeyE", "KeyP"].includes(code)) {
