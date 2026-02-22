@@ -50,7 +50,7 @@ import { GameRenderer } from './renderer/renderer.js';
     canvas.style.left = "0";
     canvas.style.zIndex = "1";
     canvas.style.backgroundColor = "transparent";
-    // Keep pointer events on the 2D canvas (it's on top and handles all input)
+    canvas.style.pointerEvents = "none";  // 3D 캔버스와 UI 요소가 클릭 받도록
     // Mouse/touch events still use game coord system, not Three.js raycasting yet
   }
 
@@ -6297,11 +6297,15 @@ import { GameRenderer } from './renderer/renderer.js';
           addChat("System", `${clickedNpc.name} 주변으로 이동할 수 없습니다.`);
         }
       } else {
+        // 3D 모드: 클릭 위치로 이동
+        if (gameRenderer3D) {
+          const pos = gameRenderer3D.screenToWorld(ev.clientX, ev.clientY);
+          if (pos && canStand(pos.x, pos.z)) {
+            player.moveTarget = { x: pos.x, y: pos.z };
+          }
+        }
         focusedNpcId = null;
         conversationFocusNpcId = null;
-        player.moveTarget = null;
-        chatSession.npcId = null;
-        chatSession.expiresAt = 0;
       }
     }
     mouseDown = false;
