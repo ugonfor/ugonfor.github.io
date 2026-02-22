@@ -59,6 +59,10 @@ extra_head: |
         <button id="pg-mobile-tab-chat" type="button" class="pg-mobile-tab" role="tab" aria-selected="false">채팅</button>
       </div>
     </div>
+    <div id="pg-lang-toggle" class="pg-lang-toggle">
+      <button data-lang="ko" class="active">한국어</button>
+      <button data-lang="en">EN</button>
+    </div>
     <button id="pg-ui-toggle" class="pg-ui-toggle" type="button" aria-expanded="true">UI 숨기기</button>
     <div class="pg-panel-toggles" role="group" aria-label="패널 표시 설정">
       <button id="pg-toggle-left" type="button" class="pg-panel-toggle is-active" aria-pressed="true">정보</button>
