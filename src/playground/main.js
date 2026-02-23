@@ -306,6 +306,11 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   const questHistory = [];
   let questCount = 0;
 
+  // ─── 관조 모드 (V키) ───
+  let contemplationMode = false;
+  let contemplationTargetIdx = 0;
+  let contemplationNextAt = 0;
+
   // ─── 도슨트 환영 시스템 ───
   let guideGreetingPhase = 0;    // 0: 대기, 1: 접근중, 2: 완료
   let guideGreetingTimer = 0;
@@ -2035,17 +2040,30 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       if (dist(guideNpc, player) < 2.5) {
         guideGreetingPhase = 2;
         guideNpc.pose = "waving";
-        const hi = t("docent_hi");
-        addChat(guideNpc.name, hi);
-        upsertSpeechBubble(guideNpc.id, hi, 5000);
-        setTimeout(() => {
-          const hi2 = t("docent_hi2");
-          addChat(guideNpc.name, hi2);
-          upsertSpeechBubble(guideNpc.id, hi2, 4000);
-          guideNpc.pose = "standing";
-        }, 4000);
+        // LLM으로 자연스러운 첫 인사
+        const mem = ensureMemoryFormat(guideNpc);
+        const isReturn = mem.conversationCount > 0;
+        const greetPrompt = isReturn
+          ? `(오랜만에 돌아온 ${player.name}을(를) 반갑게 맞이해주세요. 마을에 새로운 일이 있으면 알려주세요. 20자 이내.)`
+          : `(처음 방문한 ${player.name}을(를) 환영해주세요. 이 마을의 안내원으로서 짧게 자기소개. 20자 이내.)`;
+        llmReplyOrEmpty(guideNpc, greetPrompt).then((hi) => {
+          const line = hi || t("docent_hi");
+          addChat(guideNpc.name, line);
+          upsertSpeechBubble(guideNpc.id, line, 5000);
+          setTimeout(() => {
+            const hi2Prompt = isReturn
+              ? `(${player.name}에게 마을 근황을 한 문장으로. 20자 이내.)`
+              : `(${player.name}에게 마을을 구경하라고 권유. E키로 말 걸 수 있다고. 20자 이내.)`;
+            llmReplyOrEmpty(guideNpc, hi2Prompt).then((hi2) => {
+              const line2 = hi2 || t("docent_hi2");
+              addChat(guideNpc.name, line2);
+              upsertSpeechBubble(guideNpc.id, line2, 4000);
+              guideNpc.pose = "standing";
+            });
+          }, 4000);
+        });
         guideNpc.roamTarget = null;
-        guideNpc.roamWait = 6;
+        guideNpc.roamWait = 8;
       }
     }
   }
@@ -3448,10 +3466,18 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         } else {
           npc._stuckCount = (npc._stuckCount || 0) + 1;
           if (npc._stuckCount > 30) {
-            const escAngle = Math.random() * Math.PI * 2;
-            const ex = npc.x + Math.cos(escAngle) * 1.5;
-            const ey = npc.y + Math.sin(escAngle) * 1.5;
-            if (canStandInScene(ex, ey, npcScene)) { npc.x = ex; npc.y = ey; }
+            let escaped = false;
+            for (let attempt = 0; attempt < 8; attempt++) {
+              const escAngle = (attempt / 8) * Math.PI * 2 + Math.random() * 0.5;
+              const ex = npc.x + Math.cos(escAngle) * 1.5;
+              const ey = npc.y + Math.sin(escAngle) * 1.5;
+              if (canStandInScene(ex, ey, npcScene)) { npc.x = ex; npc.y = ey; escaped = true; break; }
+            }
+            if (!escaped && npc.home) {
+              npc.x = npc.home.x;
+              npc.y = npc.home.y;
+              npc.currentScene = "outdoor";
+            }
             npc._stuckCount = 0;
           }
           npc.roamTarget = null;
@@ -3583,6 +3609,19 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     convoPan.y *= 0.84;
     if (Math.abs(convoPan.x) < 0.2) convoPan.x = 0;
     if (Math.abs(convoPan.y) < 0.2) convoPan.y = 0;
+  }
+
+  function updateContemplation(now) {
+    if (!contemplationMode) return;
+    if (now < contemplationNextAt) return;
+    contemplationNextAt = now + 6000 + Math.random() * 4000; // 6~10초마다 전환
+    const outdoor = npcs.filter(n => (n.currentScene || "outdoor") === "outdoor");
+    if (!outdoor.length) return;
+    contemplationTargetIdx = (contemplationTargetIdx + 1) % outdoor.length;
+    const target = outdoor[contemplationTargetIdx];
+    // 카메라를 NPC에게 부드럽게 이동
+    cameraPan.x = clamp((target.x - player.x) * 20, -320, 320);
+    cameraPan.y = clamp((target.y - player.y) * 12, -220, 220);
   }
 
   function resetView() {
@@ -3937,6 +3976,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       }
       updateAmbientSpeech(nowMs());
       updateConversationCamera();
+      updateContemplation(nowMs());
       updateCamera();
       if (mp && mp.enabled) {
         mpBroadcast();
@@ -4007,7 +4047,18 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     if (code === "KeyT") {
       setAutoWalkEnabled(!autoWalk.enabled);
     }
-    // W키: 날씨 순환 (디버그용)
+    // V키: 관조 모드 (카메라가 NPC를 자동으로 따라감)
+    if (code === "KeyV") {
+      contemplationMode = !contemplationMode;
+      if (contemplationMode) {
+        contemplationTargetIdx = 0;
+        contemplationNextAt = 0;
+        addLog(t("sys_contemplation_on") || "관조 모드 ON — 마을을 구경합니다.");
+      } else {
+        addLog(t("sys_contemplation_off") || "관조 모드 OFF");
+      }
+    }
+    // G키: 날씨 순환 (디버그용)
     if (code === "KeyG") {
       const cycle = ["clear", "cloudy", "rain", "storm", "snow", "fog"];
       const idx = cycle.indexOf(weather.current);
