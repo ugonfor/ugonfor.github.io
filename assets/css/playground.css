@@ -1000,3 +1000,10 @@ button.pg-pressed,
   transition: opacity 0.3s;
   z-index: 3;
 }
+@media screen and (max-width: 900px), screen and (max-height: 500px) and (orientation: landscape) {
+  .pg-3d-bubble {
+    font-size: 15px;
+    padding: 7px 12px;
+    max-width: 220px;
+  }
+}

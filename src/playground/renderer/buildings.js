@@ -637,7 +637,8 @@ export class BuildingFactory {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(0, 0, size, 64);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px sans-serif';
+    const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    ctx.font = isMobile ? 'bold 36px sans-serif' : 'bold 28px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, size / 2, 32);
@@ -646,7 +647,7 @@ export class BuildingFactory {
     tex.minFilter = THREE.LinearFilter;
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
     const sprite = new THREE.Sprite(mat);
-    sprite.scale.set(2.5, 0.6, 1);
+    sprite.scale.set(isMobile ? 3.2 : 2.5, isMobile ? 0.8 : 0.6, 1);
     sprite.position.set(0, height + 1.2, 0);
     group.add(sprite);
   }
