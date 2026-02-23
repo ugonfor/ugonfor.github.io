@@ -1002,8 +1002,8 @@ button.pg-pressed,
 }
 @media screen and (max-width: 900px), screen and (max-height: 500px) and (orientation: landscape) {
   .pg-3d-bubble {
-    font-size: 15px;
-    padding: 7px 12px;
-    max-width: 220px;
+    font-size: 14px;
+    padding: 6px 10px;
+    max-width: 210px;
   }
 }
