@@ -631,17 +631,22 @@ export class BuildingFactory {
     if (!text) return;
     const canvas = document.createElement('canvas');
     const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-    const size = isMobile ? 512 : 256;
-    canvas.width = size;
-    canvas.height = isMobile ? 128 : 64;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const baseW = 256;
+    const baseH = 64;
+    canvas.width = baseW * dpr;
+    canvas.height = baseH * dpr;
     const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.scale(dpr, dpr);
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(0, 0, size, canvas.height);
+    ctx.fillRect(0, 0, baseW, baseH);
     ctx.fillStyle = '#ffffff';
-    ctx.font = isMobile ? 'bold 56px sans-serif' : 'bold 28px sans-serif';
+    ctx.font = 'bold 28px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, size / 2, canvas.height / 2);
+    ctx.fillText(text, baseW / 2, baseH / 2);
+    ctx.restore();
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.minFilter = THREE.LinearFilter;

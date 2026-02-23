@@ -431,38 +431,46 @@ export class CharacterFactory {
 
   /** Create or update a name tag sprite */
   updateNameTag(group, name, isVisible) {
+    const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
     let tag = group.userData._nameTag;
     if (!tag) {
       const canvas = document.createElement('canvas');
-      const isMobileCanvas = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-      canvas.width = isMobileCanvas ? 512 : 256;
-      canvas.height = isMobileCanvas ? 96 : 48;
+      const baseW = isMobile ? 256 : 256;
+      const baseH = isMobile ? 48 : 48;
+      canvas.width = baseW * dpr;
+      canvas.height = baseH * dpr;
       const tex = new THREE.CanvasTexture(canvas);
       tex.minFilter = THREE.LinearFilter;
       const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
       tag = new THREE.Sprite(mat);
-      const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
       tag.scale.set(isMobile ? 2.8 : 1.6, isMobile ? 0.52 : 0.3, 1);
       tag.position.set(0, 1.8, 0);
       group.add(tag);
       group.userData._nameTag = tag;
       group.userData._nameTagCanvas = canvas;
+      group.userData._nameTagDpr = dpr;
     }
     tag.visible = isVisible;
     if (!isVisible) return;
 
     const canvas = group.userData._nameTagCanvas;
+    const savedDpr = group.userData._nameTagDpr || dpr;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.scale(savedDpr, savedDpr);
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 8);
+    const logW = canvas.width / savedDpr;
+    const logH = canvas.height / savedDpr;
+    ctx.roundRect(2, 2, logW - 4, logH - 4, 6);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-    ctx.font = isMobile ? 'bold 48px sans-serif' : 'bold 22px sans-serif';
+    ctx.font = 'bold 22px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(name, logW / 2, logH / 2);
+    ctx.restore();
     tag.material.map.needsUpdate = true;
   }
 }
