@@ -2,6 +2,8 @@ import { clamp, dist, shade, randomPastelColor, normalizePlayerName, bubbleText,
 import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_KEY, AUTO_WALK_KEY, COUNTRY_LIST, CHAT_NEARBY_DISTANCE, ZOOM_MIN, ZOOM_MAX, DEFAULT_ZOOM, CONVERSATION_MIN_ZOOM, npcPersonas, palette, places, buildings, hotspots, props, speciesPool, WEATHER_TYPES, discoveries, favorLevelNames, itemTypes, groundItems, ITEM_RESPAWN_MS, seasons, interiorDefs } from './core/constants.js';
 import { translations } from './core/i18n.js';
 import { GameRenderer } from './renderer/renderer.js';
+import { createWeatherState, createWeatherParticles, updateWeather as _updateWeather, updateWeatherParticles as _updateWeatherParticles } from './systems/weather.js';
+import { createMultiplayer } from './systems/multiplayer.js';
 
 (function () {
   const USE_3D = true;
@@ -532,127 +534,17 @@ import { GameRenderer } from './renderer/renderer.js';
   };
 
   // ─── Weather System ───
-  const weather = {
-    current: "clear",
-    next: "clear",
-    intensity: 0,
-    targetIntensity: 0,
-    windX: 0,
-    transitionProgress: 1,
-    nextChangeAt: 0,
-    lightningFlash: 0,
-  };
-  const weatherParticles = { rain: [], snow: [], fireflies: [], leaves: [], splashes: [] };
+  const weather = createWeatherState();
+  const weatherParticles = createWeatherParticles();
   let discoveryNotifyUntil = 0;
   let discoveryNotifyTitle = "";
 
-  // ─── Weather Update ───
-  // 서울 실시간 날씨 동기화
-  let weatherApiNextFetch = 0;
+  // ─── Weather Update (모듈: systems/weather.js) ───
   const WEATHER_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/weather") : "";
 
-  async function fetchSeoulWeather() {
-    if (!WEATHER_API_URL) return;
-    try {
-      const res = await fetch(WEATHER_API_URL);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.weather && data.weather !== weather.current) {
-        weather.next = data.weather;
-        weather.targetIntensity = data.weather === "clear" ? 0 : 0.5;
-        weather.transitionProgress = 0;
-      }
-    } catch { /* 실패 시 현재 날씨 유지 */ }
-  }
-
   function updateWeather(dt) {
-    const now = nowMs();
-    // 10분마다 서울 날씨 API 호출
-    if (now > weatherApiNextFetch) {
-      weatherApiNextFetch = now + 600_000;
-      fetchSeoulWeather();
-    }
-    if (weather.transitionProgress < 1) {
-      weather.transitionProgress = Math.min(1, weather.transitionProgress + dt * 0.12);
-      if (weather.transitionProgress >= 1) weather.current = weather.next;
-    }
-    weather.intensity += (weather.targetIntensity - weather.intensity) * dt * 2;
-    const targetWind = weather.current === "storm" ? -3.5 : weather.current === "rain" ? -1.5 : weather.current === "snow" ? -0.6 : 0;
-    weather.windX += (targetWind - weather.windX) * dt * 0.8;
-    if (weather.current === "storm" && Math.random() < dt * 0.12) weather.lightningFlash = 1;
-    weather.lightningFlash *= 0.82;
-    updateWeatherParticles(dt);
-  }
-
-  function updateWeatherParticles(dt) {
-    const w = canvas.width;
-    const h = canvas.height;
-    const inten = weather.intensity;
-    // Rain
-    if (weather.current === "rain" || weather.current === "storm") {
-      const maxP = weather.current === "storm" ? 300 : 150;
-      const target = Math.floor(maxP * inten);
-      while (weatherParticles.rain.length < target) {
-        weatherParticles.rain.push({ x: Math.random() * (w + 200) - 100, y: -Math.random() * h, speed: 400 + Math.random() * 300, len: 8 + Math.random() * 12 });
-      }
-      if (weatherParticles.rain.length > target) weatherParticles.rain.length = target;
-      for (const p of weatherParticles.rain) {
-        p.x += weather.windX * 60 * dt;
-        p.y += p.speed * dt;
-        if (p.y > h) { p.y = -10; p.x = Math.random() * (w + 200) - 100; weatherParticles.splashes.push({ x: p.x, y: h - Math.random() * 40, life: 0.3 }); }
-      }
-    } else {
-      weatherParticles.rain.length = 0;
-    }
-    // Snow
-    if (weather.current === "snow") {
-      const target = Math.floor(120 * inten);
-      while (weatherParticles.snow.length < target) {
-        weatherParticles.snow.push({ x: Math.random() * w, y: -Math.random() * h, speed: 30 + Math.random() * 50, size: 2 + Math.random() * 4, wobble: Math.random() * Math.PI * 2 });
-      }
-      if (weatherParticles.snow.length > target) weatherParticles.snow.length = target;
-      for (const p of weatherParticles.snow) {
-        p.wobble += dt * 2;
-        p.x += Math.sin(p.wobble) * 20 * dt + weather.windX * 15 * dt;
-        p.y += p.speed * dt;
-        if (p.y > h) { p.y = -10; p.x = Math.random() * w; }
-      }
-    } else {
-      weatherParticles.snow.length = 0;
-    }
-    // Splashes
-    for (let i = weatherParticles.splashes.length - 1; i >= 0; i--) {
-      weatherParticles.splashes[i].life -= dt;
-      if (weatherParticles.splashes[i].life <= 0) weatherParticles.splashes.splice(i, 1);
-    }
-    // Fireflies (night only)
-    const hr = hourOfDay();
-    const isNight = hr >= 20 || hr < 5;
-    if (isNight) {
-      while (weatherParticles.fireflies.length < 18) {
-        const pp = places.park;
-        weatherParticles.fireflies.push({ x: pp.x - 4 + Math.random() * 8, y: pp.y - 4 + Math.random() * 8, phase: Math.random() * Math.PI * 2, dx: (Math.random() - 0.5) * 0.3, dy: (Math.random() - 0.5) * 0.3 });
-      }
-      for (const f of weatherParticles.fireflies) {
-        f.phase += dt * 1.8;
-        f.x += f.dx * dt + Math.sin(f.phase * 0.7) * 0.3 * dt;
-        f.y += f.dy * dt + Math.cos(f.phase * 0.5) * 0.3 * dt;
-        if (f.x < 2 || f.x > 30 || f.y < 2 || f.y > 30) { f.dx = -f.dx; f.dy = -f.dy; }
-      }
-    } else {
-      weatherParticles.fireflies.length = 0;
-    }
-    // Leaves (always, gentle)
-    while (weatherParticles.leaves.length < 8) {
-      weatherParticles.leaves.push({ x: Math.random() * w, y: -20 - Math.random() * h * 0.5, speed: 15 + Math.random() * 25, rot: Math.random() * Math.PI * 2, size: 3 + Math.random() * 4 });
-    }
-    for (let i = weatherParticles.leaves.length - 1; i >= 0; i--) {
-      const l = weatherParticles.leaves[i];
-      l.rot += dt * 1.5;
-      l.x += (weather.windX * 10 + Math.sin(l.rot) * 15) * dt;
-      l.y += l.speed * dt;
-      if (l.y > h + 20 || l.x < -40 || l.x > w + 40) { weatherParticles.leaves.splice(i, 1); }
-    }
+    _updateWeather(weather, dt, WEATHER_API_URL);
+    _updateWeatherParticles(weather, weatherParticles, dt, canvas.width, canvas.height, hourOfDay());
   }
 
   // ─── Discovery Update ───
@@ -965,7 +857,7 @@ import { GameRenderer } from './renderer/renderer.js';
   function toggleMobileChatMode() {
     const target = chatTargetNpc();
     const npcNear = target && target.near;
-    if (!npcNear && mp.enabled) {
+    if (!npcNear && mp && mp.enabled) {
       // Open chat panel for multiplayer global chat
       if (isMobileViewport()) {
         mobileChatOpen = true;
@@ -1420,7 +1312,7 @@ import { GameRenderer } from './renderer/renderer.js';
     if (!chatLogEl) return;
     const target = chatTargetNpc();
     const npcNear = target && target.near;
-    const mpChat = mp.enabled && !npcNear;
+    const mpChat = mp && mp.enabled && !npcNear;
 
     let messages;
     if (mpChat) {
@@ -3340,7 +3232,7 @@ import { GameRenderer } from './renderer/renderer.js';
 
     const target = chatTargetNpc();
     const npcNear = target && target.near;
-    if (!npcNear && mp.enabled) {
+    if (!npcNear && mp && mp.enabled) {
       mpSendMessage(msg);
       const displayName = (player.flag ? player.flag + " " : "") + player.name;
       addChat(displayName, msg, "local-player");
@@ -5805,7 +5697,7 @@ import { GameRenderer } from './renderer/renderer.js';
       drawInteriorExitHotspot();
 
       // Draw entities in current scene
-      const remotes = mp.enabled ? mpRemotePlayerList() : [];
+      const remotes = mp && mp.enabled ? mpRemotePlayerList() : [];
       const indoorNpcs = npcs.filter(n => (n.currentScene || "outdoor") === sceneState.current);
       const sceneItems = [...indoorNpcs, player, ...remotes].sort((a, b) => a.x + a.y - (b.x + b.y));
       const zoomScale = clamp(world.zoom, 0.9, ZOOM_MAX);
@@ -5937,7 +5829,7 @@ import { GameRenderer } from './renderer/renderer.js';
       ctx.restore();
     }
 
-    const remotes = mp.enabled ? mpRemotePlayerList() : [];
+    const remotes = mp && mp.enabled ? mpRemotePlayerList() : [];
     const outdoorNpcs = npcs.filter(n => (n.currentScene || "outdoor") === "outdoor");
     const sceneItems = [...props, ...outdoorNpcs, player, ...remotes].sort((a, b) => a.x + a.y - (b.x + b.y));
     const zoomScale = clamp(world.zoom, 0.9, ZOOM_MAX);
@@ -6140,7 +6032,7 @@ import { GameRenderer } from './renderer/renderer.js';
       mctx.fill();
     }
 
-    if (mp.enabled) {
+    if (mp && mp.enabled) {
       mctx.globalAlpha = 0.5;
       for (const rp of mpRemotePlayerList()) {
         mctx.fillStyle = rp.color;
@@ -6223,7 +6115,7 @@ import { GameRenderer } from './renderer/renderer.js';
 
     const target = chatTargetNpc();
     const npcNear = target && target.near;
-    const mpChat = mp.enabled && !npcNear;
+    const mpChat = mp && mp.enabled && !npcNear;
     const newChatTargetId = npcNear ? target.npc.id : (mpChat ? "__mp__" : null);
     if (chatTargetEl) {
       const prevLabel = chatTargetEl.textContent;
@@ -6359,14 +6251,14 @@ import { GameRenderer } from './renderer/renderer.js';
       updateAmbientSpeech(nowMs());
       updateConversationCamera();
       updateCamera();
-      if (mp.enabled) {
+      if (mp && mp.enabled) {
         mpBroadcast();
         mpInterpolate(dt);
         if (frameCount % 300 === 0) { mpCleanStale(); mpCleanMessages(); }
       }
     }
 
-    if (mp.enabled && uiOnlineEl) {
+    if (mp && mp.enabled && uiOnlineEl) {
       uiOnlineEl.textContent = t("ui_online", { count: mpOnlineCount() });
     }
 
@@ -6806,201 +6698,18 @@ import { GameRenderer } from './renderer/renderer.js';
     applyPanelState();
   });
 
-  // ===== MULTIPLAYER (Firebase Realtime DB) =====
-  const mp = {
-    enabled: false,
-    db: null,
-    sessionId: null,
-    playersRef: null,
-    messagesRef: null,
-    remotePlayers: {},
-    lastBroadcastAt: 0,
-    lastMessageSendAt: 0,
-    MESSAGE_COOLDOWN: 1500,
-    BROADCAST_INTERVAL: 100,
-    STALE_TIMEOUT: 12_000,
-  };
-
-  function mpRemotePlayerList() {
-    return Object.values(mp.remotePlayers);
-  }
-
+  // ===== MULTIPLAYER (모듈: systems/multiplayer.js) =====
+  let mp;  // initialized after player setup in initPlayerName().then()
+  function mpRemotePlayerList() { return mp ? mp.remotePlayerList() : []; }
+  function mpBroadcast() { if (mp) mp.broadcast(); }
+  function mpInterpolate(dt) { if (mp) mp.interpolate(dt); }
+  function mpCleanStale() { if (mp) mp.cleanStale(); }
+  function mpSendMessage(text) { if (mp) mp.sendMessage(text); }
+  function mpCleanMessages() { if (mp) mp.cleanMessages(); }
+  function mpOnlineCount() { return mp ? mp.onlineCount() : 1; }
   function initMultiplayer() {
-    const cfg = window.PG_FIREBASE_CONFIG;
-    if (!cfg || !cfg.databaseURL || typeof firebase === "undefined") return;
-    try {
-      firebase.initializeApp(cfg);
-      mp.db = firebase.database();
-      mp.enabled = true;
-      mp.sessionId = "p_" + Math.random().toString(36).slice(2, 10) + "_" + Date.now().toString(36);
-      mp.playersRef = mp.db.ref("playground/players");
-
-      const myRef = mp.playersRef.child(mp.sessionId);
-      myRef.onDisconnect().remove();
-
-      myRef.set({
-        name: player.name,
-        flag: player.flag || "",
-        x: Math.round(player.x * 100) / 100,
-        y: Math.round(player.y * 100) / 100,
-        color: player.color,
-        species: player.species || "human_a",
-        ts: firebase.database.ServerValue.TIMESTAMP,
-      });
-
-      function sanitizeRemote(d) {
-        const clampX = typeof d.x === "number" && isFinite(d.x) ? Math.max(0, Math.min(world.width, d.x)) : 0;
-        const clampY = typeof d.y === "number" && isFinite(d.y) ? Math.max(0, Math.min(world.height, d.y)) : 0;
-        const safeName = String(d.name || "???").replace(/[<>]/g, "").slice(0, 20);
-        const safeFlag = normalizePlayerFlag(d.flag);
-        return { x: clampX, y: clampY, name: safeName, flag: safeFlag, color: String(d.color || "#aaa").slice(0, 20), species: String(d.species || "human_a").slice(0, 20), ts: d.ts || 0 };
-      }
-
-      mp.playersRef.on("child_added", (snap) => {
-        if (snap.key === mp.sessionId) return;
-        const d = snap.val();
-        if (!d) return;
-        const s = sanitizeRemote(d);
-        mp.remotePlayers[snap.key] = {
-          id: snap.key,
-          name: s.name,
-          flag: s.flag,
-          x: s.x,
-          y: s.y,
-          _targetX: s.x,
-          _targetY: s.y,
-          color: s.color,
-          species: s.species,
-          ts: s.ts,
-          _isRemotePlayer: true,
-        };
-      });
-
-      mp.playersRef.on("child_changed", (snap) => {
-        if (snap.key === mp.sessionId) return;
-        const d = snap.val();
-        if (!d) return;
-        const s = sanitizeRemote(d);
-        const rp = mp.remotePlayers[snap.key];
-        if (rp) {
-          rp.name = s.name;
-          rp.flag = s.flag;
-          rp._targetX = s.x;
-          rp._targetY = s.y;
-          rp.color = s.color;
-          rp.species = s.species;
-          rp.ts = s.ts;
-        } else {
-          mp.remotePlayers[snap.key] = {
-            id: snap.key,
-            name: s.name,
-            flag: s.flag,
-            x: s.x,
-            y: s.y,
-            _targetX: s.x,
-            _targetY: s.y,
-            color: s.color,
-            species: s.species,
-            ts: s.ts,
-            _isRemotePlayer: true,
-          };
-        }
-      });
-
-      mp.playersRef.on("child_removed", (snap) => {
-        delete mp.remotePlayers[snap.key];
-      });
-
-      // Messages listener
-      mp.messagesRef = mp.db.ref("playground/messages");
-      mp.messagesRef.orderByChild("ts").startAt(Date.now()).on("child_added", (snap) => {
-        const d = snap.val();
-        if (!d || d.sessionId === mp.sessionId) return;
-        const name = String(d.name || "???").replace(/[<>]/g, "").slice(0, 20);
-        const text = String(d.text || "").slice(0, 200);
-        const flag = normalizePlayerFlag(d.flag);
-        const displayName = (flag ? flag + " " : "") + name;
-        if (!text) return;
-        addChat(displayName, text, "remote");
-        if (d.sessionId && mp.remotePlayers[d.sessionId]) {
-          upsertSpeechBubble("remote_" + d.sessionId, text, 4000);
-        }
-      });
-
-      if (uiOnlineEl) uiOnlineEl.hidden = false;
-      addLog(t("log_mp_connected"));
-      addChat("System", t("sys_mp_connected"));
-    } catch (err) {
-      addLog(t("log_mp_fail", { err: err.message || err }));
-    }
-  }
-
-  function mpBroadcast() {
-    if (!mp.enabled) return;
-    const now = nowMs();
-    if (now - mp.lastBroadcastAt < mp.BROADCAST_INTERVAL) return;
-    mp.lastBroadcastAt = now;
-    mp.playersRef.child(mp.sessionId).update({
-      name: player.name,
-      flag: player.flag || "",
-      x: Math.round(player.x * 100) / 100,
-      y: Math.round(player.y * 100) / 100,
-      color: player.color,
-      species: player.species || "human_a",
-      ts: firebase.database.ServerValue.TIMESTAMP,
-    });
-  }
-
-  function mpInterpolate(dt) {
-    for (const rp of Object.values(mp.remotePlayers)) {
-      if (!isFinite(rp._targetX) || !isFinite(rp._targetY)) continue;
-      const dx = rp._targetX - rp.x;
-      const dy = rp._targetY - rp.y;
-      const lerp = Math.min(1, dt * 8);
-      rp.x += dx * lerp;
-      rp.y += dy * lerp;
-    }
-  }
-
-  function mpCleanStale() {
-    const now = Date.now();
-    for (const [key, rp] of Object.entries(mp.remotePlayers)) {
-      if (now - rp.ts > mp.STALE_TIMEOUT) {
-        delete mp.remotePlayers[key];
-        mp.playersRef.child(key).remove().catch(() => {});
-      }
-    }
-  }
-
-  function mpSendMessage(text) {
-    if (!mp.enabled || !mp.messagesRef) return;
-    const now = Date.now();
-    if (now - mp.lastMessageSendAt < mp.MESSAGE_COOLDOWN) return;
-    mp.lastMessageSendAt = now;
-    const safeText = String(text || "").slice(0, 200);
-    if (!safeText) return;
-    mp.messagesRef.push({
-      name: player.name,
-      flag: player.flag || "",
-      text: safeText,
-      sessionId: mp.sessionId,
-      ts: firebase.database.ServerValue.TIMESTAMP,
-    });
-    upsertSpeechBubble("player", safeText, 4000);
-  }
-
-  function mpCleanMessages() {
-    if (!mp.enabled || !mp.messagesRef) return;
-    const cutoff = Date.now() - 60_000;
-    mp.messagesRef.orderByChild("ts").endAt(cutoff).once("value", (snap) => {
-      const updates = {};
-      snap.forEach((child) => { updates[child.key] = null; });
-      if (Object.keys(updates).length > 0) mp.messagesRef.update(updates);
-    });
-  }
-
-  function mpOnlineCount() {
-    return Object.keys(mp.remotePlayers).length + 1;
+    mp = createMultiplayer({ player, world, addChat, addLog, t, upsertSpeechBubble, normalizePlayerFlag, uiOnlineEl });
+    mp.init();
   }
 
   // ── Three.js 3D Renderer Init ──
