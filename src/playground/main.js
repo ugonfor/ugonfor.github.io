@@ -2261,6 +2261,10 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     return { sentiment: "neutral", intensity: 0 };
   }
 
+  function relationKeyForNpc(npcId) {
+    return Object.keys(relations).find((k) => k.toLowerCase().includes(npcId.slice(0, 3))) || null;
+  }
+
   function applyConversationEffect(npc, playerMsg, npcReplyText, emotion) {
     // structured output의 emotion 사용, 없으면 텍스트에서 추론
     let sentiment, intensity;
