@@ -440,7 +440,8 @@ export class CharacterFactory {
       tex.minFilter = THREE.LinearFilter;
       const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
       tag = new THREE.Sprite(mat);
-      tag.scale.set(1.6, 0.3, 1);
+      const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+      tag.scale.set(isMobile ? 2.2 : 1.6, isMobile ? 0.42 : 0.3, 1);
       tag.position.set(0, 1.8, 0);
       group.add(tag);
       group.userData._nameTag = tag;
@@ -456,7 +457,8 @@ export class CharacterFactory {
     ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 8);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 22px sans-serif';
+    const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    ctx.font = isMobile ? 'bold 28px sans-serif' : 'bold 22px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(name, canvas.width / 2, canvas.height / 2);
