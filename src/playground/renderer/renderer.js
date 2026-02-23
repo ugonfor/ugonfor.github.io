@@ -8,6 +8,7 @@ import { CharacterFactory } from './entities.js';
 import { InteriorRenderer } from './interior.js';
 import { WeatherFX } from './weather-fx.js';
 import { SpeechOverlay } from './speech-overlay.js';
+import { LabelOverlay } from './label-overlay.js';
 import { buildings, props, interiorDefs } from '../core/constants.js';
 
 /**
@@ -64,6 +65,12 @@ export class GameRenderer {
     this._speechContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:2;';
     canvas.parentElement.appendChild(this._speechContainer);
     this.speechOverlay = new SpeechOverlay(this._speechContainer, canvas);
+
+    // Label overlay (NPC names, building labels) — same container, always crisp HTML
+    this._labelContainer = document.createElement('div');
+    this._labelContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:1;';
+    canvas.parentElement.appendChild(this._labelContainer);
+    this.labelOverlay = new LabelOverlay(this._labelContainer, canvas);
 
     // Entity mesh maps: npcId -> THREE.Group
     this.entityMeshes = new Map();
@@ -155,7 +162,7 @@ export class GameRenderer {
     );
     this.playerMesh.position.set(player.x, 0, player.y);
     this.scene.add(this.playerMesh);
-    this.characterFactory.updateNameTag(this.playerMesh, player.name, true);
+    // Name tags now rendered via HTML LabelOverlay (no 3D sprite needed)
 
     // --- NPCs ---
     if (npcs) {
@@ -254,7 +261,7 @@ export class GameRenderer {
     mesh.position.set(npc.x, 0, npc.y);
     this.scene.add(mesh);
     this.entityMeshes.set(npc.id, mesh);
-    this.characterFactory.updateNameTag(mesh, npc.name, true);
+    // Name tags now rendered via HTML LabelOverlay
   }
 
   /**
@@ -553,6 +560,19 @@ export class GameRenderer {
       }
     }
     this.speechOverlay.update(mappedBubbles, this.cameraRig.getActive());
+
+    // --- HTML labels for NPC names and building labels ---
+    const cam = this.cameraRig.getActive();
+    const curScene = this._currentScene || 'outdoor';
+    if (npcs) {
+      const npcLabelData = npcs
+        .filter(n => (n.currentScene || 'outdoor') === curScene)
+        .map(n => ({ id: n.id, name: n.name, x: n.x, y: n.y, visible: true }));
+      // Player label
+      npcLabelData.push({ id: '_player_', name: player.name, x: player.x, y: player.y, visible: true });
+      this.labelOverlay.updateNpcLabels(npcLabelData, cam);
+    }
+    this.labelOverlay.updateBuildingLabels(buildings, cam, curScene);
   }
 
   _updateWindowGlow(isNight) {
@@ -674,6 +694,7 @@ export class GameRenderer {
   dispose() {
     this.weatherFX.dispose();
     this.speechOverlay.dispose();
+    this.labelOverlay.dispose();
     this.scene.traverse((child) => {
       if (child.isMesh) {
         child.geometry.dispose();

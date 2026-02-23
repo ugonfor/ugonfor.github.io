@@ -978,6 +978,30 @@ button.pg-pressed,
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* 3D HTML labels (NPC names, building names) */
+.pg-label {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+  text-align: center;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 6px rgba(0,0,0,0.3);
+  color: #fff;
+}
+.pg-label-npc {
+  font-size: 11px;
+  background: rgba(0,0,0,0.4);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.pg-label-building {
+  font-size: 12px;
+  background: rgba(0,0,0,0.45);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
 /* 3D speech bubbles */
 .pg-3d-bubble {
   position: absolute;

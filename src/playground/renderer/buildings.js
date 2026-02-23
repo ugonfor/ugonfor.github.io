@@ -56,8 +56,7 @@ export class BuildingFactory {
     // --- Door ---
     this._addDoor(group, bodyW, bodyD);
 
-    // --- Label sprite ---
-    this._addLabel(group, bDef.label, bodyH);
+    // Building labels now rendered via HTML LabelOverlay (no 3D sprite)
 
     // --- Building-specific decorations ---
     this._addDecorations(group, bDef, bodyW, bodyH, bodyD);
