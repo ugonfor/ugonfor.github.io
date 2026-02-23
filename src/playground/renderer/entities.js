@@ -434,8 +434,9 @@ export class CharacterFactory {
     let tag = group.userData._nameTag;
     if (!tag) {
       const canvas = document.createElement('canvas');
-      canvas.width = 256;
-      canvas.height = 48;
+      const isMobileCanvas = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+      canvas.width = isMobileCanvas ? 512 : 256;
+      canvas.height = isMobileCanvas ? 96 : 48;
       const tex = new THREE.CanvasTexture(canvas);
       tex.minFilter = THREE.LinearFilter;
       const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
@@ -458,7 +459,7 @@ export class CharacterFactory {
     ctx.fill();
     ctx.fillStyle = '#ffffff';
     const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-    ctx.font = isMobile ? 'bold 34px sans-serif' : 'bold 22px sans-serif';
+    ctx.font = isMobile ? 'bold 48px sans-serif' : 'bold 22px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(name, canvas.width / 2, canvas.height / 2);
