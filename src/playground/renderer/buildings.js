@@ -630,18 +630,18 @@ export class BuildingFactory {
   _addLabel(group, text, height) {
     if (!text) return;
     const canvas = document.createElement('canvas');
-    const size = 256;
+    const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    const size = isMobile ? 512 : 256;
     canvas.width = size;
-    canvas.height = 64;
+    canvas.height = isMobile ? 128 : 64;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(0, 0, size, 64);
+    ctx.fillRect(0, 0, size, canvas.height);
     ctx.fillStyle = '#ffffff';
-    const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-    ctx.font = isMobile ? 'bold 36px sans-serif' : 'bold 28px sans-serif';
+    ctx.font = isMobile ? 'bold 56px sans-serif' : 'bold 28px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, size / 2, 32);
+    ctx.fillText(text, size / 2, canvas.height / 2);
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.minFilter = THREE.LinearFilter;
