@@ -441,7 +441,7 @@ export class CharacterFactory {
       const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
       tag = new THREE.Sprite(mat);
       const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-      tag.scale.set(isMobile ? 2.2 : 1.6, isMobile ? 0.42 : 0.3, 1);
+      tag.scale.set(isMobile ? 2.8 : 1.6, isMobile ? 0.52 : 0.3, 1);
       tag.position.set(0, 1.8, 0);
       group.add(tag);
       group.userData._nameTag = tag;
@@ -458,7 +458,7 @@ export class CharacterFactory {
     ctx.fill();
     ctx.fillStyle = '#ffffff';
     const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-    ctx.font = isMobile ? 'bold 28px sans-serif' : 'bold 22px sans-serif';
+    ctx.font = isMobile ? 'bold 34px sans-serif' : 'bold 22px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(name, canvas.width / 2, canvas.height / 2);

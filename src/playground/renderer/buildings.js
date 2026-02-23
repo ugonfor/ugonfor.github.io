@@ -647,7 +647,7 @@ export class BuildingFactory {
     tex.minFilter = THREE.LinearFilter;
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
     const sprite = new THREE.Sprite(mat);
-    sprite.scale.set(isMobile ? 3.2 : 2.5, isMobile ? 0.8 : 0.6, 1);
+    sprite.scale.set(isMobile ? 3.5 : 2.5, isMobile ? 0.85 : 0.6, 1);
     sprite.position.set(0, height + 1.2, 0);
     group.add(sprite);
   }

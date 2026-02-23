@@ -909,8 +909,12 @@ import { GameRenderer } from './renderer/renderer.js';
         langEnBtn.onclick = () => { selectedLang = "en"; langEnBtn.classList.add("active"); langKoBtn.classList.remove("active"); };
       }
       modal.hidden = false;
-      nameInput.focus();
-      nameInput.select();
+      // 모바일에서는 프로그래밍적 focus로 키보드가 안 뜸 — 데스크톱만 auto-focus
+      const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+      if (!isMobile) {
+        nameInput.focus();
+        nameInput.select();
+      }
       function finish() {
         confirmBtn.removeEventListener("click", finish);
         nameInput.removeEventListener("keydown", onKey);
