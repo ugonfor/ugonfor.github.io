@@ -4,6 +4,7 @@ export const UI_PREF_KEY = "playground_ui_pref_v1";
 export const MOBILE_SHEET_KEY = "playground_mobile_sheet_v1";
 export const PLAYER_NAME_KEY = "playground_player_name_v1";
 export const PLAYER_FLAG_KEY = "playground_player_flag_v1";
+export const PLAYER_ID_KEY = "playground_player_id";
 export const AUTO_WALK_KEY = "playground_auto_walk_v1";
 
 // ─── Country List ───

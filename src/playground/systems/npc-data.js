@@ -55,7 +55,23 @@ export function ensureMemoryFormat(npc) {
 export function addNpcMemory(npc, type, summary, metadata, totalMinutes) {
   const mem = ensureMemoryFormat(npc);
   mem.entries.push({ type, summary, metadata: metadata || {}, time: totalMinutes });
-  if (mem.entries.length > 20) mem.entries.shift();
+  // 15개 초과 시 오래된 5개를 1줄 요약으로 압축
+  if (mem.entries.length > 15) {
+    compressOldMemories(npc);
+  }
+}
+
+export function compressOldMemories(npc) {
+  const mem = ensureMemoryFormat(npc);
+  if (mem.entries.length <= 15) return;
+  const old = mem.entries.splice(0, 5);
+  const types = [...new Set(old.map(e => e.type))];
+  const summary = old.map(e => e.summary.slice(0, 15)).join("; ");
+  mem.entries.unshift({
+    type: "summary",
+    summary: `[${types.join("/")}] ${summary}`,
+    time: old[0].time,
+  });
 }
 
 export function getNpcMemorySummary(npc, t) {

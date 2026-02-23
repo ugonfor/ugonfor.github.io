@@ -1,11 +1,12 @@
 import { clamp, dist, shade, randomPastelColor, normalizePlayerName, bubbleText, inferPersonalityFromName, nowMs, socialKey, npcRelationLabel } from './utils/helpers.js';
-import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_KEY, AUTO_WALK_KEY, COUNTRY_LIST, CHAT_NEARBY_DISTANCE, ZOOM_MIN, ZOOM_MAX, DEFAULT_ZOOM, CONVERSATION_MIN_ZOOM, npcPersonas, palette, places, buildings, hotspots, props, speciesPool, WEATHER_TYPES, discoveries, favorLevelNames, itemTypes, groundItems, ITEM_RESPAWN_MS, seasons, interiorDefs } from './core/constants.js';
+import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_KEY, PLAYER_ID_KEY, AUTO_WALK_KEY, COUNTRY_LIST, CHAT_NEARBY_DISTANCE, ZOOM_MIN, ZOOM_MAX, DEFAULT_ZOOM, CONVERSATION_MIN_ZOOM, npcPersonas, palette, places, buildings, hotspots, props, speciesPool, WEATHER_TYPES, discoveries, favorLevelNames, itemTypes, groundItems, ITEM_RESPAWN_MS, seasons, interiorDefs } from './core/constants.js';
 import { translations } from './core/i18n.js';
 import { GameRenderer } from './renderer/renderer.js';
 import { createWeatherState, createWeatherParticles, updateWeather as _updateWeather, updateWeatherParticles as _updateWeatherParticles } from './systems/weather.js';
 import { createMultiplayer } from './systems/multiplayer.js';
 import { makeNpc, ensureMemoryFormat, addNpcMemory as _addNpcMemory, getNpcMemorySummary as _getNpcMemorySummary, getNpcSocialContext as _getNpcSocialContext, getMemoryBasedTone } from './systems/npc-data.js';
 import { generateDynamicQuest as _generateDynamicQuest, handleQuestNpcTalk as _handleQuestNpcTalk, handleDynamicQuestProgress as _handleDynamicQuestProgress, advanceDynamicQuest as _advanceDynamicQuest, completeDynamicQuest as _completeDynamicQuest, showQuestBoardMenu as _showQuestBoardMenu, handleQuestBoardChoice as _handleQuestBoardChoice } from './systems/quest.js';
+import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
 
 (function () {
   const USE_3D = true;
@@ -1700,9 +1701,15 @@ import { generateDynamicQuest as _generateDynamicQuest, handleQuestNpcTalk as _h
         const npc = close[Math.floor(Math.random() * close.length)];
         npcProactiveGreetPending = true;
         npc.pose = "waving";
+        // 기억 기반 선제 인사 프롬프트
+        const mem = ensureMemoryFormat(npc);
+        const lastChat = mem.entries.filter(e => e.type === "chat").slice(-1)[0];
+        const memHint = lastChat
+          ? `지난 대화: "${lastChat.summary.slice(0, 30)}".`
+          : "처음 보는 사람입니다.";
         const greetPrompt = npc.favorLevel >= 1
-          ? "(친한 플레이어가 근처를 지나갑니다. 반갑게 먼저 말을 걸어주세요. 짧은 한마디.)"
-          : "(처음 보는 사람이 근처를 지나갑니다. 가볍게 인사해주세요. 짧은 한마디.)";
+          ? `(${memHint} 친한 플레이어가 근처에 있습니다. 과거를 자연스럽게 언급하며 반갑게 말 걸어주세요. 15자 이내.)`
+          : `(${memHint} 플레이어가 근처에 있습니다. 가볍게 인사해주세요. 15자 이내.)`;
         llmReplyOrEmpty(npc, greetPrompt)
           .then((line) => {
             if (line) {
@@ -2843,6 +2850,7 @@ import { generateDynamicQuest as _generateDynamicQuest, handleQuestNpcTalk as _h
       const farewellPattern = /(안녕|잘\s?가|다음에|나중에|바이|bye|또\s?봐|가\s?볼게|이만|할\s?일|다시\s?보자|그럼\s?이만|갈게)/i;
       if (serverFarewell || farewellPattern.test(cleanReply)) {
         if (npc.following) npc.following = false;
+        syncMemoryToServer(); // 대화 종료 시 기억 서버 동기화
         setTimeout(() => {
           if (conversationFocusNpcId === npc.id) {
             conversationFocusNpcId = null;
@@ -3503,19 +3511,32 @@ import { generateDynamicQuest as _generateDynamicQuest, handleQuestNpcTalk as _h
     a.state = "chatting";
     b.state = "chatting";
 
-    // 플레이어 근처면 LLM으로 대화, 멀면 "..." 말풍선
+    // 플레이어 근처면 LLM으로 멀티턴 대화, 멀면 "..." 말풍선
     const playerNearby = dist(player, a) < 12 || dist(player, b) < 12;
     if (playerNearby && !npcChatLlmPending) {
       npcChatLlmPending = true;
-      upsertSpeechBubble(a.id, ambientEmoji(a, true), 5000);
-      upsertSpeechBubble(b.id, ambientEmoji(b, true), 5000);
-      llmReplyOrEmpty(a, `(${b.name}에게 짧게 말을 거세요. 10자 이내 한마디.)`)
+      const rel = npcRelationLabel(getNpcRelation(a.id, b.id));
+      upsertSpeechBubble(a.id, ambientEmoji(a, true), 8000);
+      upsertSpeechBubble(b.id, ambientEmoji(b, true), 8000);
+      const delay = (ms) => new Promise(r => setTimeout(r, ms));
+      llmReplyOrEmpty(a, `(${b.name}에게 말을 걸어주세요. 관계: ${rel}. ${formatTime()}. 10자 이내.)`)
         .then((lineA) => {
-          if (lineA) upsertSpeechBubble(a.id, lineA, 4000);
-          return llmReplyOrEmpty(b, `(${a.name}이(가) "${lineA || '...'}"라고 했습니다. 짧게 대답하세요. 10자 이내.)`);
+          if (lineA) upsertSpeechBubble(a.id, lineA, 4500);
+          return delay(2500).then(() =>
+            llmReplyOrEmpty(b, `(${a.name}: "${lineA || '...'}". 대답해주세요. 10자 이내.)`)
+          );
         })
         .then((lineB) => {
-          if (lineB) upsertSpeechBubble(b.id, lineB, 4000);
+          if (lineB) upsertSpeechBubble(b.id, lineB, 4500);
+          // 50% 확률로 A가 한 번 더 반응 (3턴)
+          if (Math.random() < 0.5 && lineB) {
+            return delay(2500).then(() =>
+              llmReplyOrEmpty(a, `(${b.name}: "${lineB}". 짧게 반응. 8자 이내.)`)
+            );
+          }
+        })
+        .then((lineA2) => {
+          if (lineA2) upsertSpeechBubble(a.id, lineA2, 3000);
         })
         .finally(() => { npcChatLlmPending = false; });
       addLog(t("log_npc_chat", { a: a.name, b: b.name }));
@@ -3917,6 +3938,12 @@ import { generateDynamicQuest as _generateDynamicQuest, handleQuestNpcTalk as _h
         mpBroadcast();
         mpInterpolate(dt);
         if (frameCount % 300 === 0) { mpCleanStale(); mpCleanMessages(); }
+        // 5분마다 기억 서버 동기화
+        const _now = nowMs();
+        if (memorySync && _now > nextMemorySyncAt) {
+          nextMemorySyncAt = _now + 300_000;
+          syncMemoryToServer();
+        }
       }
     }
 
@@ -4365,9 +4392,37 @@ import { generateDynamicQuest as _generateDynamicQuest, handleQuestNpcTalk as _h
   function mpSendMessage(text) { if (mp) mp.sendMessage(text); }
   function mpCleanMessages() { if (mp) mp.cleanMessages(); }
   function mpOnlineCount() { return mp ? mp.onlineCount() : 1; }
+  let memorySync = null;
+  let nextMemorySyncAt = 0;
+
   function initMultiplayer() {
     mp = createMultiplayer({ player, world, addChat, addLog, t, upsertSpeechBubble, normalizePlayerFlag, uiOnlineEl });
     mp.init();
+    // Firebase 기억 동기화 초기화
+    const cfg = window.PG_FIREBASE_CONFIG;
+    if (cfg && cfg.databaseURL && typeof firebase !== "undefined" && mp && mp.enabled) {
+      let playerId = localStorage.getItem(PLAYER_ID_KEY);
+      if (!playerId) {
+        playerId = "p_" + crypto.randomUUID();
+        localStorage.setItem(PLAYER_ID_KEY, playerId);
+      }
+      try {
+        memorySync = createMemorySync(firebase.database(), playerId);
+        // 서버에서 기억 로드 (비동기)
+        memorySync.load().then((serverData) => {
+          if (serverData && applyServerMemory(npcs, serverData, null)) {
+            addLog("[Memory] 서버에서 기억을 복원했습니다.");
+          }
+        });
+      } catch (e) {
+        console.warn("[MemorySync] init failed:", e.message);
+      }
+    }
+  }
+
+  function syncMemoryToServer() {
+    if (!memorySync) return;
+    memorySync.save(npcs, player.name);
   }
 
   // ── Three.js 3D Renderer Init ──
