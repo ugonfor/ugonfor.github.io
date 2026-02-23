@@ -6509,7 +6509,10 @@ import { GameRenderer } from './renderer/renderer.js';
     cameraPan.y = clamp(cameraPan.y + dy, -220, 220);
   });
 
-  canvas.addEventListener(
+  // 줌/터치 이벤트: 3D 캔버스에 걸기 (2D HUD는 pointer-events:none)
+  const zoomTarget = canvas3D || canvas;
+
+  zoomTarget.addEventListener(
     "wheel",
     (ev) => {
       ev.preventDefault();
@@ -6519,7 +6522,7 @@ import { GameRenderer } from './renderer/renderer.js';
     { passive: false }
   );
 
-  canvas.addEventListener(
+  zoomTarget.addEventListener(
     "touchstart",
     (ev) => {
       if (!mobileMode) return;
@@ -6538,7 +6541,7 @@ import { GameRenderer } from './renderer/renderer.js';
     { passive: true }
   );
 
-  canvas.addEventListener(
+  zoomTarget.addEventListener(
     "touchmove",
     (ev) => {
       if (!mobileMode) return;
@@ -6568,7 +6571,7 @@ import { GameRenderer } from './renderer/renderer.js';
     { passive: false }
   );
 
-  canvas.addEventListener("touchend", () => {
+  zoomTarget.addEventListener("touchend", () => {
     inputState.touchPanActive = false;
     inputState.pinchDist = 0;
   });
