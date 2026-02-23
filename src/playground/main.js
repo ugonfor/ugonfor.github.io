@@ -2005,9 +2005,107 @@ import { generateDynamicQuest as _generateDynamicQuest, handleQuestNpcTalk as _h
   function showQuestBoardMenu() { _showQuestBoardMenu(questCtx()); questBoardMenuActive = true; }
   function handleQuestBoardChoice(choice) { questBoardMenuActive = false; return _handleQuestBoardChoice(choice, questCtx()); }
 
-  // ── Removed: questTemplates, advanceDynamicQuest, completeDynamicQuest,
-  //    enrichQuestDialogue, generateDynamicQuest, handleDynamicQuestProgress,
-  //    showQuestBoardMenu, handleQuestBoardChoice, relationKeyForNpc ──
+  // ─── 도슨트 환영 업데이트 ───
+  function updateGuideGreeting(dt) {
+    if (guideGreetingPhase === 2) return;
+    const guideNpc = npcs.find(n => n.id === "guide");
+    if (!guideNpc) { guideGreetingPhase = 2; return; }
+
+    if (guideGreetingPhase === 0) {
+      guideGreetingTimer += dt;
+      if (guideGreetingTimer >= 3) {
+        guideGreetingPhase = 1;
+        guideNpc.roamTarget = { x: player.x, y: player.y };
+        guideNpc.roamWait = 0;
+      }
+      return;
+    }
+
+    if (guideGreetingPhase === 1) {
+      if (!guideNpc.roamTarget || dist(guideNpc.roamTarget, player) > 2) {
+        guideNpc.roamTarget = { x: player.x, y: player.y };
+      }
+      if (dist(guideNpc, player) < 2.5) {
+        guideGreetingPhase = 2;
+        guideNpc.pose = "waving";
+        const hi = t("docent_hi");
+        addChat(guideNpc.name, hi);
+        upsertSpeechBubble(guideNpc.id, hi, 5000);
+        setTimeout(() => {
+          const hi2 = t("docent_hi2");
+          addChat(guideNpc.name, hi2);
+          upsertSpeechBubble(guideNpc.id, hi2, 4000);
+          guideNpc.pose = "standing";
+        }, 4000);
+        guideNpc.roamTarget = null;
+        guideNpc.roamWait = 6;
+      }
+    }
+  }
+
+  // ─── 도슨트 안내소 시스템 ───
+  let docentMenuActive = false;
+  let questBoardMenuActive = false;
+
+  function showDocentMenu() {
+    const guideNpc = npcs.find(n => n.id === "guide");
+    const guideName = guideNpc ? guideNpc.name : t("docent_fallback_name");
+    addChat(guideName, t("docent_welcome"));
+    addChat("System", t("docent_menu_title"));
+    addChat("System", t("docent_menu_prompt"));
+    addChat("System", t("docent_menu_1"));
+    addChat("System", t("docent_menu_2"));
+    addChat("System", t("docent_menu_3"));
+    addChat("System", t("docent_menu_4"));
+    docentMenuActive = true;
+  }
+
+  function handleDocentChoice(choice) {
+    const guideNpc = npcs.find(n => n.id === "guide");
+    const name = guideNpc ? guideNpc.name : t("docent_fallback_name");
+    docentMenuActive = false;
+
+    if (choice === "1") {
+      addChat(name, t("docent_intro_1"));
+      addChat(name, t("docent_intro_2"));
+      addChat(name, t("docent_intro_3"));
+      return true;
+    }
+    if (choice === "2") {
+      addChat(name, t("docent_activities_title"));
+      addChat(name, t("docent_act_move"));
+      addChat(name, t("docent_act_chat"));
+      addChat(name, t("docent_act_quest"));
+      addChat(name, t("docent_act_gift"));
+      addChat(name, t("docent_act_tag"));
+      addChat(name, t("docent_act_discover"));
+      return true;
+    }
+    if (choice === "3") {
+      addChat(name, t("docent_npc_title"));
+      for (const npc of npcs) {
+        if (npc.id === "guide") continue;
+        const persona = npcPersonas[npc.id];
+        const desc = persona ? persona.personality : t("docent_npc_unknown");
+        const levelName = favorLevelNames[npc.favorLevel] || t("relation_stranger");
+        addChat(name, `• ${npc.name} — ${desc} (${levelName})`);
+      }
+      return true;
+    }
+    if (choice === "4") {
+      addChat(name, t("docent_places_title"));
+      addChat(name, t("docent_place_cafe"));
+      addChat(name, t("docent_place_office"));
+      addChat(name, t("docent_place_market"));
+      addChat(name, t("docent_place_park"));
+      addChat(name, t("docent_place_ksa"));
+      addChat(name, t("docent_place_facilities"));
+      addChat(name, t("docent_place_playground"));
+      addChat(name, t("docent_place_info"));
+      return true;
+    }
+    return false;
+  }
   //    All moved to systems/quest.js (~580 lines)
 
   function handleHotspotInteraction() {
