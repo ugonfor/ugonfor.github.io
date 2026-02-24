@@ -70,9 +70,11 @@ function writeDist(relPath, content) {
  * @param {boolean} [opts.isPost] - Is a post page (loads post.css, hides header)
  * @param {boolean} [opts.loadPostCss] - Force load post.css
  * @param {string} [opts.extraHead] - Extra HTML for <head>
+ * @param {string} [opts.ogImage] - OG image path (absolute)
+ * @param {string} [opts.ogDescription] - OG description override
  */
 function renderLayout(content, opts = {}) {
-  const { title, hideHeader, isPost, loadPostCss, extraHead, isHomepage } = opts;
+  const { title, hideHeader, isPost, loadPostCss, extraHead, isHomepage, ogImage, ogDescription } = opts;
 
   // Title logic: homepage → "SiteName | Affiliation", page → "PageTitle | SiteName", else → "SiteName"
   let titleTag = site.title;
@@ -122,9 +124,21 @@ function renderLayout(content, opts = {}) {
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${titleTag}</title>
-    <meta name="description" content="${site.description}">
+    <meta name="description" content="${ogDescription || site.description}">
     <meta name="keywords" content="${site.keywords}">
     <link rel="canonical" href="${site.canonical}"/>
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="${titleTag}">
+    <meta property="og:description" content="${ogDescription || site.description}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="${site.canonical}">
+    ${ogImage ? `<meta property="og:image" content="${site.canonical}${ogImage}">
+    <meta property="og:image:width" content="1024">
+    <meta property="og:image:height" content="1024">` : ""}
+    <meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}">
+    <meta name="twitter:title" content="${titleTag}">
+    <meta name="twitter:description" content="${ogDescription || site.description}">
 
     <link rel="icon" media="(prefers-color-scheme:dark)" href="${site.favicon_dark || site.favicon}" type="image/png" />
     <link rel="icon" media="(prefers-color-scheme:light)" href="${site.favicon}" type="image/png" />
@@ -527,7 +541,12 @@ function buildPlaygroundPage() {
   <link rel="stylesheet" href="/assets/css/playground.css">
   <script defer src="/assets/js/playground-world.js"></script>`;
 
-  return renderLayout(html, { title: "Playground", extraHead });
+  return renderLayout(html, {
+    title: "Playground",
+    extraHead,
+    ogImage: "/assets/images/playground-og.png",
+    ogDescription: "A tiny village lives inside a developer's homepage. The residents remember you.",
+  });
 }
 
 // ---------------------------------------------------------------------------
