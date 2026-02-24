@@ -995,6 +995,11 @@ button.pg-pressed,
   padding: 2px 7px;
   border-radius: 6px;
 }
+.pg-label-docent {
+  background: rgba(240, 160, 192, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  font-weight: bold;
+}
 .pg-label-building {
   font-size: 12px;
   background: rgba(0,0,0,0.45);

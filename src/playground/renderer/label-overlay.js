@@ -18,19 +18,20 @@ export class LabelOverlay {
    * @param {Array<{ id: string, name: string, x: number, y: number, visible: boolean }>} entities
    * @param {THREE.Camera} camera
    */
-  updateNpcLabels(entities, camera) {
+  updateNpcLabels(entities, camera, translateFn) {
     const activeIds = new Set();
+    const tr = typeof translateFn === 'function' ? translateFn : (v) => v;
     for (const e of entities) {
       activeIds.add('npc_' + e.id);
       const key = 'npc_' + e.id;
       let el = this._labels.get(key);
       if (!el) {
         el = document.createElement('div');
-        el.className = 'pg-label pg-label-npc';
+        el.className = 'pg-label pg-label-npc' + (e.isDocent ? ' pg-label-docent' : '');
         this._container.appendChild(el);
         this._labels.set(key, el);
       }
-      el.textContent = e.name;
+      el.textContent = e.isDocent ? `${e.name} (${tr("docent_role_label")})` : e.name;
 
       if (!e.visible) {
         el.style.display = 'none';
