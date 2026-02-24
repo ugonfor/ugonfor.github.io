@@ -5,7 +5,7 @@ import { speciesPool, favorLevelNames } from '../core/constants.js';
  * NPC factory and memory management functions.
  */
 
-function randomSpecies() {
+export function randomSpecies() {
   return speciesPool[Math.floor(Math.random() * speciesPool.length)];
 }
 

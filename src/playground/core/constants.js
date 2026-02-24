@@ -108,6 +108,25 @@ export const places = {
   gym: { x: 50, y: 51.5 },            // (48, 48, h=3)
 };
 
+// ─── Place Aliases (Korean + English → place key) ───
+export const PLACE_ALIASES = {
+  // Korean
+  "공원": "park", "광장": "plaza", "카페": "cafe", "빵집": "bakery",
+  "사무실": "office", "시장": "market", "꽃집": "florist", "도서관": "library",
+  "편의점": "convenience", "음식점": "restaurant", "주택": "homeA",
+  "체육관": "gym", "병원": "hospital", "경찰서": "police",
+  "고려대": "korea_univ", "고려대학교": "korea_univ",
+  "크래프톤": "krafton_ai", "KAIST": "kaist_ai", "카이스트": "kaist_ai",
+  "KSA": "ksa_main", "본관": "ksa_main", "기숙사": "ksa_dorm",
+  // English
+  "park": "park", "plaza": "plaza", "cafe": "cafe", "bakery": "bakery",
+  "office": "office", "market": "market", "florist": "florist", "library": "library",
+  "convenience store": "convenience", "restaurant": "restaurant", "house": "homeA",
+  "gym": "gym", "hospital": "hospital", "police station": "police",
+  "university": "korea_univ", "dorm": "ksa_dorm", "dormitory": "ksa_dorm", "campus": "ksa_main",
+  "info center": "infoCenter", "board": "questBoard",
+};
+
 // ─── Buildings ───
 export const buildings = [
   // 상가 1열 (y=16)
@@ -1249,4 +1268,54 @@ export const interiorDefs = {
       { x: 5, y: 8, id: "gym_member_2" },
     ],
   },
+};
+
+// ─── Game Balance Constants ───
+export const GAME = {
+  // Distances (tiles)
+  GOSSIP_RANGE: 6,
+  PROACTIVE_GREET_DIST: 3.5,
+  TAG_CANDIDATE_RANGE: 25,
+  AMBIENT_SPEECH_RANGE: 15,
+  AUTO_CONVO_DIST: 1.75,
+  TAG_CATCH_DIST: 1.5,
+  GUIDE_ARRIVE_DIST: 2.0,
+  SEAT_CHECK_DIST: 1.0,
+  PIN_NPC_RANGE_MULT: 2.0,
+
+  // Timings (seconds unless noted)
+  SPEECH_BUBBLE_SEC: 4,
+  LLM_TIMEOUT_MS: 15000,
+  LLM_STREAM_TIMEOUT_MS: 20000,
+  TAG_DURATION_MS: 60000,
+  TALK_COOLDOWN_SEC: 3.5,
+  AUTO_WALK_COOLDOWN_SEC: 4.2,
+  TAG_SPRINT_MS: 1500,
+  MEMORY_SYNC_MS: 300000,
+  CONTEMPLATION_MIN_MS: 6000,
+  CONTEMPLATION_RANGE_MS: 4000,
+
+  // Probabilities (0-1)
+  PROACTIVE_GREET_CHANCE: 0.15,
+  MOOD_CHANGE_CHANCE: 0.001,
+  ROAM_REPICK_CHANCE: 0.003,
+  MULTI_TURN_CHANCE: 0.5,
+
+  // NPC Need rates (per second)
+  NEED_HUNGER_RATE: 0.08,
+  NEED_ENERGY_RATE: 0.05,
+  NEED_SOCIAL_RATE: 0.03,
+  NEED_FUN_RATE: 0.04,
+  NEED_DUTY_RATE: 0.06,
+
+  // NPC Need recovery rates (per second)
+  NEED_HUNGER_RECOVERY: 2.0,
+  NEED_ENERGY_RECOVERY: 0.5,
+  NEED_SOCIAL_RECOVERY: 0.3,
+  NEED_FUN_RECOVERY: 0.4,
+  NEED_DUTY_RECOVERY: 0.8,
+
+  // Tag game
+  TAG_CHASE_SPEED_RATIO: 0.95,
+  TAG_SPRINT_MULTIPLIER: 1.3,
 };
