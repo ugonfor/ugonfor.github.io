@@ -2000,6 +2000,9 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
         const greetPrompt = isReturn
           ? t("llm_guide_return", { name: player.name })
           : t("llm_guide_first", { name: player.name });
+        // 인사 후 대화 세션 연결 → 유진과 바로 대화 가능
+        conversationFocusNpcId = guideNpc.id;
+        setChatSession(guideNpc.id, 30_000);
         llmReplyOrEmpty(guideNpc, greetPrompt).then((hi) => {
           const line = hi || t("docent_hi");
           addChat(guideNpc.name, line);
@@ -2127,7 +2130,17 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
     }
 
     if (hs.id === "infoCenter") {
-      showDocentMenu();
+      // 도슨트가 근처에 있으면 대화 시작, 없으면 로그만
+      const guideNpc = npcs.find(n => n.id === "guide");
+      if (guideNpc && dist(guideNpc, player) < CHAT_NEARBY_DISTANCE * 2) {
+        conversationFocusNpcId = guideNpc.id;
+        setChatSession(guideNpc.id, 18_000);
+        if (isMobileViewport()) { mobileChatOpen = true; mobileUtilityOpen = false; }
+        else if (!panelState.chat) { panelState.chat = true; }
+        applyPanelState();
+      } else {
+        addLog(t("log_checked_building", { label: t("bld_info_center") }));
+      }
       return true;
     }
 
@@ -2189,10 +2202,8 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
 
       if (near.npc.talkCooldown <= 0) {
         near.npc.talkCooldown = GAME.TALK_COOLDOWN_SEC;
-        // 도슨트 NPC는 항상 안내소 메뉴 표시
-        if (npcPersonas[near.npc.id] && npcPersonas[near.npc.id].isDocent) {
-          showDocentMenu();
-        } else if (near.npc.activeRequest && checkFavorCompletion(near.npc)) {
+        // 도슨트도 일반 NPC와 동일하게 LLM 대화 (메뉴 대신 자연스러운 안내)
+        if (near.npc.activeRequest && checkFavorCompletion(near.npc)) {
           // favor quest handled
         } else if (!handleQuestNpcTalk(near.npc)) {
           // AI NPC: LLM으로 인사 생성
@@ -2272,14 +2283,6 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
   }
 
   async function sendChatMessage(msg) {
-    // 도슨트 안내소 메뉴 처리
-    if (docentMenuActive && /^[1-4]$/.test(msg.trim())) {
-      addChat("You", msg.trim());
-      if (!handleDocentChoice(msg.trim())) {
-        addChat("System", t("sys_select_1_to_4"));
-      }
-      return;
-    }
     // 퀘스트 게시판 메뉴 처리
     if (questBoardMenuActive && /^[1-3]$/.test(msg.trim())) {
       addChat("You", msg.trim());
