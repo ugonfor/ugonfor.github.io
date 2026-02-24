@@ -500,15 +500,30 @@ function buildPromptEn(payload) {
     .map((m) => `${m.speaker || "Unknown"}: ${m.text || ""}`)
     .join("\n");
 
+  // Return-visit recognition: conversationCount-based hints
+  const convCountEn = payload.memory ? (payload.memory.match(/conversations?: (\d+)/i) || payload.memory.match(/대화 (\d+)회/) || [])[1] : 0;
+  const convNEn = parseInt(convCountEn) || 0;
+  const visitHintEn = convNEn === 0
+    ? "This is the first time meeting this player. Show curiosity and introduce yourself."
+    : convNEn <= 2
+      ? "You've talked to this player once or twice before. Show recognition like 'Oh, it's you again!'"
+      : convNEn <= 9
+        ? "You've talked with this player several times. Call them by name, be casual, and naturally reference past conversations."
+        : "This player is an old friend. Be comfortable, actively draw on past memories.";
+
   const memorySection = payload.memory
     ? [
         "",
         "Past memories:",
         payload.memory,
-        "- Use memories naturally; don't list them.",
-        "- Subtly reference past interactions with the player.",
+        `- ${visitHintEn}`,
+        "- You must weave at least one recent memory into the conversation. E.g., 'Thanks for the coffee last time', 'About what we talked about before...'",
+        "- If there are no memories, start a new conversation naturally.",
       ]
-    : [];
+    : [
+        "",
+        `- ${visitHintEn}`,
+      ];
 
   const socialSection = payload.socialContext
     ? ["", "NPC relationships:", payload.socialContext, "- When asked about other NPCs, respond naturally based on the relationship."]
@@ -556,9 +571,9 @@ function buildPromptEn(payload) {
     `- Tone: ${toneHint}`,
     "- Adjust your attitude based on relationship level:",
     "  - Stranger: Formal, short answers, slightly guarded",
-    "  - Acquaintance: Polite but relaxed, light jokes okay",
-    "  - Friend: Casual, bring up topics first, share personal stories",
-    "  - Close Friend/Soulmate: Share inner thoughts, secrets, give advice on worries",
+    "  - Acquaintance: Polite but relaxed, light jokes okay, bring up village stories",
+    "  - Friend: Casual, bring up topics first, share personal stories and worries, can ask favors",
+    "  - Close Friend/Soulmate: Share inner thoughts and secrets, use nicknames, give heartfelt advice",
     "",
     "Response format:",
     "- Respond using JSON structured output. Put dialogue in reply, 3 follow-up choices in suggestions.",
@@ -695,8 +710,8 @@ async function callGemini(prompt, useStructured = false) {
       modelPayload = JSON.parse(JSON.stringify(payload));
       delete modelPayload.generationConfig.responseMimeType;
       delete modelPayload.generationConfig.responseSchema;
-      // 프롬프트에 JSON 형식 지시 추가
-      const jsonHint = '\n\n반드시 다음 JSON 형식으로만 응답하세요 (다른 텍스트 없이 순수 JSON만):\n{"reply":"대사","suggestions":["선택지1","선택지2","선택지3"],"emotion":"happy|sad|angry|neutral","farewell":false,"action":{"type":"none","target":""},"mention":{"npc":null,"place":null}}';
+      // Add JSON format instruction for non-Gemini models
+      const jsonHint = '\n\nYou MUST respond with ONLY the following JSON format (no other text, pure JSON only):\n{"reply":"dialogue","suggestions":["choice1","choice2","choice3"],"emotion":"happy|sad|angry|neutral","farewell":false,"action":{"type":"none","target":""},"mention":{"npc":null,"place":null}}';
       if (modelPayload.contents?.[0]?.parts?.[0]?.text) {
         modelPayload.contents[0].parts[0].text += jsonHint;
       }
@@ -823,7 +838,7 @@ async function callGeminiStream(prompt) {
 
 function createSharedNpc(body) {
   const name = cleanText(body.name, 18);
-  const personality = cleanText(body.personality, 120) || "차분하고 협력적인 성격";
+  const personality = cleanText(body.personality, 120) || "Calm and cooperative";
   if (!name) return { error: "name is required" };
   if (sharedState.customNpcs.some((n) => n.name === name)) return { error: "name already exists" };
   if (sharedState.customNpcs.length >= 200) return { error: "too many custom npcs" };

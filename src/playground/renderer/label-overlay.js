@@ -63,8 +63,9 @@ export class LabelOverlay {
    * @param {Array<{ id: string, label: string, x: number, y: number, h: number, w: number, z: number }>} bldgs
    * @param {THREE.Camera} camera
    * @param {string} currentScene
+   * @param {Function} [translateFn] - optional i18n function: key → localized string
    */
-  updateBuildingLabels(bldgs, camera, currentScene) {
+  updateBuildingLabels(bldgs, camera, currentScene, translateFn) {
     if (currentScene !== 'outdoor') {
       // Hide all building labels when indoors
       for (const [key, el] of this._labels) {
@@ -72,6 +73,7 @@ export class LabelOverlay {
       }
       return;
     }
+    const tr = typeof translateFn === 'function' ? translateFn : (v) => v;
     for (const b of bldgs) {
       if (!b.label) continue;
       const key = 'bld_' + b.id;
@@ -79,10 +81,10 @@ export class LabelOverlay {
       if (!el) {
         el = document.createElement('div');
         el.className = 'pg-label pg-label-building';
-        el.textContent = b.label;
         this._container.appendChild(el);
         this._labels.set(key, el);
       }
+      el.textContent = tr(b.label);
 
       // Building center + above roof
       const cx = b.x + (b.w || 3) / 2;

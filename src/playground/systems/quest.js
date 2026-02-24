@@ -16,20 +16,21 @@ export const questTemplates = [
   {
     type: "deliver",
     tier: 1,
-    dialogueVariants: [
-      ["전해줄래?", "고마워, 잘 받았어.", "잘 전해줬구나!"],
-      ["부탁할게.", "감사해, 전달 받았어.", "수고했어!"],
-      ["이 메시지 좀 전해줘.", "아, 그 이야기구나.", "역시 믿을 수 있어!"],
-      ["급한 건데 전달 좀.", "오, 알려줘서 고마워.", "빨리 해줬네, 고마워!"],
+    dialogueVariantKeys: [
+      ["quest_deliver_d1a", "quest_deliver_d1b", "quest_deliver_d1c"],
+      ["quest_deliver_d2a", "quest_deliver_d2b", "quest_deliver_d2c"],
+      ["quest_deliver_d3a", "quest_deliver_d3b", "quest_deliver_d3c"],
+      ["quest_deliver_d4a", "quest_deliver_d4b", "quest_deliver_d4c"],
     ],
-    make(fromNpc, toNpc) {
-      const v = this.dialogueVariants[Math.floor(Math.random() * this.dialogueVariants.length)];
+    make(fromNpc, toNpc, _place, _label, _extraNpcs, _twoPlaces, ctx) {
+      const t = ctx.t;
+      const vk = this.dialogueVariantKeys[Math.floor(Math.random() * this.dialogueVariantKeys.length)];
       return {
-        title: `${fromNpc.name}의 전달 임무`,
+        title: t("quest_deliver_title", { name: fromNpc.name }),
         stages: [
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 임무를 받으세요.`, dialogue: `${toNpc.name}에게 ${v[0]}` },
-          { npcId: toNpc.id, objective: `${toNpc.name}에게 메시지를 전달하세요.`, dialogue: v[1] },
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 결과를 보고하세요.`, dialogue: v[2] },
+          { npcId: fromNpc.id, objective: t("quest_deliver_obj_receive", { name: fromNpc.name }), dialogue: t("quest_deliver_dialogue_start", { target: toNpc.name, line: t(vk[0]) }) },
+          { npcId: toNpc.id, objective: t("quest_deliver_obj_deliver", { name: toNpc.name }), dialogue: t(vk[1]) },
+          { npcId: fromNpc.id, objective: t("quest_deliver_obj_report", { name: fromNpc.name }), dialogue: t(vk[2]) },
         ],
       };
     },
@@ -37,19 +38,20 @@ export const questTemplates = [
   {
     type: "explore",
     tier: 1,
-    dialogueVariants: [
-      ["한번 살펴봐줄래? 궁금한 게 있어.", "잘 다녀왔구나! 덕분에 도움이 됐어."],
-      ["좀 둘러봐줘. 뭔가 달라진 것 같아.", "그래? 좋은 정보야, 고마워!"],
-      ["요즘 분위기가 이상하대. 확인 좀.", "별일 없다니 다행이네."],
+    dialogueVariantKeys: [
+      ["quest_explore_d1a", "quest_explore_d1b"],
+      ["quest_explore_d2a", "quest_explore_d2b"],
+      ["quest_explore_d3a", "quest_explore_d3b"],
     ],
-    make(npc, _unused, place, placeLabel) {
-      const v = this.dialogueVariants[Math.floor(Math.random() * this.dialogueVariants.length)];
+    make(npc, _unused, place, placeLabel, _extraNpcs, _twoPlaces, ctx) {
+      const t = ctx.t;
+      const vk = this.dialogueVariantKeys[Math.floor(Math.random() * this.dialogueVariantKeys.length)];
       return {
-        title: `${placeLabel} 탐험`,
+        title: t("quest_explore_title", { place: placeLabel }),
         stages: [
-          { npcId: npc.id, objective: `${npc.name}에게 탐험 임무를 받으세요.`, dialogue: `${placeLabel} 근처를 ${v[0]}` },
-          { visit: place, radius: 2.5, objective: `${placeLabel}을(를) 방문하세요.`, autoText: `${placeLabel}에 도착했습니다. 주변을 둘러봤습니다.` },
-          { npcId: npc.id, objective: `${npc.name}에게 보고하세요.`, dialogue: v[1] },
+          { npcId: npc.id, objective: t("quest_explore_obj_receive", { name: npc.name }), dialogue: t("quest_explore_dialogue_start", { place: placeLabel, line: t(vk[0]) }) },
+          { visit: place, radius: 2.5, objective: t("quest_explore_obj_visit", { place: placeLabel }), autoText: t("quest_explore_auto", { place: placeLabel }) },
+          { npcId: npc.id, objective: t("quest_explore_obj_report", { name: npc.name }), dialogue: t(vk[1]) },
         ],
       };
     },
@@ -57,19 +59,20 @@ export const questTemplates = [
   {
     type: "social",
     tier: 1,
-    dialogueVariants: [
-      ["반가워, 같이 이야기 좀 하자.", "다시 왔구나! 우리 좀 더 가까워진 것 같아.", "정말 즐거웠어. 다음에 또 이야기하자!"],
-      ["오, 잘 왔어! 할 얘기가 있었어.", "역시 통하는 게 있네.", "오늘 정말 좋았어!"],
-      ["심심했는데 잘 왔다.", "이야기가 잘 통하네.", "덕분에 기분 좋아졌어!"],
+    dialogueVariantKeys: [
+      ["quest_social_d1a", "quest_social_d1b", "quest_social_d1c"],
+      ["quest_social_d2a", "quest_social_d2b", "quest_social_d2c"],
+      ["quest_social_d3a", "quest_social_d3b", "quest_social_d3c"],
     ],
-    make(npc) {
-      const v = this.dialogueVariants[Math.floor(Math.random() * this.dialogueVariants.length)];
+    make(npc, _unused, _place, _label, _extraNpcs, _twoPlaces, ctx) {
+      const t = ctx.t;
+      const vk = this.dialogueVariantKeys[Math.floor(Math.random() * this.dialogueVariantKeys.length)];
       return {
-        title: `${npc.name}과(와) 친해지기`,
+        title: t("quest_social_title", { name: npc.name }),
         stages: [
-          { npcId: npc.id, objective: `${npc.name}과(와) 대화하세요.`, dialogue: v[0] },
-          { npcId: npc.id, objective: `${npc.name}과(와) 한 번 더 대화하세요.`, dialogue: v[1] },
-          { npcId: npc.id, objective: `${npc.name}에게 마무리 인사를 하세요.`, dialogue: v[2] },
+          { npcId: npc.id, objective: t("quest_social_obj_talk", { name: npc.name }), dialogue: t(vk[0]) },
+          { npcId: npc.id, objective: t("quest_social_obj_talk_again", { name: npc.name }), dialogue: t(vk[1]) },
+          { npcId: npc.id, objective: t("quest_social_obj_farewell", { name: npc.name }), dialogue: t(vk[2]) },
         ],
       };
     },
@@ -77,21 +80,22 @@ export const questTemplates = [
   {
     type: "observe",
     tier: 1,
-    dialogueVariants: [
-      ["밤에 가보면 뭔가 있을 거야.", "역시 뭔가 있었구나! 좋은 발견이야."],
-      ["어두울 때 분위기가 다르대.", "오, 대단한 걸 봤네!"],
-      ["야간에만 보이는 게 있다더라.", "신기하다! 잘 관찰했어."],
+    dialogueVariantKeys: [
+      ["quest_observe_d1a", "quest_observe_d1b"],
+      ["quest_observe_d2a", "quest_observe_d2b"],
+      ["quest_observe_d3a", "quest_observe_d3b"],
     ],
-    make(npc, _unused, place, placeLabel) {
-      const v = this.dialogueVariants[Math.floor(Math.random() * this.dialogueVariants.length)];
+    make(npc, _unused, place, placeLabel, _extraNpcs, _twoPlaces, ctx) {
+      const t = ctx.t;
+      const vk = this.dialogueVariantKeys[Math.floor(Math.random() * this.dialogueVariantKeys.length)];
       const targetHour = 20 + Math.floor(Math.random() * 4);
       const displayHour = targetHour >= 24 ? targetHour - 24 : targetHour;
       return {
-        title: `${placeLabel} 야간 관찰`,
+        title: t("quest_observe_title", { place: placeLabel }),
         stages: [
-          { npcId: npc.id, objective: `${npc.name}에게 관찰 임무를 받으세요.`, dialogue: `${displayHour}시 이후에 ${placeLabel}에 ${v[0]}` },
-          { visit: place, radius: 2.5, afterHour: displayHour, objective: `${displayHour}시 이후 ${placeLabel}을(를) 방문하세요.`, autoText: `밤의 ${placeLabel}에서 특별한 분위기를 느꼈습니다.` },
-          { npcId: npc.id, objective: `${npc.name}에게 보고하세요.`, dialogue: v[1] },
+          { npcId: npc.id, objective: t("quest_observe_obj_receive", { name: npc.name }), dialogue: t("quest_observe_dialogue_start", { hour: displayHour, place: placeLabel, line: t(vk[0]) }) },
+          { visit: place, radius: 2.5, afterHour: displayHour, objective: t("quest_observe_obj_visit", { hour: displayHour, place: placeLabel }), autoText: t("quest_observe_auto", { place: placeLabel }) },
+          { npcId: npc.id, objective: t("quest_explore_obj_report", { name: npc.name }), dialogue: t(vk[1]) },
         ],
       };
     },
@@ -99,15 +103,17 @@ export const questTemplates = [
   {
     type: "fetch",
     tier: 1,
-    make(npc) {
+    make(npc, _unused, _place, _label, _extraNpcs, _twoPlaces, ctx) {
+      const t = ctx.t;
       const itemKeys = Object.keys(itemTypes);
       const itemKey = itemKeys[Math.floor(Math.random() * itemKeys.length)];
       const info = itemTypes[itemKey];
+      const particle = itemKey === "gem" ? "a" : "";
       return {
-        title: `${npc.name}에게 ${info.label} 가져다주기`,
+        title: t("quest_fetch_title", { npc: npc.name, label: t(info.label) }),
         stages: [
-          { npcId: npc.id, objective: `${npc.name}에게 말을 걸어 무엇이 필요한지 알아보세요.`, dialogue: `${info.label}${itemKey === "gem" ? "이" : "을(를)"} 하나 구해다 줄 수 있어?` },
-          { requireItem: itemKey, npcId: npc.id, objective: `${info.label}${itemKey === "gem" ? "을" : "을(를)"} 가지고 ${npc.name}에게 가세요.`, dialogue: `${info.emoji} 딱 이거야! 정말 고마워!` },
+          { npcId: npc.id, objective: t("quest_fetch_obj_ask", { npc: npc.name }), dialogue: t("quest_fetch_dialogue_ask", { label: t(info.label), particle }) },
+          { requireItem: itemKey, npcId: npc.id, objective: t("quest_fetch_obj_bring", { label: t(info.label), particle, npc: npc.name }), dialogue: t("quest_fetch_dialogue_done", { emoji: info.emoji }) },
         ],
       };
     },
@@ -115,17 +121,18 @@ export const questTemplates = [
   {
     type: "chain",
     tier: 2,
-    make(fromNpc, _unused, _place, _label, extraNpcs) {
+    make(fromNpc, _unused, _place, _label, extraNpcs, _twoPlaces, ctx) {
+      const t = ctx.t;
       const chain = extraNpcs.slice(0, 3);
       if (chain.length < 3) return null;
       return {
-        title: `소식 전파: ${chain.map(n => n.name).join(" → ")}`,
+        title: t("quest_chain_title", { names: chain.map(n => n.name).join(" → ") }),
         stages: [
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 소식을 받으세요.`, dialogue: `이 소식을 ${chain[0].name}, ${chain[1].name}, ${chain[2].name} 순서대로 전해줘.` },
-          { npcId: chain[0].id, objective: `${chain[0].name}에게 소식을 전하세요.`, dialogue: `오, 그런 소식이? 다음 사람에게도 전해줘.` },
-          { npcId: chain[1].id, objective: `${chain[1].name}에게 소식을 전하세요.`, dialogue: `알려줘서 고마워. 마지막으로 한 명 더!` },
-          { npcId: chain[2].id, objective: `${chain[2].name}에게 소식을 전하세요.`, dialogue: `전부 알게 됐네! ${fromNpc.name}에게 완료했다고 알려줘.` },
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 보고하세요.`, dialogue: `모두에게 전달됐구나! 수고했어!` },
+          { npcId: fromNpc.id, objective: t("quest_chain_obj_receive", { name: fromNpc.name }), dialogue: t("quest_chain_dialogue_start", { n1: chain[0].name, n2: chain[1].name, n3: chain[2].name }) },
+          { npcId: chain[0].id, objective: t("quest_chain_obj_relay", { name: chain[0].name }), dialogue: t("quest_chain_dialogue_1") },
+          { npcId: chain[1].id, objective: t("quest_chain_obj_relay", { name: chain[1].name }), dialogue: t("quest_chain_dialogue_2") },
+          { npcId: chain[2].id, objective: t("quest_chain_obj_relay", { name: chain[2].name }), dialogue: t("quest_chain_dialogue_3", { name: fromNpc.name }) },
+          { npcId: fromNpc.id, objective: t("quest_explore_obj_report", { name: fromNpc.name }), dialogue: t("quest_chain_dialogue_done") },
         ],
       };
     },
@@ -133,20 +140,21 @@ export const questTemplates = [
   {
     type: "investigate",
     tier: 2,
-    make(fromNpc, targetNpc) {
+    make(fromNpc, targetNpc, _place, _label, _extraNpcs, _twoPlaces, ctx) {
+      const t = ctx.t;
       const persona = npcPersonas[targetNpc.id] || {};
       const cluePlace = targetNpc.work || targetNpc.hobby || places.plaza;
-      const placeNames = { plaza: "광장", cafe: "카페", office: "사무실", park: "공원", market: "시장", homeA: "주택가A", homeB: "주택가B", homeC: "주택가C", bakery: "빵집", florist: "꽃집", library: "도서관", ksa_main: "KSA 본관", ksa_dorm: "KSA 기숙사" };
       const clueLabel = Object.entries(places).find(([, v]) => v === cluePlace)?.[0] || "plaza";
-      const cluePlaceName = placeNames[clueLabel] || clueLabel;
-      const trait = persona.personality ? persona.personality.split("하")[0] : "독특";
+      const cluePlaceName = t("place_" + clueLabel) || clueLabel;
+      const personalityText = persona.personality ? t(persona.personality) || persona.personality : "";
+      const trait = personalityText.split(/[,\s]/)[0] || "mysterious";
       return {
-        title: `미스터리 인물 찾기`,
+        title: t("quest_investigate_title"),
         stages: [
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 의뢰를 받으세요.`, dialogue: `${trait}한 사람을 찾고 있어. 단서는 ${cluePlaceName} 근처야.` },
-          { visit: cluePlace, radius: 3.0, objective: `${cluePlaceName} 근처에서 단서를 찾으세요.`, autoText: `${cluePlaceName}에서 단서를 발견했습니다. 이 근처에서 활동하는 사람이 있는 것 같습니다.` },
-          { npcId: targetNpc.id, objective: `단서의 인물을 찾아 대화하세요.`, dialogue: `나를 찾고 있었어? 맞아, ${cluePlaceName} 근처에서 자주 있지.` },
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 보고하세요.`, dialogue: `찾았구나! 정말 대단해!` },
+          { npcId: fromNpc.id, objective: t("quest_investigate_obj_receive", { name: fromNpc.name }), dialogue: t("quest_investigate_dialogue_start", { trait, place: cluePlaceName }) },
+          { visit: cluePlace, radius: 3.0, objective: t("quest_investigate_obj_clue", { place: cluePlaceName }), autoText: t("quest_investigate_auto", { place: cluePlaceName }) },
+          { npcId: targetNpc.id, objective: t("quest_investigate_obj_find"), dialogue: t("quest_investigate_dialogue_found", { place: cluePlaceName }) },
+          { npcId: fromNpc.id, objective: t("quest_explore_obj_report", { name: fromNpc.name }), dialogue: t("quest_investigate_dialogue_done") },
         ],
       };
     },
@@ -154,16 +162,18 @@ export const questTemplates = [
   {
     type: "gift_quest",
     tier: 2,
-    make(fromNpc, toNpc) {
+    make(fromNpc, toNpc, _place, _label, _extraNpcs, _twoPlaces, ctx) {
+      const t = ctx.t;
       const itemKeys = Object.keys(itemTypes);
       const itemKey = itemKeys[Math.floor(Math.random() * itemKeys.length)];
       const info = itemTypes[itemKey];
+      const particle = itemKey === "gem" ? "a" : "";
       return {
-        title: `${toNpc.name}에게 선물하기`,
+        title: t("quest_gift_title", { name: toNpc.name }),
         stages: [
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 부탁을 받으세요.`, dialogue: `${toNpc.name}에게 ${info.label}${itemKey === "gem" ? "을" : "을(를)"} 선물하고 싶은데, 구해다 줄 수 있어?` },
-          { requireItem: itemKey, npcId: toNpc.id, objective: `${info.label}${itemKey === "gem" ? "을" : "을(를)"} 가지고 ${toNpc.name}에게 전달하세요.`, dialogue: `${info.emoji} 이걸 나한테? 정말 감동이야!` },
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 보고하세요.`, dialogue: `전해줬구나! 정말 고마워!` },
+          { npcId: fromNpc.id, objective: t("quest_gift_obj_receive", { name: fromNpc.name }), dialogue: t("quest_gift_dialogue_start", { target: toNpc.name, label: t(info.label), particle }) },
+          { requireItem: itemKey, npcId: toNpc.id, objective: t("quest_gift_obj_deliver", { label: t(info.label), particle, target: toNpc.name }), dialogue: t("quest_gift_dialogue_deliver", { emoji: info.emoji }) },
+          { npcId: fromNpc.id, objective: t("quest_explore_obj_report", { name: fromNpc.name }), dialogue: t("quest_gift_dialogue_done") },
         ],
       };
     },
@@ -171,16 +181,17 @@ export const questTemplates = [
   {
     type: "nightwatch",
     tier: 3,
-    make(npc, _unused, _place, _label, _extraNpcs, twoPlaces) {
+    make(npc, _unused, _place, _label, _extraNpcs, twoPlaces, ctx) {
+      const t = ctx.t;
       if (!twoPlaces || twoPlaces.length < 2) return null;
       const [p1, p2] = twoPlaces;
       return {
-        title: `야간 순찰`,
+        title: t("quest_nightwatch_title"),
         stages: [
-          { npcId: npc.id, objective: `${npc.name}에게 순찰 임무를 받으세요.`, dialogue: `밤에 ${p1.label}과(와) ${p2.label}을(를) 순찰해줘. 이상한 일이 있는지 확인해.` },
-          { visit: p1.pos, radius: 2.5, afterHour: 20, objective: `20시 이후 ${p1.label}을(를) 순찰하세요.`, autoText: `${p1.label}을(를) 순찰했습니다. 이상 없음.` },
-          { visit: p2.pos, radius: 2.5, afterHour: 20, objective: `20시 이후 ${p2.label}을(를) 순찰하세요.`, autoText: `${p2.label}을(를) 순찰했습니다. 이상 없음.` },
-          { npcId: npc.id, objective: `${npc.name}에게 순찰 결과를 보고하세요.`, dialogue: `이상 없었구나. 수고했어! 든든하다.` },
+          { npcId: npc.id, objective: t("quest_nightwatch_obj_receive", { name: npc.name }), dialogue: t("quest_nightwatch_dialogue_start", { p1: p1.label, p2: p2.label }) },
+          { visit: p1.pos, radius: 2.5, afterHour: 20, objective: t("quest_nightwatch_obj_patrol", { place: p1.label }), autoText: t("quest_nightwatch_auto", { place: p1.label }) },
+          { visit: p2.pos, radius: 2.5, afterHour: 20, objective: t("quest_nightwatch_obj_patrol", { place: p2.label }), autoText: t("quest_nightwatch_auto", { place: p2.label }) },
+          { npcId: npc.id, objective: t("quest_explore_obj_report", { name: npc.name }), dialogue: t("quest_nightwatch_dialogue_done") },
         ],
       };
     },
@@ -188,13 +199,14 @@ export const questTemplates = [
   {
     type: "urgent",
     tier: 3,
-    make(fromNpc, toNpc) {
+    make(fromNpc, toNpc, _place, _label, _extraNpcs, _twoPlaces, ctx) {
+      const t = ctx.t;
       return {
-        title: `긴급 배달!`,
+        title: t("quest_urgent_title"),
         stages: [
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 긴급 임무를 받으세요.`, dialogue: `큰일이야! 이걸 빨리 ${toNpc.name}에게 전해줘! 빠를수록 좋아!` },
-          { npcId: toNpc.id, objective: `빨리 ${toNpc.name}에게 전달하세요! (빠를수록 보너스!)`, dialogue: `제때 와줬구나! 고마워!` },
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 보고하세요.`, dialogue: `무사히 전달됐구나! 정말 고마워!` },
+          { npcId: fromNpc.id, objective: t("quest_urgent_obj_receive", { name: fromNpc.name }), dialogue: t("quest_urgent_dialogue_start", { target: toNpc.name }) },
+          { npcId: toNpc.id, objective: t("quest_urgent_obj_deliver", { name: toNpc.name }), dialogue: t("quest_urgent_dialogue_deliver") },
+          { npcId: fromNpc.id, objective: t("quest_explore_obj_report", { name: fromNpc.name }), dialogue: t("quest_urgent_dialogue_done") },
         ],
       };
     },
@@ -203,15 +215,16 @@ export const questTemplates = [
     type: "mediate",
     tier: 2,
     make(fromNpc, toNpc, _place, _label, _extraNpcs, _twoPlaces, ctx) {
+      const t = ctx.t;
       const rel = ctx.getNpcRelation(fromNpc.id, toNpc.id);
       if (rel >= 60) return null;
       return {
-        title: `${fromNpc.name}와(과) ${toNpc.name} 중재`,
+        title: t("quest_mediate_title", { a: fromNpc.name, b: toNpc.name }),
         stages: [
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 사정을 들으세요.`, dialogue: `${toNpc.name}이랑 좀 서먹해졌어... 중간에서 좀 도와줄 수 있어?` },
-          { npcId: toNpc.id, objective: `${toNpc.name}에게도 이야기를 들으세요.`, dialogue: `${fromNpc.name} 이야기야? 음... 나도 좀 미안하긴 해.` },
-          { npcId: fromNpc.id, objective: `${fromNpc.name}에게 ${toNpc.name}의 마음을 전하세요.`, dialogue: `그랬구나... 내가 너무 성급했나봐.` },
-          { npcId: toNpc.id, objective: `${toNpc.name}에게 화해 소식을 전하세요.`, dialogue: `고마워! 다시 잘 지낼 수 있을 것 같아.` },
+          { npcId: fromNpc.id, objective: t("quest_mediate_obj_listen_a", { name: fromNpc.name }), dialogue: t("quest_mediate_dialogue_a", { target: toNpc.name }) },
+          { npcId: toNpc.id, objective: t("quest_mediate_obj_listen_b", { name: toNpc.name }), dialogue: t("quest_mediate_dialogue_b", { target: fromNpc.name }) },
+          { npcId: fromNpc.id, objective: t("quest_mediate_obj_relay", { name: fromNpc.name, target: toNpc.name }), dialogue: t("quest_mediate_dialogue_relay") },
+          { npcId: toNpc.id, objective: t("quest_mediate_obj_reconcile", { name: toNpc.name }), dialogue: t("quest_mediate_dialogue_reconcile") },
         ],
         onComplete() {
           ctx.adjustNpcRelation(fromNpc.id, toNpc.id, 20);
@@ -258,7 +271,7 @@ export function completeDynamicQuest(ctx) {
     if (primaryNpc.favorPoints >= 100) {
       primaryNpc.favorLevel = Math.min(primaryNpc.favorLevel + 1, 4);
       primaryNpc.favorPoints = 0;
-      addNpcMemory(primaryNpc, "favor", `관계가 '${favorLevelNames[primaryNpc.favorLevel]}'(으)로 발전`);
+      addNpcMemory(primaryNpc, "favor", t("quest_memory_favor_up", { level: t(favorLevelNames[primaryNpc.favorLevel]) }));
     }
   }
 
@@ -267,7 +280,7 @@ export function completeDynamicQuest(ctx) {
     const rewardItem = itemKeys[Math.floor(Math.random() * itemKeys.length)];
     inventory[rewardItem] = (inventory[rewardItem] || 0) + 1;
     const info = itemTypes[rewardItem];
-    addChat("System", t("sys_quest_reward", { emoji: info.emoji, label: info.label }));
+    addChat("System", t("sys_quest_reward", { emoji: info.emoji, label: t(info.label) }));
   }
 
   if (questType === "urgent" && startedAt > 0) {
@@ -280,7 +293,7 @@ export function completeDynamicQuest(ctx) {
         if (primaryNpc.favorPoints >= 100) {
           primaryNpc.favorLevel = Math.min(primaryNpc.favorLevel + 1, 4);
           primaryNpc.favorPoints = 0;
-          addNpcMemory(primaryNpc, "favor", `관계가 '${favorLevelNames[primaryNpc.favorLevel]}'(으)로 발전`);
+          addNpcMemory(primaryNpc, "favor", t("quest_memory_favor_up", { level: t(favorLevelNames[primaryNpc.favorLevel]) }));
         }
       }
     }
@@ -291,7 +304,7 @@ export function completeDynamicQuest(ctx) {
   ctx.questCount += 1;
 
   if (primaryNpc) {
-    addNpcMemory(primaryNpc, "quest", `'${quest.title}' 퀘스트를 함께 완료`, { questType });
+    addNpcMemory(primaryNpc, "quest", t("quest_memory_completed", { title: quest.title }), { questType });
     ensureMemoryFormat(primaryNpc).questsShared += 1;
   }
 
@@ -307,9 +320,9 @@ export function completeDynamicQuest(ctx) {
 export async function enrichQuestDialogue(questType, primaryNpc, stages, ctx) {
   if (!ctx.LLM_API_URL || !primaryNpc) return;
   const persona = npcPersonas[primaryNpc.id] || {};
-  const personality = persona.personality || "친절한 성격";
+  const personality = persona.personality || "friendly";
   const stageDescs = stages.map((s, i) => `${i}: ${s.objective}`).join("; ");
-  const prompt = `퀘스트(${questType}): ${stageDescs}. ${primaryNpc.name}(${personality})의 성격에 맞게 각 스테이지 대사를 한국어 1문장씩 생성해줘. JSON 배열로 대사만 반환. 예: ["대사1","대사2","대사3"]. 20자 내외.`;
+  const prompt = ctx.t("quest_enrich_prompt", { type: questType, stageDescs, name: primaryNpc.name, personality });
   try {
     const reply = await ctx.llmReplyOrEmpty(primaryNpc, prompt);
     if (!reply) return;
@@ -328,8 +341,8 @@ export async function enrichQuestDialogue(questType, primaryNpc, stages, ctx) {
 
 export function generateDynamicQuest(ctx) {
   const { quest, questHistory, npcs, addChat, t } = ctx;
-  const placeNames = { plaza: "광장", cafe: "카페", office: "사무실", park: "공원", market: "시장", homeA: "주택가A", homeB: "주택가B", homeC: "주택가C", bakery: "빵집", florist: "꽃집", library: "도서관", ksa_main: "KSA 본관", ksa_dorm: "KSA 기숙사" };
   const placeKeys = Object.keys(places);
+  const placeNameFor = (k) => t("place_" + k) || k;
 
   const maxTier = ctx.questCount < 6 ? 1 : ctx.questCount < 16 ? 2 : 3;
   const recentTypes = questHistory.slice(0, 3).map(h => h.type);
@@ -353,11 +366,11 @@ export function generateDynamicQuest(ctx) {
 
   const placeKey = placeKeys[Math.floor(Math.random() * placeKeys.length)];
   const place = places[placeKey];
-  const placeLabel = placeNames[placeKey] || placeKey;
+  const placeLabel = placeNameFor(placeKey);
 
   const extraNpcs = shuffled.filter(n => n.id !== fromNpc.id);
-  const placeEntries = Object.entries(placeNames).sort(() => Math.random() - 0.5);
-  const twoPlaces = placeEntries.slice(0, 2).map(([k, label]) => ({ pos: places[k], label }));
+  const placeEntries = placeKeys.slice().sort(() => Math.random() - 0.5);
+  const twoPlaces = placeEntries.slice(0, 2).map(k => ({ pos: places[k], label: placeNameFor(k) }));
 
   const q = template.make(fromNpc, toNpc, place, placeLabel, extraNpcs, twoPlaces, ctx);
   if (!q) {
@@ -409,7 +422,7 @@ export function handleDynamicQuestProgress(npc, ctx) {
     const itemKey = stage.requireItem;
     if (!inventory[itemKey] || inventory[itemKey] <= 0) {
       const info = itemTypes[itemKey];
-      addChat(npc.name, t("favor_still_need", { label: info ? info.label : itemKey }));
+      addChat(npc.name, t("favor_still_need", { label: info ? t(info.label) : itemKey }));
       return true;
     }
     inventory[itemKey] -= 1;

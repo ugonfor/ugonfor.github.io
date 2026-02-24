@@ -77,34 +77,42 @@ export function compressOldMemories(npc) {
 export function getNpcMemorySummary(npc, t) {
   const mem = ensureMemoryFormat(npc);
   if (mem.entries.length === 0) return "";
-  const levelName = favorLevelNames[npc.favorLevel] || t("relation_stranger");
+  const levelName = t(favorLevelNames[npc.favorLevel]) || t("relation_stranger");
   const recent = mem.entries.slice(-8);
   const lines = recent.map((e) => {
-    if (e.type === "chat") return `[대화] ${e.summary}`;
-    if (e.type === "gift") return `[선물] ${e.summary}`;
-    if (e.type === "quest") return `[퀘스트] ${e.summary}`;
-    if (e.type === "favor") return `[관계] ${e.summary}`;
-    return `[기타] ${e.summary}`;
+    if (e.type === "chat") return `${t("npc_memory_chat")} ${e.summary}`;
+    if (e.type === "gift") return `${t("npc_memory_gift")} ${e.summary}`;
+    if (e.type === "quest") return `${t("npc_memory_quest")} ${e.summary}`;
+    if (e.type === "favor") return `${t("npc_memory_favor")} ${e.summary}`;
+    return `${t("npc_memory_other")} ${e.summary}`;
   });
-  const stats = `대화 ${mem.conversationCount}회, 선물 ${mem.giftsReceived}회, 퀘스트 ${mem.questsShared}회`;
-  return `관계: ${levelName} (호감도 ${npc.favorLevel}단계)\n통계: ${stats}\n최근 기억:\n${lines.join("\n")}`;
+  const stats = t("npc_memory_stats", { chat: mem.conversationCount, gift: mem.giftsReceived, quest: mem.questsShared });
+  return t("npc_memory_summary", { level: levelName, stage: npc.favorLevel, stats, lines: lines.join("\n") });
 }
 
-export function getNpcSocialContext(npc, npcs, getNpcRelation) {
+export function getNpcSocialContext(npc, npcs, getNpcRelation, t) {
   const others = npcs.filter(n => n.id !== npc.id).slice(0, 6);
   if (others.length === 0) return "";
   const lines = others.map(o => {
     const rel = getNpcRelation(npc.id, o.id);
-    return `${o.name}: ${npcRelationLabel(rel)}(${rel})`;
+    return `${o.name}: ${npcRelationLabel(rel, t)}(${rel})`;
   });
-  return "다른 NPC와의 관계:\n" + lines.join(", ");
+  return t("npc_social_header") + "\n" + lines.join(", ");
 }
 
-export function getMemoryBasedTone(npc) {
+export function getMemoryBasedTone(npc, t) {
   const level = npc.favorLevel || 0;
-  if (level <= 0) return "정중한 존댓말로 대화하세요. 아직 서먹한 사이입니다.";
-  if (level === 1) return "정중하지만 약간 친근한 존댓말로 대화하세요.";
-  if (level === 2) return "편한 존댓말이나 가벼운 반말을 섞어 대화하세요.";
-  if (level === 3) return "친근한 반말로 대화하세요. 친한 친구처럼 대해주세요.";
-  return "매우 친밀한 반말로 대화하세요. 오랜 절친처럼 대해주세요.";
+  if (t) {
+    if (level <= 0) return t("npc_tone_0");
+    if (level === 1) return t("npc_tone_1");
+    if (level === 2) return t("npc_tone_2");
+    if (level === 3) return t("npc_tone_3");
+    return t("npc_tone_4");
+  }
+  // fallback without t
+  if (level <= 0) return "Speak politely. You're still acquaintances.";
+  if (level === 1) return "Speak politely but with a hint of friendliness.";
+  if (level === 2) return "Mix casual and polite speech.";
+  if (level === 3) return "Speak casually like a close friend.";
+  return "Speak very intimately like a lifelong best friend.";
 }

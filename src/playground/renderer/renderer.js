@@ -111,7 +111,9 @@ export class GameRenderer {
    * @param {object} gameState - { player, npcs, world, roadTileFn, waterTileFn }
    */
   init(gameState) {
-    const { player, npcs, world, roadTileFn, waterTileFn } = gameState;
+    const { player, npcs, world, roadTileFn, waterTileFn, translateFn } = gameState;
+    /** @type {Function|undefined} i18n translate function */
+    this._translateFn = translateFn;
 
     // --- Terrain ---
     this.terrain = new Terrain(world.width, world.height, roadTileFn, waterTileFn);
@@ -572,7 +574,7 @@ export class GameRenderer {
       npcLabelData.push({ id: '_player_', name: player.name, x: player.x, y: player.y, visible: true });
       this.labelOverlay.updateNpcLabels(npcLabelData, cam);
     }
-    this.labelOverlay.updateBuildingLabels(buildings, cam, curScene);
+    this.labelOverlay.updateBuildingLabels(buildings, cam, curScene, this._translateFn);
   }
 
   _updateWindowGlow(isNight) {

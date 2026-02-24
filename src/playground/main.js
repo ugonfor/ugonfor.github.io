@@ -23,6 +23,17 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     return text;
   }
 
+  function translateStaticDOM() {
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      if (key) el.textContent = t(key);
+    });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+      const key = el.getAttribute("data-i18n-placeholder");
+      if (key) el.placeholder = t(key);
+    });
+  }
+
   // When 3D mode, create a WebGL canvas behind the 2D HUD canvas
   let canvas3D = null;
   if (USE_3D) {
@@ -220,7 +231,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   // NPC factory & memory functions: systems/npc-data.js
   function addNpcMemory(npc, type, summary, metadata) { _addNpcMemory(npc, type, summary, metadata, world.totalMinutes); }
   function getNpcMemorySummary(npc) { return _getNpcMemorySummary(npc, t); }
-  function getNpcSocialContext(npc) { return _getNpcSocialContext(npc, npcs, getNpcRelation); }
+  function getNpcSocialContext(npc) { return _getNpcSocialContext(npc, npcs, getNpcRelation, t); }
 
   const npcs = [
     // KSA 학생들 (기숙사→본관→각자 취미)
@@ -235,12 +246,12 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     makeNpc("guide", "유진", "#f0a0c0", places.infoCenter, places.infoCenter, places.infoCenter, "", "human_a"),
     makeNpc("yoo", "유효곤", "#5e88dd", places.ksa_dorm, places.ksa_main, places.park, "", "human_i"),
     // 마을 주민들
-    makeNpc("baker", "한소영", "#e6a76f", places.bakery, places.bakery, places.market, "빵집 사장. 밝고 다정하며, 매일 새벽에 빵을 굽는다.", "human_d"),
-    makeNpc("floristNpc", "윤채린", "#ff8fa3", places.florist, places.florist, places.park, "꽃집 주인. 조용하고 섬세하며, 꽃 이름을 다 알고 있다.", "human_c"),
-    makeNpc("librarian", "송재현", "#7a9ec7", places.library, places.library, places.cafe, "도서관 사서. 책벌레이고, 모든 주제에 박식하다.", "human_b"),
-    makeNpc("residentA", "강민호", "#8bc77a", places.homeA, places.market, places.plaza, "은퇴한 어부. 옛날 얘기를 좋아한다.", "human_g"),
-    makeNpc("residentB", "오지은", "#c9a0d4", places.homeB, places.office, places.library, "프리랜서 작가. 카페에서 글을 쓴다.", "human_f"),
-    makeNpc("residentC", "임태준", "#d4a070", places.homeC, places.bakery, places.park, "시장에서 장사하며, 요리를 잘한다.", "human_h"),
+    makeNpc("baker", "한소영", "#e6a76f", places.bakery, places.bakery, places.market, "npc_personality_baker", "human_d"),
+    makeNpc("floristNpc", "윤채린", "#ff8fa3", places.florist, places.florist, places.park, "npc_personality_florist", "human_c"),
+    makeNpc("librarian", "송재현", "#7a9ec7", places.library, places.library, places.cafe, "npc_personality_librarian", "human_b"),
+    makeNpc("residentA", "강민호", "#8bc77a", places.homeA, places.market, places.plaza, "npc_personality_residentA", "human_g"),
+    makeNpc("residentB", "오지은", "#c9a0d4", places.homeB, places.office, places.library, "npc_personality_residentB", "human_f"),
+    makeNpc("residentC", "임태준", "#d4a070", places.homeC, places.bakery, places.park, "npc_personality_residentC", "human_h"),
     // 추가 주민들
     makeNpc("barista", "김하늘", "#e8a0a0", places.cafe, places.cafe, places.park, "", "human_b"),
     makeNpc("florist_owner", "박민지", "#f0c0d0", places.florist, places.florist, places.plaza, "", "human_d"),
@@ -450,9 +461,9 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         inventory[itemKey] = (inventory[itemKey] || 0) + 1;
       }
       discoveryNotifyUntil = now + 4000;
-      discoveryNotifyTitle = d.title;
-      addLog(t("log_discovery", { title: d.title, desc: d.desc }));
-      addChat("System", t("sys_discovery", { title: d.title }));
+      discoveryNotifyTitle = t(d.title);
+      addLog(t("log_discovery", { title: t(d.title), desc: t(d.desc) }));
+      addChat("System", t("sys_discovery", { title: t(d.title) }));
     }
   }
 
@@ -476,7 +487,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         completeFavor(npc, req);
         return true;
       }
-      addChat(npc.name, t("favor_need_item", { label: itemTypes[req.itemNeeded].label }));
+      addChat(npc.name, t("favor_need_item", { label: t(itemTypes[req.itemNeeded].label) }));
       return true;
     }
 
@@ -491,7 +502,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         completeFavor(npc, req);
         return true;
       }
-      addChat(npc.name, `${target.name}에게 가주세요!`);
+      addChat(npc.name, t("favor_go_to_target", { name: target.name }));
       return true;
     }
 
@@ -500,7 +511,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         completeFavor(npc, req);
         return true;
       }
-      addChat(npc.name, `목적지에 가서 확인해주세요!`);
+      addChat(npc.name, t("favor_go_check"));
       return true;
     }
 
@@ -521,7 +532,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     if (npc.favorPoints >= 100) {
       npc.favorLevel = Math.min(npc.favorLevel + 1, 4);
       npc.favorPoints = 0;
-      addNpcMemory(npc, "favor", `관계가 '${favorLevelNames[npc.favorLevel]}'(으)로 발전`);
+      addNpcMemory(npc, "favor", t("mem_favor_advance", { level: t(favorLevelNames[npc.favorLevel]) }));
     }
 
     addChat("System", t("favor_complete", { title: req.title, points: req.reward.favorPoints }));
@@ -548,12 +559,12 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     if (s !== lastSeasonAnnounced) {
       lastSeasonAnnounced = s;
       const effects = {
-        "봄": t("season_spring"),
-        "여름": t("season_summer"),
-        "가을": t("season_fall"),
-        "겨울": t("season_winter"),
+        season_spring_name: t("season_spring"),
+        season_summer_name: t("season_summer"),
+        season_autumn_name: t("season_fall"),
+        season_winter_name: t("season_winter"),
       };
-      addChat("System", effects[s] || t("season_change", { season: s }));
+      addChat("System", effects[s] || t("season_change", { season: t(s) }));
     }
   }
 
@@ -582,7 +593,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     amount = Math.round(amount * 1);
     inventory[gi.type] = (inventory[gi.type] || 0) + amount;
     const info = itemTypes[gi.type];
-    addChat("System", t("sys_item_pickup", { emoji: info.emoji, label: info.label, extra: amount > 1 ? ` (x${amount})` : "", count: inventory[gi.type] }));
+    addChat("System", t("sys_item_pickup", { emoji: info.emoji, label: t(info.label), extra: amount > 1 ? ` (x${amount})` : "", count: inventory[gi.type] }));
     return true;
   }
 
@@ -601,12 +612,12 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     npc.mood = "happy";
     npc.moodUntil = nowMs() + 30_000;
     const reactions = [
-      t("gift_react_1", { label: info.label }),
-      t("gift_react_2", { label: info.label }),
+      t("gift_react_1", { label: t(info.label) }),
+      t("gift_react_2", { label: t(info.label) }),
       t("gift_react_3"),
     ];
     addChat(npc.name, reactions[Math.floor(Math.random() * reactions.length)]);
-    addNpcMemory(npc, "gift", `${info.label}을(를) 선물 받음`, { item: type });
+    addNpcMemory(npc, "gift", t("mem_gift_received", { label: t(info.label) }), { item: type });
     ensureMemoryFormat(npc).giftsReceived += 1;
     return true;
   }
@@ -673,8 +684,9 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       if (langKoBtn && langEnBtn) {
         langKoBtn.classList.toggle("active", selectedLang === "ko");
         langEnBtn.classList.toggle("active", selectedLang === "en");
-        langKoBtn.onclick = () => { selectedLang = "ko"; langKoBtn.classList.add("active"); langEnBtn.classList.remove("active"); };
-        langEnBtn.onclick = () => { selectedLang = "en"; langEnBtn.classList.add("active"); langKoBtn.classList.remove("active"); };
+        const switchLang = (lang) => { selectedLang = lang; currentLang = lang; langKoBtn.classList.toggle("active", lang === "ko"); langEnBtn.classList.toggle("active", lang === "en"); translateStaticDOM(); };
+        langKoBtn.onclick = () => switchLang("ko");
+        langEnBtn.onclick = () => switchLang("en");
       }
       modal.hidden = false;
       // 모바일에서는 프로그래밍적 focus로 키보드가 안 뜸 — 데스크톱만 auto-focus
@@ -723,10 +735,14 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   }
 
   async function changePlayerName() {
-    const next = await showNameModal(player.name);
-    if (next === player.name) return;
-    player.name = next;
-    try { localStorage.setItem(PLAYER_NAME_KEY, player.name); } catch { /* ignore */ }
+    const result = await showNameModal(player.name);
+    player.name = result.name;
+    currentLang = result.lang;
+    try {
+      localStorage.setItem(PLAYER_NAME_KEY, player.name);
+      localStorage.setItem("playground_lang", currentLang);
+    } catch { /* ignore */ }
+    translateStaticDOM();
     addLog(t("log_name_changed", { name: (player.flag ? player.flag + " " : "") + player.name }));
   }
 
@@ -826,7 +842,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       { x: home.x, y: home.y },
       work,
       hobby,
-      record.personality || inferPersonalityFromName(record.name),
+      record.personality || inferPersonalityFromName(record.name, t),
       randomSpecies()
     );
     npc.x = home.x;
@@ -837,7 +853,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
 
   function createCustomNpc(nameRaw, personalityRaw) {
     const name = String(nameRaw || "").trim();
-    const personality = String(personalityRaw || "").trim() || inferPersonalityFromName(name);
+    const personality = String(personalityRaw || "").trim() || inferPersonalityFromName(name, t);
     if (!name) return { ok: false, reason: t("npc_err_no_name") };
     if (npcs.some((n) => n.name === name)) return { ok: false, reason: t("npc_err_dup_name") };
     if (npcs.length >= 48) return { ok: false, reason: t("npc_err_too_many") };
@@ -848,7 +864,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     npc.x = home.x;
     npc.y = home.y;
     npcs.push(npc);
-    npcPersonas[id] = { age: "20대", gender: "남성", personality };
+    npcPersonas[id] = { age: "npc_age_20s", gender: "npc_gender_male", personality };
     return { ok: true, npc };
   }
 
@@ -907,7 +923,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       let added = 0;
       for (const item of items) {
         if (spawnNpcFromSharedRecord(item)) {
-          npcPersonas[item.id] = { age: "20대", gender: "남성", personality: item.personality || inferPersonalityFromName(item.name) };
+          npcPersonas[item.id] = { age: "npc_age_20s", gender: "npc_gender_male", personality: item.personality || inferPersonalityFromName(item.name, t) };
           added += 1;
         }
       }
@@ -1413,7 +1429,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     cameraPan.x = 0;
     cameraPan.y = 0;
     const bld = buildings.find(b => b.id === buildingId);
-    addLog(t("log_entered_building", { label: bld?.label || buildingId }));
+    addLog(t("log_entered_building", { label: t(bld?.label || buildingId) }));
   }
 
   function exitBuilding() {
@@ -1599,18 +1615,18 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     const proxy = {
       id: "player_inner_voice",
       name: player.name,
-      personality: "따뜻하고 호기심 많으며 짧게 말하는 성격",
+      personality: t("llm_player_personality"),
       species: player.species || "cat",
       color: player.color,
     };
-    const contextNpc = nearNpc ? `${nearNpc.name} 근처` : "혼자 산책";
-    const prompt = `현재 시각 ${formatTime()}, ${contextNpc}. 플레이어가 말풍선으로 짧게 말할 한 문장만 한국어로 답해줘. 16자 내외, 따뜻한 톤.`;
+    const contextNpc = nearNpc ? t("llm_player_context_near", { name: nearNpc.name }) : t("llm_player_context_alone");
+    const prompt = t("llm_player_line_prompt", { time: formatTime(), context: contextNpc });
     const reply = await llmReplyOrEmpty(proxy, prompt);
     return bubbleText(reply || playerFallbackLine());
   }
 
   async function requestLlmNpcAutoReply(npc, playerLine) {
-    const prompt = `플레이어(${player.name})가 "${playerLine}" 라고 말했다. ${npc.name}이(가) 친근하게 짧게 답하는 한 문장만 한국어로 답해줘. 18자 내외.`;
+    const prompt = t("llm_npc_auto_reply_prompt", { player: player.name, line: playerLine, npc: npc.name });
     const reply = await llmReplyOrEmpty(npc, prompt);
     return bubbleText(reply || npcAmbientLine(npc));
   }
@@ -1673,10 +1689,10 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
           ambientLlmPending = true;
           upsertSpeechBubble(closest.id, ambientEmoji(closest, false), 6000);
           const n = closest.needs || {};
-          const needHint = n.hunger > 60 ? "배가 고픈 상태." : n.energy < 30 ? "피곤한 상태." : n.social < 30 ? "외로운 상태." : n.fun < 20 ? "심심한 상태." : n.duty > 70 ? "일해야 하는 상태." : "";
-          const _wKo = { clear: "맑음", cloudy: "흐림", rain: "비", storm: "폭풍", snow: "눈", fog: "안개" };
-          const _tw = `현재 ${formatTime()}, 날씨: ${_wKo[weather.current] || "맑음"}.`;
-          llmReplyOrEmpty(closest, `(${_tw} ${needHint} 지금 느끼는 것을 자연스럽게 중얼거려주세요. "~하다", "~네" 식의 독백. 10자 이내.)`)
+          const needHint = n.hunger > 60 ? t("llm_need_hungry") : n.energy < 30 ? t("llm_need_tired") : n.social < 30 ? t("llm_need_lonely") : n.fun < 20 ? t("llm_need_bored") : n.duty > 70 ? t("llm_need_busy") : "";
+          const _wMap = { clear: t("llm_weather_clear"), cloudy: t("llm_weather_cloudy"), rain: t("llm_weather_rain"), storm: t("llm_weather_storm"), snow: t("llm_weather_snow"), fog: t("llm_weather_fog") };
+          const _tw = t("llm_ambient_weather", { time: formatTime(), weather: _wMap[weather.current] || t("llm_weather_clear") });
+          llmReplyOrEmpty(closest, t("llm_ambient_prompt", { weather: _tw, need: needHint }))
             .then((line) => {
               if (line) upsertSpeechBubble(closest.id, line, 4000);
             })
@@ -1710,11 +1726,11 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         const mem = ensureMemoryFormat(npc);
         const lastChat = mem.entries.filter(e => e.type === "chat").slice(-1)[0];
         const memHint = lastChat
-          ? `지난 대화: "${lastChat.summary.slice(0, 30)}".`
-          : "처음 보는 사람입니다.";
+          ? t("llm_proactive_last_chat", { summary: lastChat.summary.slice(0, 30) })
+          : t("llm_proactive_first_meet");
         const greetPrompt = npc.favorLevel >= 1
-          ? `(${memHint} 친한 플레이어가 근처에 있습니다. 과거를 자연스럽게 언급하며 반갑게 말 걸어주세요. 15자 이내.)`
-          : `(${memHint} 플레이어가 근처에 있습니다. 가볍게 인사해주세요. 15자 이내.)`;
+          ? t("llm_proactive_friendly", { hint: memHint })
+          : t("llm_proactive_stranger", { hint: memHint });
         llmReplyOrEmpty(npc, greetPrompt)
           .then((line) => {
             if (line) {
@@ -2044,16 +2060,16 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         const mem = ensureMemoryFormat(guideNpc);
         const isReturn = mem.conversationCount > 0;
         const greetPrompt = isReturn
-          ? `(오랜만에 돌아온 ${player.name}을(를) 반갑게 맞이해주세요. 마을에 새로운 일이 있으면 알려주세요. 20자 이내.)`
-          : `(처음 방문한 ${player.name}을(를) 환영해주세요. 이 마을의 안내원으로서 짧게 자기소개. 20자 이내.)`;
+          ? t("llm_guide_return", { name: player.name })
+          : t("llm_guide_first", { name: player.name });
         llmReplyOrEmpty(guideNpc, greetPrompt).then((hi) => {
           const line = hi || t("docent_hi");
           addChat(guideNpc.name, line);
           upsertSpeechBubble(guideNpc.id, line, 5000);
           setTimeout(() => {
             const hi2Prompt = isReturn
-              ? `(${player.name}에게 마을 근황을 한 문장으로. 20자 이내.)`
-              : `(${player.name}에게 마을을 구경하라고 권유. E키로 말 걸 수 있다고. 20자 이내.)`;
+              ? t("llm_guide_return2", { name: player.name })
+              : t("llm_guide_first2", { name: player.name });
             llmReplyOrEmpty(guideNpc, hi2Prompt).then((hi2) => {
               const line2 = hi2 || t("docent_hi2");
               addChat(guideNpc.name, line2);
@@ -2112,7 +2128,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         if (npc.id === "guide") continue;
         const persona = npcPersonas[npc.id];
         const desc = persona ? persona.personality : t("docent_npc_unknown");
-        const levelName = favorLevelNames[npc.favorLevel] || t("relation_stranger");
+        const levelName = t(favorLevelNames[npc.favorLevel]) || t("relation_stranger");
         addChat(name, `• ${npc.name} — ${desc} (${levelName})`);
       }
       return true;
@@ -2150,7 +2166,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         startSceneFade(() => enterBuilding(buildingId));
       } else {
         const bld = buildings.find(b => b.id === buildingId);
-        addLog(t("log_checked_building", { label: bld?.label || buildingId }));
+        addLog(t("log_checked_building", { label: t(bld?.label || buildingId) }));
       }
       return true;
     }
@@ -2246,7 +2262,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
           const greetNpc = near.npc;
           (async () => {
             try {
-              const reply = await llmReplyOrEmpty(greetNpc, "(플레이어가 E키로 말을 걸었습니다. 짧게 인사해주세요.)");
+              const reply = await llmReplyOrEmpty(greetNpc, t("llm_e_greet"));
               addChat(greetNpc.name, reply || t("sys_llm_lost"));
             } catch {
               addChat(greetNpc.name, t("sys_llm_lost"));
@@ -2313,18 +2329,26 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     if (npc.favorPoints >= 100) {
       npc.favorLevel = Math.min(npc.favorLevel + 1, 4);
       npc.favorPoints = 0;
-      addNpcMemory(npc, "favor", `관계가 '${favorLevelNames[npc.favorLevel]}'(으)로 발전`);
+      addNpcMemory(npc, "favor", t("mem_favor_advance", { level: t(favorLevelNames[npc.favorLevel]) }));
     }
+  }
+
+  function resolvePersona(npc) {
+    const raw = npcPersonas[npc.id] || {
+      age: "npc_age_20s", gender: "npc_gender_male",
+      personality: npc.personality || inferPersonalityFromName(npc.name, t),
+    };
+    return { ...raw,
+      age: t(raw.age) !== raw.age ? t(raw.age) : raw.age,
+      gender: t(raw.gender) !== raw.gender ? t(raw.gender) : raw.gender,
+      personality: t(raw.personality) !== raw.personality ? t(raw.personality) : raw.personality,
+    };
   }
 
   async function requestLlmNpcReply(npc, userMessage) {
     if (!LLM_API_URL) throw new Error("LLM API URL is empty");
 
-    const persona = npcPersonas[npc.id] || {
-      age: "20대",
-      gender: "남성",
-      personality: npc.personality || inferPersonalityFromName(npc.name),
-    };
+    const persona = resolvePersona(npc);
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     const payload = {
       npcId: npc.id,
@@ -2346,7 +2370,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       },
       recentMessages: getNpcChats(npc.id).slice(0, 8).reverse(),
       memory: getNpcMemorySummary(npc),
-      tone: getMemoryBasedTone(npc),
+      tone: getMemoryBasedTone(npc, t),
       socialContext: getNpcSocialContext(npc),
       favorLevel: npc.favorLevel || 0,
       npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social), fun: Math.round(npc.needs.fun), duty: Math.round(npc.needs.duty) } : null,
@@ -2406,11 +2430,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   async function requestLlmNpcReplyStream(npc, userMessage, onChunk) {
     if (!LLM_STREAM_API_URL) throw new Error("LLM stream API URL is empty");
 
-    const persona = npcPersonas[npc.id] || {
-      age: "20대",
-      gender: "남성",
-      personality: npc.personality || inferPersonalityFromName(npc.name),
-    };
+    const persona = resolvePersona(npc);
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     const payload = {
       npcId: npc.id,
@@ -2432,7 +2452,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       },
       recentMessages: getNpcChats(npc.id).slice(0, 8).reverse(),
       memory: getNpcMemorySummary(npc),
-      tone: getMemoryBasedTone(npc),
+      tone: getMemoryBasedTone(npc, t),
       socialContext: getNpcSocialContext(npc),
       favorLevel: npc.favorLevel || 0,
       npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social), fun: Math.round(npc.needs.fun), duty: Math.round(npc.needs.duty) } : null,
@@ -2729,7 +2749,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
           npc.activeRequest = {
             type: "bring_item",
             title: t("favor_request_title", { name: npc.name }),
-            description: t("favor_request_bring", { label: itemTypes[reqTarget].label }),
+            description: t("favor_request_bring", { label: t(itemTypes[reqTarget].label) }),
             itemNeeded: reqTarget,
             expiresAt: nowMs() + 300_000,
             reward: { favorPoints: 20, relationBoost: 8, items: [] },
@@ -2814,7 +2834,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
           npc.activeRequest = {
             type: "bring_item",
             title: t("favor_request_title", { name: npc.name }),
-            description: t("favor_request_bring", { label: info.label }),
+            description: t("favor_request_bring", { label: t(info.label) }),
             itemNeeded: act.target,
             expiresAt: nowMs() + 300_000,
             reward: { favorPoints: 20, relationBoost: 8, items: [] },
@@ -2835,7 +2855,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       } else if (act.type === "give_item") {
         if (act.target && itemTypes[act.target]) {
           inventory[act.target] = (inventory[act.target] || 0) + 1;
-          addChat("System", t("sys_received_item", { npc: npc.name, label: itemTypes[act.target].label }));
+          addChat("System", t("sys_received_item", { npc: npc.name, label: t(itemTypes[act.target].label) }));
         }
       }
     }
@@ -2863,7 +2883,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       applyConversationEffect(npc, msg, cleanReply, serverEmotion);
       const shortMsg = msg.length > 30 ? msg.slice(0, 30) + "…" : msg;
       const shortReply = cleanReply.length > 40 ? cleanReply.slice(0, 40) + "…" : cleanReply;
-      addNpcMemory(npc, "chat", `플레이어: "${shortMsg}" → 나: "${shortReply}"`);
+      addNpcMemory(npc, "chat", t("mem_chat_summary", { playerMsg: shortMsg, npcReply: shortReply }));
       const mem = ensureMemoryFormat(npc);
       mem.conversationCount += 1;
       mem.lastConversation = world.totalMinutes;
@@ -3019,10 +3039,10 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
           adjustNpcRelation(a.id, b.id, -1);
         }
         if (Math.random() < 0.15 && dist(player, a) < 8 && !socialGossipLlmPending) {
-          const relLabel = npcRelationLabel(rel);
+          const relLabel = npcRelationLabel(rel, t);
           const sentiment = rel >= 60 ? "positive" : rel < 35 ? "negative" : "neutral";
           socialGossipLlmPending = true;
-          const gossipPrompt = `(${b.name}과의 관계: ${relLabel}. ${b.name}을 떠올리며 중얼거려주세요. "${b.name} ~하다" 식의 독백. 10자 이내.)`;
+          const gossipPrompt = t("llm_gossip_prompt", { nameB: b.name, rel: relLabel });
           llmReplyOrEmpty(a, gossipPrompt).then((line) => {
             if (line) {
               upsertSpeechBubble(a.id, line, 3500);
@@ -3545,15 +3565,15 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     const playerNearby = dist(player, a) < 12 || dist(player, b) < 12;
     if (playerNearby && !npcChatLlmPending) {
       npcChatLlmPending = true;
-      const rel = npcRelationLabel(getNpcRelation(a.id, b.id));
+      const rel = npcRelationLabel(getNpcRelation(a.id, b.id), t);
       upsertSpeechBubble(a.id, ambientEmoji(a, true), 8000);
       upsertSpeechBubble(b.id, ambientEmoji(b, true), 8000);
       const delay = (ms) => new Promise(r => setTimeout(r, ms));
-      llmReplyOrEmpty(a, `(${b.name}에게 말을 걸어주세요. 관계: ${rel}. ${formatTime()}. 10자 이내.)`)
+      llmReplyOrEmpty(a, t("llm_social_start", { nameB: b.name, rel: rel, time: formatTime() }))
         .then((lineA) => {
           if (lineA) upsertSpeechBubble(a.id, lineA, 4500);
           return delay(2500).then(() =>
-            llmReplyOrEmpty(b, `(${a.name}: "${lineA || '...'}". 대답해주세요. 10자 이내.)`)
+            llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || '...' }))
           );
         })
         .then((lineB) => {
@@ -3561,7 +3581,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
           // 50% 확률로 A가 한 번 더 반응 (3턴)
           if (Math.random() < 0.5 && lineB) {
             return delay(2500).then(() =>
-              llmReplyOrEmpty(a, `(${b.name}: "${lineB}". 짧게 반응. 8자 이내.)`)
+              llmReplyOrEmpty(a, t("llm_social_react", { nameB: b.name, line: lineB }))
             );
           }
         })
@@ -3677,7 +3697,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       mctx.fillStyle = "rgba(60, 50, 40, 0.7)";
       mctx.fillRect(0, 0, w, h);
       const bld = buildings.find(b => b.id === sceneState.current);
-      const label = bld ? bld.label : sceneState.current;
+      const label = bld ? t(bld.label) : sceneState.current;
       mctx.fillStyle = "#fff";
       mctx.font = "700 14px sans-serif";
       mctx.textAlign = "center";
@@ -3911,7 +3931,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   let mouseDragged = false;
   let mouseDownX = 0;
   let mouseDownY = 0;
-  initPlayerName().then(() => { initMultiplayer(); });
+  initPlayerName().then(() => { translateStaticDOM(); initMultiplayer(); });
   addLog(t("log_world_init"));
   if (LLM_API_URL) addChat("System", t("sys_llm_chat_on"));
   else addChat("System", t("sys_llm_chat_off"));
@@ -4017,7 +4037,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       ev.preventDefault();
       debugMode = !debugMode;
       localStorage.setItem('playground_debug', debugMode);
-      const msg = debugMode ? "[DEBUG ON] LLM 로그가 콘솔에 출력됩니다. (F12)" : "[DEBUG OFF]";
+      const msg = debugMode ? t("debug_on") : t("debug_off");
       addLog(msg);
       console.log(`%c${msg}`, 'color:#ff5722;font-size:14px;font-weight:bold');
       return;
@@ -4053,9 +4073,9 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       if (contemplationMode) {
         contemplationTargetIdx = 0;
         contemplationNextAt = 0;
-        addLog(t("sys_contemplation_on") || "관조 모드 ON — 마을을 구경합니다.");
+        addLog(t("sys_contemplation_on"));
       } else {
-        addLog(t("sys_contemplation_off") || "관조 모드 OFF");
+        addLog(t("sys_contemplation_off"));
       }
     }
     // G키: 날씨 순환 (디버그용)
@@ -4346,9 +4366,9 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
           if (sharedNpc && sharedNpc.id) {
             result.npc.id = sharedNpc.id;
             npcPersonas[sharedNpc.id] = {
-              age: "20대",
-              gender: "남성",
-              personality: sharedNpc.personality || result.npc.personality || inferPersonalityFromName(result.npc.name),
+              age: "npc_age_20s",
+              gender: "npc_gender_male",
+              personality: sharedNpc.personality || result.npc.personality || inferPersonalityFromName(result.npc.name, t),
             };
           }
         }
@@ -4466,7 +4486,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         // 서버에서 기억 로드 (비동기)
         memorySync.load().then((serverData) => {
           if (serverData && applyServerMemory(npcs, serverData, null)) {
-            addLog("[Memory] 서버에서 기억을 복원했습니다.");
+            addLog(t("mem_restored"));
           }
         });
       } catch (e) {
@@ -4490,6 +4510,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         world,
         roadTileFn: roadTile,
         waterTileFn: waterTile,
+        translateFn: t,
       });
       console.log("[Playground] Three.js 3D renderer initialized");
 
