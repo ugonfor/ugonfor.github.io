@@ -11,7 +11,7 @@ export const site = {
 
   // SEO
   keywords: "Hyogon Ryu, research, publications.",
-  description: "Hyogon Ryu's personal acemic homepage.",
+  description: "Hyogon Ryu's personal academic homepage.",
   canonical: "https://ugonfor.kr",
 
   // Links
