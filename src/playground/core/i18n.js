@@ -282,6 +282,9 @@ export const translations = {
     docent_place_playground: "🏃 놀이터 — 술래잡기 미니게임!",
     docent_place_info: "📋 안내소 — 바로 여기! 언제든 다시 오세요",
 
+    // Docent role label
+    docent_role_label: "안내원",
+
     // NPC relation labels (used in memory)
     relation_stranger: "낯선 사이",
 
@@ -1065,6 +1068,9 @@ export const translations = {
     docent_place_facilities: "📚 Library, 🍞 Bakery, 🌸 Florist — Village facilities",
     docent_place_playground: "🏃 Playground — Tag minigame!",
     docent_place_info: "📋 Info Center — Right here! Come back anytime",
+
+    // Docent role label
+    docent_role_label: "Guide",
 
     // NPC relation labels (used in memory)
     relation_stranger: "Stranger",

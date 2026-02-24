@@ -1624,7 +1624,10 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
           const _tw = t("llm_ambient_weather", { time: formatTime(), weather: _wMap[weather.current] || t("llm_weather_clear") });
           llmReplyOrEmpty(closest, t("llm_ambient_prompt", { weather: _tw, need: needHint }))
             .then((line) => {
-              if (line) upsertSpeechBubble(closest.id, line, 4000);
+              if (line) {
+                upsertSpeechBubble(closest.id, line, 4000);
+                addChat(closest.name, line, "ambient");
+              }
             })
             .catch(e => console.warn("[ambient LLM]", e.message))
             .finally(() => { ambientLlmPending = false; });
@@ -1666,10 +1669,11 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
         llmReplyOrEmpty(npc, greetPrompt)
           .then((line) => {
             if (line) {
-              addChat(npc.name, line);
-              upsertSpeechBubble(npc.id, line, 4000);
+              // 라우팅을 먼저 설정한 후 채팅 추가 (순서 꼬임 방지)
               conversationFocusNpcId = npc.id;
               setChatSession(npc.id, GAME.LLM_TIMEOUT_MS);
+              addChat(npc.name, line);
+              upsertSpeechBubble(npc.id, line, 4000);
             }
           })
           .catch(e => console.warn("[proactive greet]", e.message))
@@ -3235,13 +3239,19 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
       const delay = (ms) => new Promise(r => setTimeout(r, ms));
       llmReplyOrEmpty(a, t("llm_social_start", { nameB: b.name, rel: rel, time: formatTime() }))
         .then((lineA) => {
-          if (lineA) upsertSpeechBubble(a.id, lineA, 4500);
+          if (lineA) {
+            upsertSpeechBubble(a.id, lineA, 4500);
+            addChat(a.name, lineA, "npc-chat");
+          }
           return delay(2500).then(() =>
             llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || '...' }))
           );
         })
         .then((lineB) => {
-          if (lineB) upsertSpeechBubble(b.id, lineB, 4500);
+          if (lineB) {
+            upsertSpeechBubble(b.id, lineB, 4500);
+            addChat(b.name, lineB, "npc-chat");
+          }
           // 50% 확률로 A가 한 번 더 반응 (3턴)
           if (Math.random() < GAME.MULTI_TURN_CHANCE && lineB) {
             return delay(2500).then(() =>
@@ -3250,7 +3260,10 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
           }
         })
         .then((lineA2) => {
-          if (lineA2) upsertSpeechBubble(a.id, lineA2, 3000);
+          if (lineA2) {
+            upsertSpeechBubble(a.id, lineA2, 3000);
+            addChat(a.name, lineA2, "npc-chat");
+          }
         })
         .catch(e => console.warn("[NPC social chat]", e.message))
         .finally(() => { npcChatLlmPending = false; });
@@ -4176,6 +4189,7 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
         roadTileFn: roadTile,
         waterTileFn: waterTile,
         translateFn: t,
+        npcPersonas,
       });
       console.log("[Playground] Three.js 3D renderer initialized");
 

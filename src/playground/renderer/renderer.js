@@ -111,9 +111,10 @@ export class GameRenderer {
    * @param {object} gameState - { player, npcs, world, roadTileFn, waterTileFn }
    */
   init(gameState) {
-    const { player, npcs, world, roadTileFn, waterTileFn, translateFn } = gameState;
+    const { player, npcs, world, roadTileFn, waterTileFn, translateFn, npcPersonas } = gameState;
     /** @type {Function|undefined} i18n translate function */
     this._translateFn = translateFn;
+    this._npcPersonas = npcPersonas;
 
     // --- Terrain ---
     this.terrain = new Terrain(world.width, world.height, roadTileFn, waterTileFn);
@@ -569,10 +570,10 @@ export class GameRenderer {
     if (npcs) {
       const npcLabelData = npcs
         .filter(n => (n.currentScene || 'outdoor') === curScene)
-        .map(n => ({ id: n.id, name: n.name, x: n.x, y: n.y, visible: true }));
+        .map(n => ({ id: n.id, name: n.name, x: n.x, y: n.y, visible: true, isDocent: !!(this._npcPersonas && this._npcPersonas[n.id] && this._npcPersonas[n.id].isDocent) }));
       // Player label
       npcLabelData.push({ id: '_player_', name: player.name, x: player.x, y: player.y, visible: true });
-      this.labelOverlay.updateNpcLabels(npcLabelData, cam);
+      this.labelOverlay.updateNpcLabels(npcLabelData, cam, this._translateFn);
     }
     this.labelOverlay.updateBuildingLabels(buildings, cam, curScene, this._translateFn);
   }
