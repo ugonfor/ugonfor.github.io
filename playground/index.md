@@ -60,6 +60,7 @@ extra_head: |
       </div>
     </div>
     <button id="pg-ui-toggle" class="pg-ui-toggle" type="button" aria-expanded="true" data-i18n="ui_hide">UI 숨기기</button>
+    <button id="pg-audio-toggle" class="pg-audio-btn" type="button" aria-label="Toggle audio">&#x1F50A;</button>
     <div class="pg-panel-toggles" role="group" aria-label="Panel display settings">
       <button id="pg-toggle-left" type="button" class="pg-panel-toggle is-active" aria-pressed="true" data-i18n="dom_toggle_info">정보</button>
       <button id="pg-toggle-right" type="button" class="pg-panel-toggle is-active" aria-pressed="true" data-i18n="dom_toggle_log">로그</button>

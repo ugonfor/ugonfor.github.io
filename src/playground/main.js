@@ -9,6 +9,7 @@ import { generateDynamicQuest as _generateDynamicQuest, handleQuestNpcTalk as _h
 import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
 import { createTagGame } from './systems/tag-game.js';
 import { inferSentimentFromReply, applyConversationEffect as _applyConversationEffect, requestLlmNpcReply as _requestLlmNpcReply, requestLlmNpcReplyStream as _requestLlmNpcReplyStream, detectActionFromReply as _detectActionFromReply } from './systems/conversation.js';
+import { createAudioManager } from './systems/audio.js';
 
 (function () {
   const USE_3D = true;
@@ -145,7 +146,7 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
   let mobileStatusCollapsed = false;
   let mobileLogCollapsed = false;
   const speechBubbles = [];
-  let nextAmbientBubbleAt = 0;
+  let nextAmbientBubbleAt = performance.now() + 3000;
   let nextPlayerBubbleAt = 0;
   let nextAutoConversationAt = 0;
   let autoConversationBusy = false;
@@ -328,6 +329,11 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
   let guideGreetingPhase = 0;    // 0: 대기, 1: 접근중, 2: 완료
   let guideGreetingTimer = 0;
 
+  // ─── 인트로 카메라 시퀀스 ───
+  let introPhase = 0;  // 0: overview pan, 1: zoom to player, 2: done
+  let introTimer = 0;
+  const INTRO_DURATION = 5;  // seconds total
+
   // ─── 술래잡기 미니게임 (모듈: systems/tag-game.js) ───
   let tagGameModule = null;
   function tagCtx() {
@@ -352,6 +358,7 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
   // ─── Weather System ───
   const weather = createWeatherState();
   const weatherParticles = createWeatherParticles();
+  const audioManager = createAudioManager();
   let discoveryNotifyUntil = 0;
   let discoveryNotifyTitle = "";
 
@@ -361,6 +368,7 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
   function updateWeather(dt) {
     _updateWeather(weather, dt, WEATHER_API_URL);
     _updateWeatherParticles(weather, weatherParticles, dt, canvas.width, canvas.height, hourOfDay());
+    audioManager.updateForScene(weather.current, hourOfDay());
   }
 
   // ─── Discovery Update ───
@@ -523,6 +531,7 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
     inventory[gi.type] = (inventory[gi.type] || 0) + amount;
     const info = itemTypes[gi.type];
     addChat("System", t("sys_item_pickup", { emoji: info.emoji, label: t(info.label), extra: amount > 1 ? ` (x${amount})` : "", count: inventory[gi.type] }));
+    audioManager.playSfx('/assets/audio/sfx-pickup.mp3');
     return true;
   }
 
@@ -1953,6 +1962,43 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
     npc.roamTarget = randomPointNear(base, npc.roamRadius);
   }
 
+  // ─── NPC Pre-simulation (첫 프레임 전에 NPC를 흩어놓기) ───
+  function presimulateNpcs(seconds) {
+    const steps = seconds * 10;  // 0.1s per step
+    for (let i = 0; i < steps; i++) {
+      for (const npc of npcs) {
+        // 도슨트는 안내소에 고정
+        if (npc.id === "guide") continue;
+
+        // Pick a new roam target if needed
+        if (!npc.roamTarget || dist(npc, npc.roamTarget) < 0.5) {
+          const destinations = [npc.home, npc.work, npc.hobby].filter(Boolean);
+          const base = destinations[Math.floor(Math.random() * destinations.length)];
+          npc.roamTarget = {
+            x: clamp(base.x + (Math.random() - 0.5) * 4, 1, world.width - 1),
+            y: clamp(base.y + (Math.random() - 0.5) * 4, 1, world.height - 1),
+          };
+        }
+
+        // Move toward target
+        const dx = npc.roamTarget.x - npc.x;
+        const dy = npc.roamTarget.y - npc.y;
+        const d = Math.hypot(dx, dy);
+        if (d > 0.3) {
+          const speed = npc.speed * 0.1;  // 0.1s step
+          const nx = npc.x + (dx / d) * Math.min(speed, d);
+          const ny = npc.y + (dy / d) * Math.min(speed, d);
+          if (canStandInScene(nx, ny, "outdoor")) {
+            npc.x = nx;
+            npc.y = ny;
+          } else {
+            npc.roamTarget = null;  // blocked, pick new target next step
+          }
+        }
+      }
+    }
+  }
+
   // ─── Quest System (모듈: systems/quest.js) ───
   function questCtx() {
     return {
@@ -1979,7 +2025,7 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
 
     if (guideGreetingPhase === 0) {
       guideGreetingTimer += dt;
-      if (guideGreetingTimer >= 3) {
+      if (guideGreetingTimer >= 3 && introPhase >= 2) {
         guideGreetingPhase = 1;
         guideNpc.roamTarget = { x: player.x, y: player.y };
         guideNpc.roamWait = 0;
@@ -2266,6 +2312,7 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
       age: t(raw.age) !== raw.age ? t(raw.age) : raw.age,
       gender: t(raw.gender) !== raw.gender ? t(raw.gender) : raw.gender,
       personality: t(raw.personality) !== raw.personality ? t(raw.personality) : raw.personality,
+      quirk: raw.quirk ? t(raw.quirk) : "",
     };
   }
 
@@ -2283,6 +2330,7 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
   }
 
   async function sendChatMessage(msg) {
+    audioManager.playSfx('/assets/audio/sfx-chat.mp3');
     // 퀘스트 게시판 메뉴 처리
     if (questBoardMenuActive && /^[1-3]$/.test(msg.trim())) {
       addChat("You", msg.trim());
@@ -2691,7 +2739,7 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
     checkSeasonChange();
   }
 
-  let nextNpcSocialAt = 0;
+  let nextNpcSocialAt = performance.now() + 2000;
   let socialGossipLlmPending = false;
 
   function updateNpcSocialInteractions() {
@@ -2882,6 +2930,9 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
   }
 
   function updatePlayer(dt) {
+    // 인트로 시퀀스 중에는 플레이어 이동 비활성화
+    if (introPhase < 2) return;
+
     if (isMobileViewport() && mobileChatOpen) {
       keys.clear();
       player.moveTarget = null;
@@ -3483,6 +3534,36 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
     mctx.restore();
   }
 
+  // ─── 인트로 카메라 시퀀스 업데이트 ───
+  function updateIntro(dt) {
+    if (introPhase >= 2) return;
+    introTimer += dt;
+
+    if (introPhase === 0 && introTimer < 3) {
+      // Phase 0: 마을 전경 패닝 (0-3초)
+      const progress = introTimer / 3;
+      cameraPan.x = Math.sin(progress * Math.PI) * 150;
+      cameraPan.y = -80 + progress * 50;
+      world.zoom = Math.max(DEFAULT_ZOOM * 0.7, world.zoom - dt * 0.3);
+    } else if (introPhase === 0) {
+      introPhase = 1;
+    }
+
+    if (introPhase === 1) {
+      // Phase 1: 플레이어에게 복귀 (3-5초)
+      cameraPan.x *= 0.9;
+      cameraPan.y *= 0.9;
+      world.zoom += (DEFAULT_ZOOM - world.zoom) * 0.05;
+
+      if (introTimer > INTRO_DURATION) {
+        introPhase = 2;
+        cameraPan.x = 0;
+        cameraPan.y = 0;
+        world.zoom = DEFAULT_ZOOM;
+      }
+    }
+  }
+
   function updateCamera() {
     const p = project(player.x, player.y, 0);
     const tx = canvas.width * 0.5 - (p.x - world.cameraX) + cameraPan.x + convoPan.x;
@@ -3612,7 +3693,13 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
   let mouseDragged = false;
   let mouseDownX = 0;
   let mouseDownY = 0;
-  initPlayerName().then(() => { translateStaticDOM(); initMultiplayer(); }).catch(e => console.warn("[initPlayerName]", e.message));
+  initPlayerName().then(() => {
+    translateStaticDOM();
+    initMultiplayer();
+    // Init audio after user interaction (name modal confirm) to satisfy autoplay policy
+    audioManager.init();
+    audioManager.updateForScene(weather.current, hourOfDay());
+  }).catch(e => console.warn("[initPlayerName]", e.message));
   addLog(t("log_world_init"));
   if (LLM_API_URL) addChat("System", t("sys_llm_chat_on"));
   else addChat("System", t("sys_llm_chat_off"));
@@ -3678,6 +3765,7 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
       updateAmbientSpeech(nowMs());
       updateConversationCamera();
       updateContemplation(nowMs());
+      updateIntro(dt);
       updateCamera();
       if (mp && mp.enabled) {
         mpBroadcast();
@@ -4030,6 +4118,17 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
   if (saveBtn) saveBtn.addEventListener("click", saveState);
   if (loadBtn) loadBtn.addEventListener("click", loadState);
   if (renameBtn) renameBtn.addEventListener("click", changePlayerName);
+
+  // Audio toggle button
+  const audioToggleEl = document.getElementById('pg-audio-toggle');
+  if (audioToggleEl) {
+    audioToggleEl.textContent = audioManager.isMuted() ? '\uD83D\uDD07' : '\uD83D\uDD0A';
+    audioToggleEl.addEventListener('click', () => {
+      const muted = audioManager.toggleMute();
+      audioToggleEl.textContent = muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
+    });
+  }
+
   if (createBtnEl) {
     createBtnEl.addEventListener("click", async () => {
       const name = createNameEl ? createNameEl.value : "";
@@ -4209,6 +4308,9 @@ import { inferSentimentFromReply, applyConversationEffect as _applyConversationE
       gameRenderer3D = null;
     }
   }
+
+  // NPC를 미리 흩어놓기 (첫 프레임 전 60초 시뮬레이션)
+  presimulateNpcs(60);
 
   requestAnimationFrame(frame);
 })();
