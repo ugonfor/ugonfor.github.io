@@ -29,24 +29,18 @@ export function normalizePlayerName(value) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 18);
-  return cleaned || "플레이어";
+  return cleaned || "Player";
 }
 
 export function bubbleText(text) {
   return String(text || "").trim();
 }
 
-export function inferPersonalityFromName(name) {
-  const tones = [
-    "침착하고 배려심이 많은 성격",
-    "유쾌하고 추진력 있는 성격",
-    "논리적이고 집중력이 높은 성격",
-    "친화적이고 대화가 부드러운 성격",
-    "도전적이고 호기심이 많은 성격",
-  ];
+export function inferPersonalityFromName(name, t) {
+  const keys = ["personality_0", "personality_1", "personality_2", "personality_3", "personality_4"];
   let sum = 0;
   for (const ch of name) sum += ch.charCodeAt(0);
-  return tones[sum % tones.length];
+  return t ? t(keys[sum % keys.length]) : keys[sum % keys.length];
 }
 
 export function nowMs() {
@@ -57,10 +51,18 @@ export function socialKey(a, b) {
   return a < b ? `${a}_${b}` : `${b}_${a}`;
 }
 
-export function npcRelationLabel(value) {
-  if (value >= 80) return "절친";
-  if (value >= 65) return "친구";
-  if (value >= 45) return "보통";
-  if (value >= 25) return "서먹";
-  return "불화";
+export function npcRelationLabel(value, t) {
+  if (t) {
+    if (value >= 80) return t("relation_best_friend");
+    if (value >= 65) return t("relation_friend");
+    if (value >= 45) return t("relation_normal");
+    if (value >= 25) return t("relation_awkward");
+    return t("relation_hostile");
+  }
+  // fallback without t (developer context)
+  if (value >= 80) return "best_friend";
+  if (value >= 65) return "friend";
+  if (value >= 45) return "normal";
+  if (value >= 25) return "awkward";
+  return "hostile";
 }

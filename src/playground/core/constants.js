@@ -9,23 +9,23 @@ export const AUTO_WALK_KEY = "playground_auto_walk_v1";
 
 // ─── Country List ───
 export const COUNTRY_LIST = [
-  { flag: "", label: "선택 안 함" },
-  { flag: "🇰🇷", label: "한국" },
-  { flag: "🇺🇸", label: "미국" },
-  { flag: "🇯🇵", label: "일본" },
-  { flag: "🇨🇳", label: "중국" },
-  { flag: "🇬🇧", label: "영국" },
-  { flag: "🇫🇷", label: "프랑스" },
-  { flag: "🇩🇪", label: "독일" },
-  { flag: "🇮🇹", label: "이탈리아" },
-  { flag: "🇪🇸", label: "스페인" },
-  { flag: "🇧🇷", label: "브라질" },
-  { flag: "🇨🇦", label: "캐나다" },
-  { flag: "🇦🇺", label: "호주" },
-  { flag: "🇮🇳", label: "인도" },
-  { flag: "🇷🇺", label: "러시아" },
-  { flag: "🇲🇽", label: "멕시코" },
-  { flag: "🇹🇭", label: "태국" },
+  { flag: "", label: "country_none" },
+  { flag: "🇰🇷", label: "country_kr" },
+  { flag: "🇺🇸", label: "country_us" },
+  { flag: "🇯🇵", label: "country_jp" },
+  { flag: "🇨🇳", label: "country_cn" },
+  { flag: "🇬🇧", label: "country_gb" },
+  { flag: "🇫🇷", label: "country_fr" },
+  { flag: "🇩🇪", label: "country_de" },
+  { flag: "🇮🇹", label: "country_it" },
+  { flag: "🇪🇸", label: "country_es" },
+  { flag: "🇧🇷", label: "country_br" },
+  { flag: "🇨🇦", label: "country_ca" },
+  { flag: "🇦🇺", label: "country_au" },
+  { flag: "🇮🇳", label: "country_in" },
+  { flag: "🇷🇺", label: "country_ru" },
+  { flag: "🇲🇽", label: "country_mx" },
+  { flag: "🇹🇭", label: "country_th" },
 ];
 
 // ─── Zoom & Distance Constants ───
@@ -37,25 +37,25 @@ export const CONVERSATION_MIN_ZOOM = 3.6;
 
 // ─── NPC Personas ───
 export const npcPersonas = {
-  heo: { age: "20대", gender: "남성", personality: "차분하고 책임감이 강한 리더형" },
-  kim: { age: "20대", gender: "남성", personality: "친절하고 현실적인 문제 해결형" },
-  choi: { age: "20대", gender: "남성", personality: "관찰력이 높고 디테일에 강함" },
-  jung: { age: "20대", gender: "남성", personality: "에너지 넘치고 사교적인 성격" },
-  seo: { age: "20대", gender: "남성", personality: "분석적이고 직설적인 성격" },
-  lee: { age: "20대", gender: "남성", personality: "온화하고 협업을 잘하는 성격" },
-  park: { age: "20대", gender: "남성", personality: "경쟁심 있고 자신감 있는 성격" },
-  jang: { age: "20대", gender: "남성", personality: "신중하고 인내심이 강한 성격" },
-  yoo: { age: "20대", gender: "남성", personality: "침착하고 집요한 탐구형 성격" },
-  guide: { age: "20대", gender: "여성", personality: "밝고 친절한 마을 안내원", isDocent: true },
-  barista: { age: "20대", gender: "여성", personality: "쾌활하고 커피를 사랑하는 성격" },
-  florist_owner: { age: "20대", gender: "여성", personality: "꽃을 사랑하고 낭만적인 성격" },
-  chef: { age: "30대", gender: "남성", personality: "열정적이고 음식에 진심인 성격" },
-  officer: { age: "30대", gender: "남성", personality: "정의감 있고 책임감 강한 성격" },
-  athlete: { age: "20대", gender: "남성", personality: "활발하고 운동을 좋아하는 성격" },
-  doctor: { age: "40대", gender: "여성", personality: "따뜻하고 차분한 의사" },
-  student_a: { age: "10대", gender: "남성", personality: "호기심 많고 장난기 있는 학생" },
-  student_b: { age: "10대", gender: "여성", personality: "성실하고 꿈이 큰 학생" },
-  grandpa: { age: "60대", gender: "남성", personality: "느긋하고 마을의 오래된 이야기를 많이 아는 성격" },
+  heo: { age: "npc_age_20s", gender: "npc_gender_male", personality: "npc_personality_heo" },
+  kim: { age: "npc_age_20s", gender: "npc_gender_male", personality: "npc_personality_kim" },
+  choi: { age: "npc_age_20s", gender: "npc_gender_male", personality: "npc_personality_choi" },
+  jung: { age: "npc_age_20s", gender: "npc_gender_male", personality: "npc_personality_jung" },
+  seo: { age: "npc_age_20s", gender: "npc_gender_male", personality: "npc_personality_seo" },
+  lee: { age: "npc_age_20s", gender: "npc_gender_male", personality: "npc_personality_lee" },
+  park: { age: "npc_age_20s", gender: "npc_gender_male", personality: "npc_personality_park" },
+  jang: { age: "npc_age_20s", gender: "npc_gender_male", personality: "npc_personality_jang" },
+  yoo: { age: "npc_age_20s", gender: "npc_gender_male", personality: "npc_personality_yoo" },
+  guide: { age: "npc_age_20s", gender: "npc_gender_female", personality: "npc_personality_guide", isDocent: true },
+  barista: { age: "npc_age_20s", gender: "npc_gender_female", personality: "npc_personality_barista" },
+  florist_owner: { age: "npc_age_20s", gender: "npc_gender_female", personality: "npc_personality_florist" },
+  chef: { age: "npc_age_30s", gender: "npc_gender_male", personality: "npc_personality_chef" },
+  officer: { age: "npc_age_30s", gender: "npc_gender_male", personality: "npc_personality_officer" },
+  athlete: { age: "npc_age_20s", gender: "npc_gender_male", personality: "npc_personality_athlete" },
+  doctor: { age: "npc_age_40s", gender: "npc_gender_female", personality: "npc_personality_doctor" },
+  student_a: { age: "npc_age_teens", gender: "npc_gender_male", personality: "npc_personality_student_a" },
+  student_b: { age: "npc_age_teens", gender: "npc_gender_female", personality: "npc_personality_student_b" },
+  grandpa: { age: "npc_age_60s", gender: "npc_gender_male", personality: "npc_personality_grandpa" },
 };
 
 // ─── Color Palette ───
@@ -111,61 +111,61 @@ export const places = {
 // ─── Buildings ───
 export const buildings = [
   // 상가 1열 (y=16)
-  { id: "cafe", x: 14, y: 16, w: 3, h: 2, z: 2.3, color: "#f7b6b5", roof: "#e68a84", label: "카페" },
-  { id: "bakery", x: 22, y: 16, w: 2, h: 2, z: 2.2, color: "#f4d6a3", roof: "#dab977", label: "빵집" },
-  { id: "office", x: 36, y: 16, w: 4, h: 2, z: 2.9, color: "#f8d28d", roof: "#d79956", label: "사무실" },
-  { id: "market", x: 44, y: 16, w: 4, h: 3, z: 2.5, color: "#9ecbf0", roof: "#6ea2d4", label: "시장" },
+  { id: "cafe", x: 14, y: 16, w: 3, h: 2, z: 2.3, color: "#f7b6b5", roof: "#e68a84", label: "bld_cafe" },
+  { id: "bakery", x: 22, y: 16, w: 2, h: 2, z: 2.2, color: "#f4d6a3", roof: "#dab977", label: "bld_bakery" },
+  { id: "office", x: 36, y: 16, w: 4, h: 2, z: 2.9, color: "#f8d28d", roof: "#d79956", label: "bld_office" },
+  { id: "market", x: 44, y: 16, w: 4, h: 3, z: 2.5, color: "#9ecbf0", roof: "#6ea2d4", label: "bld_market" },
   // 상가 2열 (y=30)
-  { id: "florist", x: 14, y: 30, w: 2, h: 2, z: 2.1, color: "#ffc9e0", roof: "#e8a1c1", label: "꽃집" },
-  { id: "library", x: 22, y: 30, w: 3, h: 2, z: 2.6, color: "#b0c9d4", roof: "#8aa3b8", label: "도서관" },
-  { id: "convenience", x: 36, y: 30, w: 2, h: 2, z: 2.0, color: "#00a651", roof: "#008040", label: "편의점" },
-  { id: "restaurant", x: 44, y: 30, w: 3, h: 2, z: 2.2, color: "#e8a060", roof: "#c88040", label: "음식점" },
+  { id: "florist", x: 14, y: 30, w: 2, h: 2, z: 2.1, color: "#ffc9e0", roof: "#e8a1c1", label: "bld_florist" },
+  { id: "library", x: 22, y: 30, w: 3, h: 2, z: 2.6, color: "#b0c9d4", roof: "#8aa3b8", label: "bld_library" },
+  { id: "convenience", x: 36, y: 30, w: 2, h: 2, z: 2.0, color: "#00a651", roof: "#008040", label: "bld_convenience" },
+  { id: "restaurant", x: 44, y: 30, w: 3, h: 2, z: 2.2, color: "#e8a060", roof: "#c88040", label: "bld_restaurant" },
   // 주택 (y=38)
-  { id: "houseA", x: 14, y: 38, w: 2, h: 2, z: 2.0, color: "#e8c9a6", roof: "#c4a073", label: "주택" },
-  { id: "houseB", x: 30, y: 38, w: 2, h: 2, z: 2.0, color: "#d4b89a", roof: "#b09572", label: "주택" },
-  { id: "houseC", x: 46, y: 38, w: 2, h: 2, z: 2.0, color: "#ceb798", roof: "#a89370", label: "주택" },
+  { id: "houseA", x: 14, y: 38, w: 2, h: 2, z: 2.0, color: "#e8c9a6", roof: "#c4a073", label: "bld_house" },
+  { id: "houseB", x: 30, y: 38, w: 2, h: 2, z: 2.0, color: "#d4b89a", roof: "#b09572", label: "bld_house" },
+  { id: "houseC", x: 46, y: 38, w: 2, h: 2, z: 2.0, color: "#ceb798", roof: "#a89370", label: "bld_house" },
   // 캠퍼스/기관 (y=48~56)
-  { id: "korea_univ", x: 10, y: 48, w: 6, h: 4, z: 3.0, color: "#8B0029", roof: "#6a0020", label: "고려대학교" },
-  { id: "krafton_ai", x: 24, y: 48, w: 5, h: 3, z: 2.6, color: "#1a1a2e", roof: "#0f0f1e", label: "크래프톤 AI" },
-  { id: "kaist_ai", x: 38, y: 48, w: 5, h: 3, z: 2.8, color: "#003478", roof: "#002458", label: "KAIST AI대학원" },
-  { id: "gym", x: 48, y: 48, w: 4, h: 3, z: 2.8, color: "#d4d4d4", roof: "#b0b0b0", label: "체육관" },
-  { id: "ksa_main", x: 18, y: 55, w: 5, h: 3, z: 3.2, color: "#d4c4a8", roof: "#b8a88c", label: "KSA 본관" },
-  { id: "ksa_dorm", x: 34, y: 55, w: 3, h: 2, z: 2.4, color: "#c9b896", roof: "#a89878", label: "KSA 기숙사" },
-  { id: "hospital", x: 44, y: 55, w: 3, h: 2, z: 2.4, color: "#ffffff", roof: "#d0d0d0", label: "병원" },
-  { id: "police", x: 10, y: 55, w: 3, h: 2, z: 2.3, color: "#4a6fa5", roof: "#3a5f95", label: "경찰서" },
+  { id: "korea_univ", x: 10, y: 48, w: 6, h: 4, z: 3.0, color: "#8B0029", roof: "#6a0020", label: "bld_korea_univ" },
+  { id: "krafton_ai", x: 24, y: 48, w: 5, h: 3, z: 2.6, color: "#1a1a2e", roof: "#0f0f1e", label: "bld_krafton_ai" },
+  { id: "kaist_ai", x: 38, y: 48, w: 5, h: 3, z: 2.8, color: "#003478", roof: "#002458", label: "bld_kaist_ai" },
+  { id: "gym", x: 48, y: 48, w: 4, h: 3, z: 2.8, color: "#d4d4d4", roof: "#b0b0b0", label: "bld_gym" },
+  { id: "ksa_main", x: 18, y: 55, w: 5, h: 3, z: 3.2, color: "#d4c4a8", roof: "#b8a88c", label: "bld_ksa_main" },
+  { id: "ksa_dorm", x: 34, y: 55, w: 3, h: 2, z: 2.4, color: "#c9b896", roof: "#a89878", label: "bld_ksa_dorm" },
+  { id: "hospital", x: 44, y: 55, w: 3, h: 2, z: 2.4, color: "#ffffff", roof: "#d0d0d0", label: "bld_hospital" },
+  { id: "police", x: 10, y: 55, w: 3, h: 2, z: 2.3, color: "#4a6fa5", roof: "#3a5f95", label: "bld_police" },
 ];
 
 // ─── Hotspots ───
 export const hotspots = [
-  { id: "exitGate", x: 30, y: 77, label: "출구" },
+  { id: "exitGate", x: 30, y: 77, label: "hs_exit_gate" },
   // 상가 1열
-  { id: "cafeDoor", x: 15.5, y: 18, label: "카페 입구" },
-  { id: "bakeryDoor", x: 23, y: 18, label: "빵집 입구" },
-  { id: "officeDoor", x: 38, y: 18, label: "사무실 입구" },
-  { id: "marketDoor", x: 46, y: 19, label: "시장 입구" },
+  { id: "cafeDoor", x: 15.5, y: 18, label: "hs_cafe_door" },
+  { id: "bakeryDoor", x: 23, y: 18, label: "hs_bakery_door" },
+  { id: "officeDoor", x: 38, y: 18, label: "hs_office_door" },
+  { id: "marketDoor", x: 46, y: 19, label: "hs_market_door" },
   // 상가 2열
-  { id: "floristDoor", x: 15, y: 32, label: "꽃집 입구" },
-  { id: "libraryDoor", x: 23.5, y: 32, label: "도서관 입구" },
-  { id: "convenienceDoor", x: 37, y: 32, label: "편의점" },
-  { id: "restaurantDoor", x: 45.5, y: 32, label: "음식점" },
+  { id: "floristDoor", x: 15, y: 32, label: "hs_florist_door" },
+  { id: "libraryDoor", x: 23.5, y: 32, label: "hs_library_door" },
+  { id: "convenienceDoor", x: 37, y: 32, label: "hs_convenience_door" },
+  { id: "restaurantDoor", x: 45.5, y: 32, label: "hs_restaurant_door" },
   // 주택
-  { id: "houseADoor", x: 15, y: 40, label: "주택" },
-  { id: "houseBDoor", x: 31, y: 40, label: "주택" },
-  { id: "houseCDoor", x: 47, y: 40, label: "주택" },
+  { id: "houseADoor", x: 15, y: 40, label: "bld_house" },
+  { id: "houseBDoor", x: 31, y: 40, label: "bld_house" },
+  { id: "houseCDoor", x: 47, y: 40, label: "bld_house" },
   // 캠퍼스/기관
-  { id: "koreaUnivDoor", x: 13, y: 52, label: "고려대학교" },
-  { id: "kraftonAiDoor", x: 26.5, y: 51, label: "크래프톤 AI" },
-  { id: "kaistAiDoor", x: 40.5, y: 51, label: "KAIST AI대학원" },
-  { id: "gymDoor", x: 50, y: 51, label: "체육관" },
-  { id: "ksaMainDoor", x: 20.5, y: 58, label: "KSA 본관" },
-  { id: "ksaDormDoor", x: 35.5, y: 57, label: "KSA 기숙사" },
-  { id: "hospitalDoor", x: 45.5, y: 57, label: "병원" },
-  { id: "policeDoor", x: 11.5, y: 57, label: "경찰서" },
+  { id: "koreaUnivDoor", x: 13, y: 52, label: "bld_korea_univ" },
+  { id: "kraftonAiDoor", x: 26.5, y: 51, label: "bld_krafton_ai" },
+  { id: "kaistAiDoor", x: 40.5, y: 51, label: "bld_kaist_ai" },
+  { id: "gymDoor", x: 50, y: 51, label: "bld_gym" },
+  { id: "ksaMainDoor", x: 20.5, y: 58, label: "bld_ksa_main" },
+  { id: "ksaDormDoor", x: 35.5, y: 57, label: "bld_ksa_dorm" },
+  { id: "hospitalDoor", x: 45.5, y: 57, label: "bld_hospital" },
+  { id: "policeDoor", x: 11.5, y: 57, label: "bld_police" },
   // 공원 & 광장
-  { id: "parkMonument", x: 30, y: 10, label: "공원 기념비" },
-  { id: "minigameZone", x: 30, y: 25, label: "놀이터" },
-  { id: "infoCenter", x: 28, y: 25, label: "안내소" },
-  { id: "questBoard", x: 32, y: 25, label: "게시판" },
+  { id: "parkMonument", x: 30, y: 10, label: "hs_park_monument" },
+  { id: "minigameZone", x: 30, y: 25, label: "hs_minigame_zone" },
+  { id: "infoCenter", x: 28, y: 25, label: "hs_info_center" },
+  { id: "questBoard", x: 32, y: 25, label: "hs_quest_board" },
 ];
 
 // ─── Props (Decorations) ───
@@ -392,44 +392,44 @@ export const WEATHER_TYPES = ["clear", "clear", "clear", "cloudy", "rain", "rain
 // ─── Discoveries (Initial Data) ───
 export const discoveries = [
   // 공원 구역 (y=3~13)
-  { id: "secret_garden", x: 12, y: 6, radius: 1.8, found: false, title: "비밀 정원", desc: "공원 구석에 숨겨진 작은 정원을 발견했다.", condition: "always", reward: "gem" },
-  { id: "midnight_glow", x: 30, y: 8, radius: 1.5, found: false, title: "자정의 빛", desc: "공원 분수가 자정에 은은하게 빛나고 있다!", condition: "night", reward: "gem" },
-  { id: "rain_mushrooms", x: 22, y: 11, radius: 2.0, found: false, title: "비 오는 날의 버섯", desc: "비가 오자 공원 남쪽에 형형색색 버섯이 자라났다.", condition: "rain", reward: "snack" },
-  { id: "storm_crystal", x: 18, y: 5, radius: 2.0, found: false, title: "폭풍의 수정", desc: "폭풍우 속 공원에서 빛나는 수정을 발견했다!", condition: "storm", reward: "gem" },
-  { id: "snow_angel", x: 30, y: 11, radius: 2.0, found: false, title: "눈 위의 천사", desc: "눈이 온 뒤 공원에 신비한 무늬가 생겼다.", condition: "snow", reward: "gem" },
-  { id: "sunset_view", x: 48, y: 5, radius: 2.0, found: false, title: "노을 전망대", desc: "공원 동쪽에서 아름다운 노을을 볼 수 있다.", condition: "evening", reward: "flower_red" },
+  { id: "secret_garden", x: 12, y: 6, radius: 1.8, found: false, title: "disc_secret_garden", desc: "disc_secret_garden_desc", condition: "always", reward: "gem" },
+  { id: "midnight_glow", x: 30, y: 8, radius: 1.5, found: false, title: "disc_midnight_glow", desc: "disc_midnight_glow_desc", condition: "night", reward: "gem" },
+  { id: "rain_mushrooms", x: 22, y: 11, radius: 2.0, found: false, title: "disc_rain_mushrooms", desc: "disc_rain_mushrooms_desc", condition: "rain", reward: "snack" },
+  { id: "storm_crystal", x: 18, y: 5, radius: 2.0, found: false, title: "disc_storm_crystal", desc: "disc_storm_crystal_desc", condition: "storm", reward: "gem" },
+  { id: "snow_angel", x: 30, y: 11, radius: 2.0, found: false, title: "disc_snow_angel", desc: "disc_snow_angel_desc", condition: "snow", reward: "gem" },
+  { id: "sunset_view", x: 48, y: 5, radius: 2.0, found: false, title: "disc_sunset_view", desc: "disc_sunset_view_desc", condition: "evening", reward: "flower_red" },
   // 상가/광장 구역 (y=14~35)
-  { id: "market_stash", x: 49, y: 17, radius: 1.5, found: false, title: "시장 뒷골목 비밀", desc: "시장 뒤에서 숨겨진 상자를 발견했다.", condition: "always", reward: "snack" },
-  { id: "plaza_dance", x: 30, y: 25, radius: 1.5, found: false, title: "광장의 흔적", desc: "광장 바닥에서 오래된 모자이크 무늬를 발견했다.", condition: "always", reward: "coffee" },
-  { id: "lamp_wish", x: 28, y: 25, radius: 1.2, found: false, title: "소원의 가로등", desc: "이 가로등에는 작은 소원 종이가 매달려 있다.", condition: "night", reward: "letter" },
-  { id: "flower_field", x: 8, y: 31, radius: 2.0, found: false, title: "비밀 꽃밭", desc: "수풀 사이에 숨겨진 꽃밭이 있었다.", condition: "always", reward: "flower_red" },
+  { id: "market_stash", x: 49, y: 17, radius: 1.5, found: false, title: "disc_market_stash", desc: "disc_market_stash_desc", condition: "always", reward: "snack" },
+  { id: "plaza_dance", x: 30, y: 25, radius: 1.5, found: false, title: "disc_plaza_dance", desc: "disc_plaza_dance_desc", condition: "always", reward: "coffee" },
+  { id: "lamp_wish", x: 28, y: 25, radius: 1.2, found: false, title: "disc_lamp_wish", desc: "disc_lamp_wish_desc", condition: "night", reward: "letter" },
+  { id: "flower_field", x: 8, y: 31, radius: 2.0, found: false, title: "disc_flower_field", desc: "disc_flower_field_desc", condition: "always", reward: "flower_red" },
   // 주택/주거 구역 (y=38~42)
-  { id: "night_cats", x: 40, y: 39, radius: 2.0, found: false, title: "밤의 고양이들", desc: "밤에만 나타나는 고양이 무리를 발견했다!", condition: "night", reward: "snack" },
+  { id: "night_cats", x: 40, y: 39, radius: 2.0, found: false, title: "disc_night_cats", desc: "disc_night_cats_desc", condition: "night", reward: "snack" },
   // 강 구역 (y=44~46)
-  { id: "river_message", x: 10, y: 45, radius: 1.5, found: false, title: "강변의 편지", desc: "강 근처에서 유리병 속 편지를 발견했다.", condition: "always", reward: "letter" },
-  { id: "hidden_well", x: 50, y: 45, radius: 1.5, found: false, title: "숨겨진 우물", desc: "강 동쪽에서 오래된 우물을 발견했다.", condition: "always", reward: "gem" },
+  { id: "river_message", x: 10, y: 45, radius: 1.5, found: false, title: "disc_river_message", desc: "disc_river_message_desc", condition: "always", reward: "letter" },
+  { id: "hidden_well", x: 50, y: 45, radius: 1.5, found: false, title: "disc_hidden_well", desc: "disc_hidden_well_desc", condition: "always", reward: "gem" },
   // 캠퍼스 구역 (y=48~58)
-  { id: "ksa_rooftop", x: 20, y: 56, radius: 1.5, found: false, title: "KSA 옥상의 비밀", desc: "본관 옥상에서 밤하늘에 빛나는 무언가를 발견했다.", condition: "night", reward: "gem" },
-  { id: "cat_village", x: 8, y: 53, radius: 2.0, found: false, title: "고양이 마을", desc: "밤이 되자 고양이들이 모여드는 비밀 장소!", condition: "night", reward: "snack" },
+  { id: "ksa_rooftop", x: 20, y: 56, radius: 1.5, found: false, title: "disc_ksa_rooftop", desc: "disc_ksa_rooftop_desc", condition: "night", reward: "gem" },
+  { id: "cat_village", x: 8, y: 53, radius: 2.0, found: false, title: "disc_cat_village", desc: "disc_cat_village_desc", condition: "night", reward: "snack" },
   // 남쪽 숲 구역 (y=60~75)
-  { id: "south_lake", x: 35, y: 68, radius: 2.5, found: false, title: "남쪽 호수", desc: "남쪽 숲 사이에 숨겨진 고요한 호수를 발견했다.", condition: "always", reward: "gem" },
-  { id: "fog_figure", x: 10, y: 67, radius: 2.0, found: false, title: "안개 속 그림자", desc: "안개 속에서 희미한 형체를 발견했다...", condition: "fog", reward: "gem" },
-  { id: "east_cabin", x: 52, y: 65, radius: 2.0, found: false, title: "숲속 오두막", desc: "안개 속에서 오래된 오두막이 보인다...", condition: "fog", reward: "letter" },
-  { id: "dawn_song", x: 30, y: 70, radius: 2.0, found: false, title: "새벽의 노래", desc: "이른 새벽, 숲 속에서 아름다운 노래가 들린다.", condition: "dawn", reward: "letter" },
-  { id: "rainbow_spot", x: 45, y: 73, radius: 2.5, found: false, title: "폭풍 후 무지개", desc: "폭풍이 지나간 뒤, 하늘에 거대한 무지개가 떴다.", condition: "storm", reward: "gem" },
+  { id: "south_lake", x: 35, y: 68, radius: 2.5, found: false, title: "disc_south_lake", desc: "disc_south_lake_desc", condition: "always", reward: "gem" },
+  { id: "fog_figure", x: 10, y: 67, radius: 2.0, found: false, title: "disc_fog_figure", desc: "disc_fog_figure_desc", condition: "fog", reward: "gem" },
+  { id: "east_cabin", x: 52, y: 65, radius: 2.0, found: false, title: "disc_east_cabin", desc: "disc_east_cabin_desc", condition: "fog", reward: "letter" },
+  { id: "dawn_song", x: 30, y: 70, radius: 2.0, found: false, title: "disc_dawn_song", desc: "disc_dawn_song_desc", condition: "dawn", reward: "letter" },
+  { id: "rainbow_spot", x: 45, y: 73, radius: 2.5, found: false, title: "disc_rainbow_spot", desc: "disc_rainbow_spot_desc", condition: "storm", reward: "gem" },
 ];
 
 // ─── Favor Level Names ───
-export const favorLevelNames = ["낯선 사이", "아는 사이", "친구", "절친", "소울메이트"];
+export const favorLevelNames = ["favor_stranger", "favor_acquaintance", "favor_friend", "favor_close_friend", "favor_soulmate"];
 
 // ─── Item Types ───
 export const itemTypes = {
-  flower_red: { label: "빨간 꽃", emoji: "🌹", color: "#ff6b7a" },
-  flower_yellow: { label: "노란 꽃", emoji: "🌼", color: "#ffd54f" },
-  coffee: { label: "커피 원두", emoji: "☕", color: "#8d6e63" },
-  snack: { label: "간식", emoji: "🍪", color: "#e6a34f" },
-  letter: { label: "편지", emoji: "💌", color: "#ef9a9a" },
-  gem: { label: "보석", emoji: "💎", color: "#4fc3f7" },
+  flower_red: { label: "item_flower_red", emoji: "🌹", color: "#ff6b7a" },
+  flower_yellow: { label: "item_flower_yellow", emoji: "🌼", color: "#ffd54f" },
+  coffee: { label: "item_coffee", emoji: "☕", color: "#8d6e63" },
+  snack: { label: "item_snack", emoji: "🍪", color: "#e6a34f" },
+  letter: { label: "item_letter", emoji: "💌", color: "#ef9a9a" },
+  gem: { label: "item_gem", emoji: "💎", color: "#4fc3f7" },
 };
 
 // ─── Ground Items (Initial Data) ───
@@ -469,7 +469,7 @@ export const ITEM_RESPAWN_MS = 180_000;
 
 
 // ─── Seasons ───
-export const seasons = ["봄", "여름", "가을", "겨울"];
+export const seasons = ["season_spring_name", "season_summer_name", "season_autumn_name", "season_winter_name"];
 
 
 // ─── Interior Definitions ───
