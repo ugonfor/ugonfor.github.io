@@ -1,12 +1,14 @@
 import { clamp, dist, shade, randomPastelColor, normalizePlayerName, bubbleText, inferPersonalityFromName, nowMs, socialKey, npcRelationLabel } from './utils/helpers.js';
-import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_KEY, PLAYER_ID_KEY, AUTO_WALK_KEY, COUNTRY_LIST, CHAT_NEARBY_DISTANCE, ZOOM_MIN, ZOOM_MAX, DEFAULT_ZOOM, CONVERSATION_MIN_ZOOM, npcPersonas, palette, places, buildings, hotspots, props, speciesPool, WEATHER_TYPES, discoveries, favorLevelNames, itemTypes, groundItems, ITEM_RESPAWN_MS, seasons, interiorDefs } from './core/constants.js';
+import { SAVE_KEY, UI_PREF_KEY, MOBILE_SHEET_KEY, PLAYER_NAME_KEY, PLAYER_FLAG_KEY, PLAYER_ID_KEY, AUTO_WALK_KEY, COUNTRY_LIST, CHAT_NEARBY_DISTANCE, ZOOM_MIN, ZOOM_MAX, DEFAULT_ZOOM, CONVERSATION_MIN_ZOOM, npcPersonas, palette, places, buildings, hotspots, props, speciesPool, WEATHER_TYPES, discoveries, favorLevelNames, itemTypes, groundItems, ITEM_RESPAWN_MS, seasons, interiorDefs, PLACE_ALIASES, GAME } from './core/constants.js';
 import { translations } from './core/i18n.js';
 import { GameRenderer } from './renderer/renderer.js';
 import { createWeatherState, createWeatherParticles, updateWeather as _updateWeather, updateWeatherParticles as _updateWeatherParticles } from './systems/weather.js';
 import { createMultiplayer } from './systems/multiplayer.js';
-import { makeNpc, ensureMemoryFormat, addNpcMemory as _addNpcMemory, getNpcMemorySummary as _getNpcMemorySummary, getNpcSocialContext as _getNpcSocialContext, getMemoryBasedTone } from './systems/npc-data.js';
+import { makeNpc, randomSpecies, ensureMemoryFormat, addNpcMemory as _addNpcMemory, getNpcMemorySummary as _getNpcMemorySummary, getNpcSocialContext as _getNpcSocialContext, getMemoryBasedTone } from './systems/npc-data.js';
 import { generateDynamicQuest as _generateDynamicQuest, handleQuestNpcTalk as _handleQuestNpcTalk, handleDynamicQuestProgress as _handleDynamicQuestProgress, advanceDynamicQuest as _advanceDynamicQuest, completeDynamicQuest as _completeDynamicQuest, showQuestBoardMenu as _showQuestBoardMenu, handleQuestBoardChoice as _handleQuestBoardChoice } from './systems/quest.js';
 import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
+import { createTagGame } from './systems/tag-game.js';
+import { inferSentimentFromReply, applyConversationEffect as _applyConversationEffect, requestLlmNpcReply as _requestLlmNpcReply, requestLlmNpcReplyStream as _requestLlmNpcReplyStream, detectActionFromReply as _detectActionFromReply } from './systems/conversation.js';
 
 (function () {
   const USE_3D = true;
@@ -298,7 +300,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     const source = npcById(g.sourceNpcId);
     if (!source) { gossipQueue.shift(); return; }
 
-    const nearby = npcs.filter(n => n.id !== g.sourceNpcId && n.id !== g.aboutNpcId && dist(source, n) < 6);
+    const nearby = npcs.filter(n => n.id !== g.sourceNpcId && n.id !== g.aboutNpcId && dist(source, n) < GAME.GOSSIP_RANGE);
     for (const listener of nearby) {
       const change = g.sentiment === "positive" ? 2 : g.sentiment === "negative" ? -2 : 0;
       if (change !== 0) adjustNpcRelation(listener.id, g.aboutNpcId, change);
@@ -326,94 +328,21 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   let guideGreetingPhase = 0;    // 0: 대기, 1: 접근중, 2: 완료
   let guideGreetingTimer = 0;
 
-  // ─── 술래잡기 미니게임 (역전: NPC가 술래, 플레이어가 도망) ───
+  // ─── 술래잡기 미니게임 (모듈: systems/tag-game.js) ───
+  let tagGameModule = null;
+  function tagCtx() {
+    return { player, npcs, addChat, addLog, t, upsertSpeechBubble, canStand };
+  }
+  function ensureTagGame() {
+    if (!tagGameModule) tagGameModule = createTagGame(tagCtx());
+    return tagGameModule;
+  }
+  function startTagGame(npc) { ensureTagGame().start(npc); }
+  function updateTagGame(dt) { ensureTagGame().update(dt); }
   const tagGame = {
-    active: false,
-    targetNpcId: null,
-    startedAt: 0,
-    duration: 60_000, // 60초
-    caught: false,
-    cooldownUntil: 0,
-    _sprintUntil: 0,
-    _nextSprintAt: 0,
+    get active() { return tagGameModule ? tagGameModule.isActive() : false; },
+    get targetNpcId() { return tagGameModule ? tagGameModule.getTargetNpcId() : null; },
   };
-
-  function startTagGame(npc) {
-    tagGame.active = true;
-    tagGame.targetNpcId = npc.id;
-    tagGame.startedAt = nowMs();
-    tagGame.caught = false;
-    tagGame._sprintUntil = 0;
-    tagGame._nextSprintAt = nowMs() + 4000 + Math.random() * 3000;
-    npc.roamTarget = null;
-    addChat("System", t("sys_tag_start", { name: npc.name }));
-    addLog(t("sys_tag_start", { name: npc.name }));
-  }
-
-  function updateTagGame(dt) {
-    if (!tagGame.active) return;
-    const elapsed = nowMs() - tagGame.startedAt;
-    const remaining = tagGame.duration - elapsed;
-
-    const targetNpc = npcs.find(n => n.id === tagGame.targetNpcId);
-    if (!targetNpc) { tagGame.active = false; return; }
-
-    // 시간 초과 → 승리! (60초 생존)
-    if (remaining <= 0) {
-      tagGame.active = false;
-      targetNpc.favorPoints += 8;
-      addChat("System", t("sys_tag_win", { name: targetNpc.name }));
-      addLog(t("log_tag_win"));
-      return;
-    }
-
-    // NPC가 플레이어를 잡았는지 확인
-    const d = Math.hypot(player.x - targetNpc.x, player.y - targetNpc.y);
-    if (d < 1.5) {
-      tagGame.active = false;
-      tagGame.caught = true;
-      addChat("System", t("sys_tag_lose", { name: targetNpc.name }));
-      addLog(t("log_tag_lose"));
-      return;
-    }
-
-    // NPC 추적 AI: 플레이어를 향해 이동
-    const dx = player.x - targetNpc.x;
-    const dy = player.y - targetNpc.y;
-    if (d > 0.3) {
-      // 스프린트 버스트: 3-7초마다 1.5초간 스프린트
-      const now = nowMs();
-      if (now > tagGame._nextSprintAt && now > tagGame._sprintUntil) {
-        tagGame._sprintUntil = now + 1500;
-        tagGame._nextSprintAt = now + 4000 + Math.random() * 3000;
-        upsertSpeechBubble(targetNpc.id, "💨", 1500);
-      }
-
-      const isSprinting = now < tagGame._sprintUntil;
-      // 기본 속도: 플레이어 걷기의 95% → 달리면 도망 가능
-      const chaseSpeed = player.speed * 0.95 * (isSprinting ? 1.3 : 1.0) * dt;
-
-      // 약간의 예측: 플레이어 이동 방향으로 보정
-      const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.3;
-      const nx = targetNpc.x + Math.cos(angle) * chaseSpeed;
-      const ny = targetNpc.y + Math.sin(angle) * chaseSpeed;
-      if (canStand(nx, ny)) {
-        targetNpc.x = nx;
-        targetNpc.y = ny;
-        targetNpc.state = "moving";
-      } else {
-        // 벽 우회
-        const altAngle = angle + Math.PI * 0.4 * (Math.random() > 0.5 ? 1 : -1);
-        const ax = targetNpc.x + Math.cos(altAngle) * chaseSpeed;
-        const ay = targetNpc.y + Math.sin(altAngle) * chaseSpeed;
-        if (canStand(ax, ay)) {
-          targetNpc.x = ax;
-          targetNpc.y = ay;
-          targetNpc.state = "moving";
-        }
-      }
-    }
-  }
 
   const worldEvents = {
     day: -1,
@@ -1290,7 +1219,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
 
   function activeConversationNpc() {
     const pinned = npcById(conversationFocusNpcId);
-    if (pinned && dist(player, pinned) <= CHAT_NEARBY_DISTANCE * 2.0) return pinned;
+    if (pinned && dist(player, pinned) <= CHAT_NEARBY_DISTANCE * GAME.PIN_NPC_RANGE_MULT) return pinned;
 
     const target = chatTargetNpc();
     if (!target) return null;
@@ -1634,12 +1563,12 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   function maybeRunAutoConversation(now) {
     if (!autoWalk.enabled || autoConversationBusy || now < nextAutoConversationAt) return;
     if (isTypingInInput() || (chatInputEl && document.activeElement === chatInputEl)) return;
-    const near = nearestNpc(1.75);
+    const near = nearestNpc(GAME.AUTO_CONVO_DIST);
     if (!near || !near.npc || near.npc.talkCooldown > 0) return;
     const npc = near.npc;
 
     autoConversationBusy = true;
-    npc.talkCooldown = Math.max(npc.talkCooldown, 4.2);
+    npc.talkCooldown = Math.max(npc.talkCooldown, GAME.AUTO_WALK_COOLDOWN_SEC);
     setChatSession(npc.id, 9000);
     nextAutoConversationAt = now + 13000 + Math.random() * 12000;
 
@@ -1651,6 +1580,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       upsertSpeechBubble(npc.id, npcLine, 3200);
       addChat(npc.name, npcLine);
     })()
+      .catch(e => console.warn("[auto conversation]", e.message))
       .finally(() => {
         autoConversationBusy = false;
       });
@@ -1674,7 +1604,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
 
     if (now >= nextAmbientBubbleAt) {
       nextAmbientBubbleAt = now + 8000 + Math.random() * 12000;
-      const visible = npcs.filter((n) => dist(n, player) < 15 && !chatSessionActiveFor(n.id));
+      const visible = npcs.filter((n) => dist(n, player) < GAME.AMBIENT_SPEECH_RANGE && !chatSessionActiveFor(n.id));
       if (visible.length) {
         // 가장 가까운 NPC → LLM 혼잣말, 나머지 → "..."
         visible.sort((a, b) => dist(a, player) - dist(b, player));
@@ -1696,6 +1626,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
             .then((line) => {
               if (line) upsertSpeechBubble(closest.id, line, 4000);
             })
+            .catch(e => console.warn("[ambient LLM]", e.message))
             .finally(() => { ambientLlmPending = false; });
         }
       }
@@ -1709,6 +1640,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         .then((line) => {
           upsertSpeechBubble("player", line, 2800);
         })
+        .catch(e => console.warn("[player bubble]", e.message))
         .finally(() => {
           playerBubblePending = false;
         });
@@ -1717,8 +1649,8 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     // NPC 선제적 말 걸기: 가까이 + 호감도 있으면 가끔 먼저 인사
     if (!npcProactiveGreetPending && now > nextNpcProactiveAt && !conversationFocusNpcId) {
       nextNpcProactiveAt = now + 20000 + Math.random() * 30000;
-      const close = npcs.filter(n => dist(n, player) < 3.5 && !chatSessionActiveFor(n.id) && n.talkCooldown <= 0 && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
-      if (close.length && Math.random() < 0.15) {
+      const close = npcs.filter(n => dist(n, player) < GAME.PROACTIVE_GREET_DIST && !chatSessionActiveFor(n.id) && n.talkCooldown <= 0 && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
+      if (close.length && Math.random() < GAME.PROACTIVE_GREET_CHANCE) {
         const npc = close[Math.floor(Math.random() * close.length)];
         npcProactiveGreetPending = true;
         npc.pose = "waving";
@@ -1737,9 +1669,10 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
               addChat(npc.name, line);
               upsertSpeechBubble(npc.id, line, 4000);
               conversationFocusNpcId = npc.id;
-              setChatSession(npc.id, 15_000);
+              setChatSession(npc.id, GAME.LLM_TIMEOUT_MS);
             }
           })
+          .catch(e => console.warn("[proactive greet]", e.message))
           .finally(() => {
             npcProactiveGreetPending = false;
             setTimeout(() => { npc.pose = "standing"; }, 3000);
@@ -1769,7 +1702,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     if (pinned) {
       const pd = dist(player, pinned);
       if (pd <= CHAT_NEARBY_DISTANCE) return { npc: pinned, focused: true, near: true };
-      if (pd <= CHAT_NEARBY_DISTANCE * 2.0) return { npc: pinned, focused: true, near: false };
+      if (pd <= CHAT_NEARBY_DISTANCE * GAME.PIN_NPC_RANGE_MULT) return { npc: pinned, focused: true, near: false };
       conversationFocusNpcId = null;
     }
 
@@ -2030,6 +1963,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   function handleDynamicQuestProgress(npc) { return _handleDynamicQuestProgress(npc, questCtx()); }
   function advanceDynamicQuest() { _advanceDynamicQuest(questCtx()); }
   function generateDynamicQuest() { _generateDynamicQuest(questCtx()); }
+  let questBoardMenuActive = false;
   function showQuestBoardMenu() { _showQuestBoardMenu(questCtx()); questBoardMenuActive = true; }
   function handleQuestBoardChoice(choice) { questBoardMenuActive = false; return _handleQuestBoardChoice(choice, questCtx()); }
 
@@ -2075,9 +2009,9 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
               addChat(guideNpc.name, line2);
               upsertSpeechBubble(guideNpc.id, line2, 4000);
               guideNpc.pose = "standing";
-            });
+            }).catch(e => console.warn("[guide greet 2]", e.message));
           }, 4000);
-        });
+        }).catch(e => console.warn("[guide greet]", e.message));
         guideNpc.roamTarget = null;
         guideNpc.roamWait = 8;
       }
@@ -2086,7 +2020,6 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
 
   // ─── 도슨트 안내소 시스템 ───
   let docentMenuActive = false;
-  let questBoardMenuActive = false;
 
   function showDocentMenu() {
     const guideNpc = npcs.find(n => n.id === "guide");
@@ -2209,7 +2142,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         return true;
       }
       // 근처 NPC 중 랜덤 하나를 상대로 선택 (도슨트 제외)
-      const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < 25 && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
+      const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < GAME.TAG_CANDIDATE_RANGE && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
       if (candidates.length === 0) {
         addLog(t("sys_tag_no_npc"));
         return true;
@@ -2251,7 +2184,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       }
 
       if (near.npc.talkCooldown <= 0) {
-        near.npc.talkCooldown = 3.5;
+        near.npc.talkCooldown = GAME.TALK_COOLDOWN_SEC;
         // 도슨트 NPC는 항상 안내소 메뉴 표시
         if (npcPersonas[near.npc.id] && npcPersonas[near.npc.id].isDocent) {
           showDocentMenu();
@@ -2281,56 +2214,32 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     addChat("System", t("sys_no_npc_nearby"));
   }
 
-  // NPC의 LLM 응답에서 감정 추론 (AI가 맥락을 이해하고 답했으므로 응답 분석이 더 정확)
-  function inferSentimentFromReply(replyText) {
-    const t = replyText.toLowerCase();
-    if (/(고마워|반가|좋은|기뻐|재밌|행복|최고|사랑|감동|응원|좋아해|함께|친구|헤헤|ㅎㅎ|감사|축하|대단|멋져)/.test(t))
-      return { sentiment: "positive", intensity: 2 };
-    if (/(응|맞아|그래|좋아|괜찮|그럴게|알겠|오|와)/.test(t))
-      return { sentiment: "positive", intensity: 1 };
-    if (/(싫|짜증|그만|화나|실망|별로|최악|됐어|하지\s?마|무례)/.test(t))
-      return { sentiment: "negative", intensity: 2 };
-    if (/(\?|뭐|어떻게|왜|정말|진짜|궁금)/.test(t))
-      return { sentiment: "curious", intensity: 1 };
-    return { sentiment: "neutral", intensity: 0 };
-  }
+  // inferSentimentFromReply — imported from ./systems/conversation.js
 
   function relationKeyForNpc(npcId) {
-    return Object.keys(relations).find((k) => k.toLowerCase().includes(npcId.slice(0, 3))) || null;
+    // Direct lookup first (new format)
+    const directKey = `playerTo_${npcId}`;
+    if (relations[directKey] !== undefined) return directKey;
+    // Legacy format lookup (playerToHeo, playerToKim, etc.)
+    const legacyKey = Object.keys(relations).find(k => k.toLowerCase() === `playerto${npcId.toLowerCase()}`);
+    if (legacyKey) return legacyKey;
+    // Auto-create for new/shared/custom NPCs
+    relations[directKey] = 50;
+    return directKey;
+  }
+
+  function convoCtx() {
+    return {
+      adjustRelation, relationKeyForNpc, addNpcMemory, t,
+      LLM_API_URL, LLM_STREAM_API_URL, debugMode, currentLang, resolvePersona,
+      nearestNpc, CHAT_NEARBY_DISTANCE, getNpcChats, formatTime,
+      quest, relations, getNpcMemorySummary, getMemoryBasedTone,
+      getNpcSocialContext, buildApiHeaders, npcs,
+    };
   }
 
   function applyConversationEffect(npc, playerMsg, npcReplyText, emotion) {
-    // structured output의 emotion 사용, 없으면 텍스트에서 추론
-    let sentiment, intensity;
-    if (emotion && emotion !== "neutral") {
-      sentiment = emotion;
-      intensity = (sentiment === "happy" || sentiment === "angry") ? 2 : 1;
-    } else {
-      ({ sentiment, intensity } = inferSentimentFromReply(npcReplyText));
-    }
-    const relKey = relationKeyForNpc(npc.id);
-
-    if (sentiment === "positive" || sentiment === "happy") {
-      if (relKey) adjustRelation(relKey, intensity * 2);
-      npc.favorPoints += Math.round(intensity * 2 * 1 * 1);
-      if (intensity >= 2) {
-        npc.mood = "happy";
-        npc.moodUntil = nowMs() + 20_000;
-      }
-    } else if (sentiment === "negative" || sentiment === "sad" || sentiment === "angry") {
-      if (relKey) adjustRelation(relKey, -intensity * 2);
-      npc.favorPoints = Math.max(0, npc.favorPoints - intensity);
-      npc.mood = "sad";
-      npc.moodUntil = nowMs() + 15_000;
-    } else if (sentiment === "curious") {
-      if (relKey) adjustRelation(relKey, 1);
-    }
-
-    if (npc.favorPoints >= 100) {
-      npc.favorLevel = Math.min(npc.favorLevel + 1, 4);
-      npc.favorPoints = 0;
-      addNpcMemory(npc, "favor", t("mem_favor_advance", { level: t(favorLevelNames[npc.favorLevel]) }));
-    }
+    return _applyConversationEffect(npc, playerMsg, npcReplyText, emotion, convoCtx());
   }
 
   function resolvePersona(npc) {
@@ -2346,261 +2255,16 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   }
 
   async function requestLlmNpcReply(npc, userMessage) {
-    if (!LLM_API_URL) throw new Error("LLM API URL is empty");
-
-    const persona = resolvePersona(npc);
-    const near = nearestNpc(CHAT_NEARBY_DISTANCE);
-    const payload = {
-      npcId: npc.id,
-      npcName: npc.name,
-      persona,
-      userMessage,
-      lang: currentLang,
-      worldContext: {
-        time: formatTime(),
-        objective: quest.objective,
-        questDone: quest.done,
-        nearby: near ? near.npc.name : "none",
-        relationSummary: {
-          playerToHeo: relations.playerToHeo,
-          playerToKim: relations.playerToKim,
-          playerToChoi: relations.playerToChoi,
-          heoToKim: relations.heoToKim,
-        },
-      },
-      recentMessages: getNpcChats(npc.id).slice(0, 8).reverse(),
-      memory: getNpcMemorySummary(npc),
-      tone: getMemoryBasedTone(npc, t),
-      socialContext: getNpcSocialContext(npc),
-      favorLevel: npc.favorLevel || 0,
-      npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social), fun: Math.round(npc.needs.fun), duty: Math.round(npc.needs.duty) } : null,
-    };
-
-    if (debugMode) {
-      console.group(`%c[LLM DEBUG] Request → ${npc.name} (${npc.id})`, 'color:#00bcd4;font-weight:bold');
-      console.log('Payload:', JSON.parse(JSON.stringify(payload)));
-      console.groupEnd();
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort("LLM request timeout (15s)"), 15000);
-    try {
-      const headers = await buildApiHeaders("npc_chat");
-      if (debugMode) headers["x-debug"] = "1";
-      const res = await fetch(LLM_API_URL, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        throw new Error(`LLM HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      const reply = (data && typeof data.reply === "string" && data.reply.trim()) || "";
-      if (!reply) throw new Error("Empty LLM reply");
-      const model = (data && typeof data.model === "string" && data.model.trim()) || "gemini";
-      const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
-      const result = {
-        reply, model, suggestions,
-        emotion: data.emotion || "neutral",
-        farewell: !!data.farewell,
-        action: data.action || { type: "none", target: "" },
-        mention: data.mention || { npc: null, place: null },
-      };
-      if (debugMode) {
-        console.group(`%c[LLM DEBUG] Response ← ${npc.name} (${model})`, 'color:#4caf50;font-weight:bold');
-        if (data._debug?.prompt) {
-          console.log('%c── Full Prompt (서버 조립) ──', 'color:#e91e63;font-weight:bold');
-          console.log(data._debug.prompt);
-        }
-        console.log('Reply:', reply);
-        console.log('Emotion:', result.emotion, '| Farewell:', result.farewell);
-        console.log('Action:', result.action);
-        console.log('Suggestions:', suggestions);
-        console.log('Mention:', result.mention);
-        console.groupEnd();
-      }
-      return result;
-    } finally {
-      clearTimeout(timeout);
-    }
+    return _requestLlmNpcReply(npc, userMessage, convoCtx());
   }
 
   async function requestLlmNpcReplyStream(npc, userMessage, onChunk) {
-    if (!LLM_STREAM_API_URL) throw new Error("LLM stream API URL is empty");
-
-    const persona = resolvePersona(npc);
-    const near = nearestNpc(CHAT_NEARBY_DISTANCE);
-    const payload = {
-      npcId: npc.id,
-      npcName: npc.name,
-      persona,
-      userMessage,
-      lang: currentLang,
-      worldContext: {
-        time: formatTime(),
-        objective: quest.objective,
-        questDone: quest.done,
-        nearby: near ? near.npc.name : "none",
-        relationSummary: {
-          playerToHeo: relations.playerToHeo,
-          playerToKim: relations.playerToKim,
-          playerToChoi: relations.playerToChoi,
-          heoToKim: relations.heoToKim,
-        },
-      },
-      recentMessages: getNpcChats(npc.id).slice(0, 8).reverse(),
-      memory: getNpcMemorySummary(npc),
-      tone: getMemoryBasedTone(npc, t),
-      socialContext: getNpcSocialContext(npc),
-      favorLevel: npc.favorLevel || 0,
-      npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social), fun: Math.round(npc.needs.fun), duty: Math.round(npc.needs.duty) } : null,
-    };
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
-    try {
-      const headers = await buildApiHeaders("npc_chat_stream");
-      const res = await fetch(LLM_STREAM_API_URL, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      if (!res.ok || !res.body) throw new Error(`LLM stream HTTP ${res.status}`);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let model = "gemini";
-      let reply = "";
-      let done = false;
-      let streamMeta = {};
-      const findBoundary = (text) => {
-        const a = text.indexOf("\n\n");
-        const b = text.indexOf("\r\n\r\n");
-        if (a === -1) return b;
-        if (b === -1) return a;
-        return Math.min(a, b);
-      };
-
-      const parseSseBlock = (block) => {
-        const lines = String(block || "").split("\n");
-        let event = "message";
-        const dataLines = [];
-        for (const raw of lines) {
-          const line = raw.trimEnd();
-          if (!line || line.startsWith(":")) continue;
-          if (line.startsWith("event:")) event = line.slice(6).trim();
-          else if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
-        }
-        const dataText = dataLines.join("\n").trim();
-        if (!dataText) return;
-        let data = {};
-        try {
-          data = JSON.parse(dataText);
-        } catch {
-          data = { message: dataText };
-        }
-
-        if (event === "model") {
-          model = data.model || model;
-        } else if (event === "chunk") {
-          const text = data.text || "";
-          if (!text) return;
-          reply += text;
-          if (onChunk) onChunk(text);
-        } else if (event === "error") {
-          throw new Error(data.message || "stream error");
-        } else if (event === "done") {
-          done = true;
-          streamMeta = data || {};
-        }
-      };
-
-      while (true) {
-        const { value, done: readerDone } = await reader.read();
-        if (readerDone) break;
-        buffer += decoder.decode(value, { stream: true });
-        let idx = findBoundary(buffer);
-        while (idx !== -1) {
-          const block = buffer.slice(0, idx);
-          const sepLen = buffer.startsWith("\r\n\r\n", idx) ? 4 : 2;
-          buffer = buffer.slice(idx + sepLen);
-          parseSseBlock(block);
-          idx = findBoundary(buffer);
-        }
-      }
-      if (buffer.trim()) parseSseBlock(buffer);
-      if (!done && !reply.trim()) throw new Error("empty stream reply");
-      return {
-        reply, model,
-        suggestions: Array.isArray(streamMeta.suggestions) ? streamMeta.suggestions : [],
-        emotion: streamMeta.emotion || "neutral",
-        farewell: !!streamMeta.farewell,
-        action: streamMeta.action || { type: "none", target: "" },
-        mention: streamMeta.mention || { npc: null, place: null },
-      };
-    } finally {
-      clearTimeout(timeout);
-    }
+    return _requestLlmNpcReplyStream(npc, userMessage, onChunk, convoCtx());
   }
 
   // 키워드 기반 액션 감지 (스트리밍 폴백)
-  // NPC 응답 텍스트에서 follow/guide 의도를 감지하여 action 객체를 반환
   function detectActionFromReply(npc, replyText) {
-    const text = replyText.toLowerCase();
-
-    // 동행해제 감지 (follow 해제보다 먼저 체크)
-    if (/(그만\s*따라|동행.*끝|헤어지|각자|따로\s*가|이만\s*가|그럼\s*여기서|돌아가|다시\s*내\s*할\s*일|stop\s*follow|unfollow)/i.test(replyText)) {
-      return { type: "unfollow", target: "" };
-    }
-
-    // 동행 감지
-    if (/(따라갈|같이\s*가|함께\s*가|동행|따라올|따라가|같이\s*다니|같이\s*걸|데려다|나를\s*따|내가\s*따|follow|let'?s\s*go\s*together|come\s*with|i'?ll\s*follow)/i.test(replyText)) {
-      return { type: "follow", target: "" };
-    }
-
-    // NPC 안내 감지 — "~에게 가자" / "~를 만나러" / "~한테 데려다줄게"
-    const npcGuidePatterns = [
-      /(?:에게|한테|만나러|찾아|소개해|데려다|안내해)\s*(?:가자|갈게|줄게|주|가|보자)/,
-      /(?:take\s*you\s*to|show\s*you\s*where|let\s*me\s*introduce|bring\s*you\s*to)/i,
-    ];
-    if (npcGuidePatterns.some(p => p.test(replyText))) {
-      // NPC 이름으로 대상 감지
-      for (const otherNpc of npcs) {
-        if (otherNpc.id === npc.id) continue;
-        if (replyText.includes(otherNpc.name) || replyText.includes(otherNpc.id)) {
-          return { type: "guide_npc", target: otherNpc.id };
-        }
-      }
-    }
-
-    // 장소 안내 감지 — "~로 가자" / "~에 데려다줄게" / "보여줄게"
-    const placeGuidePatterns = [
-      /(안내|가자|데려다|보여줄|가\s*볼래|가\s*볼까|같이.*가|따라.*와|따라.*오|알려\s*줄)/,
-      /(take\s*you|show\s*you|let'?s\s*go\s*to|guide\s*you|head\s*to)/i,
-    ];
-    if (placeGuidePatterns.some(p => p.test(replyText))) {
-      // 장소 이름 매칭 (한국어 label → place key)
-      const placeAliases = {
-        "공원": "park", "광장": "plaza", "안내소": "infoCenter", "게시판": "questBoard",
-        "카페": "cafe", "빵집": "bakery", "사무실": "office", "시장": "market",
-        "꽃집": "florist", "도서관": "library", "편의점": "convenience", "음식점": "restaurant",
-        "주택": "homeA", "체육관": "gym", "병원": "hospital", "경찰서": "police",
-        "고려대": "korea_univ", "고려대학교": "korea_univ",
-        "크래프톤": "krafton_ai", "KAIST": "kaist_ai", "카이스트": "kaist_ai",
-        "KSA": "ksa_main", "본관": "ksa_main", "기숙사": "ksa_dorm",
-      };
-      for (const [alias, key] of Object.entries(placeAliases)) {
-        if (replyText.includes(alias) && places[key]) {
-          return { type: "guide_place", target: key };
-        }
-      }
-    }
-
-    return { type: "none", target: "" };
+    return _detectActionFromReply(npc, replyText, convoCtx());
   }
 
   async function sendChatMessage(msg) {
@@ -2641,7 +2305,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       if (tagGame.active) {
         addChat("System", t("sys_tag_active"));
       } else {
-        const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < 25);
+        const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < GAME.TAG_CANDIDATE_RANGE);
         if (!candidates.length) {
           addChat("System", t("sys_tag_no_npc"));
         } else {
@@ -2706,7 +2370,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
     let serverMention = { npc: null, place: null };
 
     // 응답 대기 중 . . . 표시
-    upsertSpeechBubble(npc.id, ". . .", 15000);
+    upsertSpeechBubble(npc.id, ". . .", GAME.LLM_TIMEOUT_MS);
     addNpcChat(npc.id, npc.name, ". . .");
     const waitingChatIdx = getNpcChats(npc.id).findIndex(c => c.text === ". . .");
 
@@ -3047,7 +2711,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
             if (line) {
               upsertSpeechBubble(a.id, line, 3500);
             }
-          }).finally(() => { socialGossipLlmPending = false; });
+          }).catch(e => console.warn("[gossip LLM]", e.message)).finally(() => { socialGossipLlmPending = false; });
           spreadGossip(a.id, b.id, "relationship", sentiment);
         }
       }
@@ -3266,11 +2930,11 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       if (player.idleTime > 5 && player.pose === "standing") {
         const sittable = ["bench", "chair", "stool", "armchair", "bean_bag", "floor_cushion", "gaming_chair"];
         // 실외: props에서 찾기, 실내: furniture에서 찾기
-        let seat = props.find(p => sittable.includes(p.type) && dist(player, p) < 1.0);
+        let seat = props.find(p => sittable.includes(p.type) && dist(player, p) < GAME.SEAT_CHECK_DIST);
         if (!seat && sceneState.current !== "outdoor") {
           const interior = interiorDefs && interiorDefs[sceneState.current];
           if (interior && interior.furniture) {
-            seat = interior.furniture.find(f => sittable.includes(f.type) && Math.hypot(f.x - player.x, f.y - player.y) < 1.0);
+            seat = interior.furniture.find(f => sittable.includes(f.type) && Math.hypot(f.x - player.x, f.y - player.y) < GAME.SEAT_CHECK_DIST);
           }
         }
         if (seat) {
@@ -3332,7 +2996,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       if (npc.talkCooldown > 0) npc.talkCooldown -= dt;
 
       // 자율 기분 변화 (시간/날씨/성격 기반)
-      if (nowMs() > npc.moodUntil && Math.random() < 0.001) {
+      if (nowMs() > npc.moodUntil && Math.random() < GAME.MOOD_CHANGE_CHANCE) {
         const persona = npcPersonas[npc.id];
         // 도슨트는 항상 밝게
         if (persona && persona.isDocent) {
@@ -3362,11 +3026,11 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       if (npc.needs) {
         const n = npc.needs;
         // 시간에 따른 자연 변화
-        n.hunger += dt * 0.08;    // 배고픔 증가
-        n.energy -= dt * 0.05;    // 에너지 감소
-        n.social -= dt * 0.03;    // 사교 감소
-        n.fun -= dt * 0.04;       // 즐거움 감소
-        n.duty += dt * 0.06;      // 할 일 쌓임
+        n.hunger += dt * GAME.NEED_HUNGER_RATE;    // 배고픔 증가
+        n.energy -= dt * GAME.NEED_ENERGY_RATE;    // 에너지 감소
+        n.social -= dt * GAME.NEED_SOCIAL_RATE;    // 사교 감소
+        n.fun -= dt * GAME.NEED_FUN_RATE;       // 즐거움 감소
+        n.duty += dt * GAME.NEED_DUTY_RATE;      // 할 일 쌓임
 
         // 장소에 따른 욕구 해소
         const atCafe = dist(npc, places.cafe) < 2;
@@ -3377,11 +3041,11 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         const atFlorist = places.florist && dist(npc, places.florist) < 2;
         const nearOtherNpc = npcs.some(o => o.id !== npc.id && dist(npc, o) < 3);
 
-        if ((atCafe || atBakery) && n.hunger > 30) n.hunger = Math.max(0, n.hunger - dt * 2);
-        if (atHome) n.energy = Math.min(100, n.energy + dt * 0.5);
-        if (nearOtherNpc) n.social = Math.min(100, n.social + dt * 0.3);
-        if (atPark || atFlorist) n.fun = Math.min(100, n.fun + dt * 0.4);
-        if (atWork) n.duty = Math.max(0, n.duty - dt * 0.8);
+        if ((atCafe || atBakery) && n.hunger > 30) n.hunger = Math.max(0, n.hunger - dt * GAME.NEED_HUNGER_RECOVERY);
+        if (atHome) n.energy = Math.min(100, n.energy + dt * GAME.NEED_ENERGY_RECOVERY);
+        if (nearOtherNpc) n.social = Math.min(100, n.social + dt * GAME.NEED_SOCIAL_RECOVERY);
+        if (atPark || atFlorist) n.fun = Math.min(100, n.fun + dt * GAME.NEED_FUN_RECOVERY);
+        if (atWork) n.duty = Math.max(0, n.duty - dt * GAME.NEED_DUTY_RECOVERY);
 
         // 범위 제한
         n.hunger = Math.min(100, Math.max(0, n.hunger));
@@ -3410,7 +3074,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
       // NPC 안내 모드: 대상 NPC를 추적하며 앞서 걸어감
       if (npc.guideTargetNpcId) {
         const targetNpc = npcs.find(n => n.id === npc.guideTargetNpcId);
-        if (!targetNpc || dist(npc, targetNpc) < 2) {
+        if (!targetNpc || dist(npc, targetNpc) < GAME.GUIDE_ARRIVE_DIST) {
           // 도착 또는 대상 없음 → 안내 종료
           npc.guideTargetNpcId = null;
           if (targetNpc) {
@@ -3464,7 +3128,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         continue;
       }
 
-      if (!npc.roamTarget || Math.random() < 0.003) {
+      if (!npc.roamTarget || Math.random() < GAME.ROAM_REPICK_CHANCE) {
         pickNpcRoamTarget(npc);
       }
 
@@ -3513,7 +3177,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         const h = hourOfDay();
         const atHome = dist(npc, npc.home) < 2;
         const closestBench = props
-          .filter(p => ["bench", "chair", "stool", "armchair", "bean_bag", "floor_cushion"].includes(p.type) && dist(npc, p) < 1.0)
+          .filter(p => ["bench", "chair", "stool", "armchair", "bean_bag", "floor_cushion"].includes(p.type) && dist(npc, p) < GAME.SEAT_CHECK_DIST)
           .sort((a, b) => dist(npc, a) - dist(npc, b))[0];
         if (closestBench && Math.random() < 0.4) {
           // 벤치에 정확히 앉기
@@ -3579,7 +3243,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         .then((lineB) => {
           if (lineB) upsertSpeechBubble(b.id, lineB, 4500);
           // 50% 확률로 A가 한 번 더 반응 (3턴)
-          if (Math.random() < 0.5 && lineB) {
+          if (Math.random() < GAME.MULTI_TURN_CHANCE && lineB) {
             return delay(2500).then(() =>
               llmReplyOrEmpty(a, t("llm_social_react", { nameB: b.name, line: lineB }))
             );
@@ -3588,6 +3252,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         .then((lineA2) => {
           if (lineA2) upsertSpeechBubble(a.id, lineA2, 3000);
         })
+        .catch(e => console.warn("[NPC social chat]", e.message))
         .finally(() => { npcChatLlmPending = false; });
       addLog(t("log_npc_chat", { a: a.name, b: b.name }));
     } else {
@@ -3634,7 +3299,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   function updateContemplation(now) {
     if (!contemplationMode) return;
     if (now < contemplationNextAt) return;
-    contemplationNextAt = now + 6000 + Math.random() * 4000; // 6~10초마다 전환
+    contemplationNextAt = now + GAME.CONTEMPLATION_MIN_MS + Math.random() * GAME.CONTEMPLATION_RANGE_MS; // 6~10초마다 전환
     const outdoor = npcs.filter(n => (n.currentScene || "outdoor") === "outdoor");
     if (!outdoor.length) return;
     contemplationTargetIdx = (contemplationTargetIdx + 1) % outdoor.length;
@@ -3931,7 +3596,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
   let mouseDragged = false;
   let mouseDownX = 0;
   let mouseDownY = 0;
-  initPlayerName().then(() => { translateStaticDOM(); initMultiplayer(); });
+  initPlayerName().then(() => { translateStaticDOM(); initMultiplayer(); }).catch(e => console.warn("[initPlayerName]", e.message));
   addLog(t("log_world_init"));
   if (LLM_API_URL) addChat("System", t("sys_llm_chat_on"));
   else addChat("System", t("sys_llm_chat_off"));
@@ -4005,7 +3670,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
         // 5분마다 기억 서버 동기화
         const _now = nowMs();
         if (memorySync && _now > nextMemorySyncAt) {
-          nextMemorySyncAt = _now + 300_000;
+          nextMemorySyncAt = _now + GAME.MEMORY_SYNC_MS;
           syncMemoryToServer();
         }
       }
@@ -4488,7 +4153,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
           if (serverData && applyServerMemory(npcs, serverData, null)) {
             addLog(t("mem_restored"));
           }
-        });
+        }).catch(e => console.warn("[memorySync load]", e.message));
       } catch (e) {
         console.warn("[MemorySync] init failed:", e.message);
       }
