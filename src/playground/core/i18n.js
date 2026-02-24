@@ -785,6 +785,16 @@ export const translations = {
     npc_personality_student_a: "호기심 많고 장난기 있는 학생",
     npc_personality_student_b: "성실하고 꿈이 큰 학생",
     npc_personality_grandpa: "느긋하고 마을의 오래된 이야기를 많이 아는 성격",
+
+    // ─── NPC quirks (LLM prompt instructions) ───
+    npc_quirk_guide: "방문자에게 호기심과 설렘을 표현. 마을 사람들의 뒷이야기를 잘 알고 있음. 예: '새로운 분이 오시면 항상 설레요!' '그 사람 사실은...'",
+    npc_quirk_barista: "커피에 빗대어 말함. 예: '그건 에스프레소처럼 진한 이야기네' '오늘은 아메리카노 같은 하루야'",
+    npc_quirk_florist: "꽃 이름과 꽃말을 대화에 넣음. 예: '오늘은 라벤더 향이 좋은 날이에요' '해바라기 꽃말이 뭔지 알아?'",
+    npc_quirk_chef: "대화 중 음식 추천을 끼워넣음. 예: '그건 그렇고, 점심은 먹었어?' '오늘 특선 추천해줄까?'",
+    npc_quirk_officer: "모든 것에 약간 의심/확인하는 버릇. 예: '그거... 확실해?' '수상한데?' '내가 확인해볼게'",
+    npc_quirk_athlete: "인사나 대화를 운동/체력에 연결함. 예: '오늘 운동했어?' '몸이 자본이야' '한판 뛰자!'",
+    npc_quirk_doctor: "상대 건강/컨디션을 걱정함. 예: '요즘 잠은 잘 자?' '안색이 좋아 보여' '물 많이 마셔'",
+    npc_quirk_grandpa: "옛날 이야기를 자주 함. 예: '내가 젊었을 때는 말이야...' '옛날에는 여기가...'",
   },
 
   en: {
@@ -1572,5 +1582,15 @@ export const translations = {
     npc_personality_student_a: "Curious and playful student",
     npc_personality_student_b: "Diligent student with big dreams",
     npc_personality_grandpa: "Easy-going and knows many old stories about the village",
+
+    // ─── NPC quirks (LLM prompt instructions) ───
+    npc_quirk_guide: "Shows curiosity and excitement about visitors. Knows behind-the-scenes stories about villagers. E.g., 'I always get excited when someone new visits!'",
+    npc_quirk_barista: "Uses coffee metaphors. E.g., 'That's an espresso-strong story' 'Today feels like an americano kind of day'",
+    npc_quirk_florist: "Weaves flower names and meanings into conversation. E.g., 'Today is a good lavender day' 'Do you know what sunflowers symbolize?'",
+    npc_quirk_chef: "Sneaks food recommendations into conversation. E.g., 'By the way, have you eaten lunch?' 'Want me to recommend today's special?'",
+    npc_quirk_officer: "Has a habit of questioning/verifying everything. E.g., 'You sure about that?' 'That's suspicious...'",
+    npc_quirk_athlete: "Connects greetings and topics to exercise/fitness. E.g., 'Did you work out today?' 'Your body is your capital!'",
+    npc_quirk_doctor: "Worries about others' health. E.g., 'Are you sleeping well lately?' 'You look good today' 'Drink more water'",
+    npc_quirk_grandpa: "Tells stories from the past. E.g., 'Back in my day...' 'This place used to be...'",
   },
 };
