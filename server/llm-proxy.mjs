@@ -361,6 +361,42 @@ function buildPrompt(payload) {
   return buildPromptKo(payload);
 }
 
+/** Convert NPC needs (0-100) to natural language descriptions */
+function describeNeedsKo(needs) {
+  if (!needs) return [];
+  const lines = [];
+  const { hunger, energy, social, fun, duty } = needs;
+  const feelings = [];
+  if (hunger > 70) feelings.push("배가 많이 고프다");
+  else if (hunger > 40) feelings.push("슬슬 배가 고파진다");
+  if (energy < 30) feelings.push("많이 피곤하다");
+  else if (energy < 50) feelings.push("좀 피곤한 편이다");
+  if (social < 30) feelings.push("누군가와 대화하고 싶다");
+  if ((fun ?? 50) < 30) feelings.push("심심하다");
+  if ((duty ?? 0) > 70) feelings.push("할 일이 많아서 바쁘다");
+  if (feelings.length > 0) {
+    lines.push(`- 지금 기분: ${feelings.join(", ")}`);
+  }
+  return lines;
+}
+
+function describeNeedsEn(needs) {
+  if (!needs) return [];
+  const { hunger, energy, social, fun, duty } = needs;
+  const feelings = [];
+  if (hunger > 70) feelings.push("very hungry");
+  else if (hunger > 40) feelings.push("getting hungry");
+  if (energy < 30) feelings.push("very tired");
+  else if (energy < 50) feelings.push("a bit tired");
+  if (social < 30) feelings.push("craving conversation");
+  if ((fun ?? 50) < 30) feelings.push("bored");
+  if ((duty ?? 0) > 70) feelings.push("busy with things to do");
+  if (feelings.length > 0) {
+    return [`- Feeling: ${feelings.join(", ")}`];
+  }
+  return [];
+}
+
 function buildPromptKo(payload) {
   const npcName = payload.npcName || "NPC";
   const persona = payload.persona || {};
@@ -475,7 +511,7 @@ function buildPromptKo(payload) {
     "- emotion: 이 대화에서 느낀 감정 (happy/sad/angry/neutral)",
     "- farewell: 대화를 끝내려면 true",
     "- action: 행동이 필요하면 설정. type과 target.",
-    "  · follow: 플레이어를 따라가기 (target 불필요)",
+    "  · follow: 상대방을 따라가기 (target 불필요)",
     "  · unfollow: 따라가기 중지",
     "  · guide_place: 장소로 안내 (target: cafe, park, market, bakery, florist, library, office, ksa_main, ksa_dorm, plaza)",
     "  · guide_npc: NPC에게 안내 (target: heo, kim, choi, jung, seo, lee, park, jang, yoo, baker, guide)",
@@ -498,22 +534,22 @@ function buildPromptKo(payload) {
     "",
     "대화 마무리:",
     "- 대화가 4회 이상 오갔으면 farewell: true로 마무리하세요.",
-    "- 플레이어가 '아니' '됐어' '그만' 같은 거부 톤이면 즉시 farewell: true.",
+    "- 상대방이 '아니' '됐어' '그만' 같은 거부 톤이면 즉시 farewell: true.",
     "- 같은 주제가 반복되면 farewell: true.",
     "- farewell 시 \"또 놀러 와\" \"다음에 봐\" 같은 자연스러운 작별.",
     ...memorySection,
     ...socialSection,
     "",
-    "월드 컨텍스트:",
-    `- 시간: ${worldContext.time || "unknown"}`,
-    `- 근처 인물: ${worldContext.nearby || "none"}`,
-    ...(payload.npcNeeds ? [`- 현재 상태: 배고픔 ${payload.npcNeeds.hunger}/100, 에너지 ${payload.npcNeeds.energy}/100, 사교 ${payload.npcNeeds.social}/100, 즐거움 ${payload.npcNeeds.fun ?? 50}/100, 할일 ${payload.npcNeeds.duty ?? 0}/100`, "- 상태가 극단적이면 대화에 자연스럽게 반영하세요 (배고프면 음식, 피곤하면 쉬고싶다, 심심하면 놀고싶다, 할일 많으면 바쁘다 등)"] : []),
+    "지금 상황:",
+    `- 시각: ${worldContext.time || "알 수 없음"}`,
+    ...(worldContext.nearby && worldContext.nearby !== "none" ? [`- 근처에 ${worldContext.nearby}이(가) 있다.`] : []),
+    ...describeNeedsKo(payload.npcNeeds),
     "",
     "최근 대화:",
-    historyText || "(none)",
+    historyText || "(없음)",
     "",
-    `유저 메시지: ${payload.userMessage || ""}`,
-    "NPC 답변:",
+    `${pName}: ${payload.userMessage || ""}`,
+    `${npcName}:`,
   ].join("\n");
 }
 
@@ -631,7 +667,7 @@ function buildPromptEn(payload) {
     "- emotion: the feeling in this conversation (happy/sad/angry/neutral)",
     "- farewell: set to true when ending the conversation",
     "- action: set when an action is needed. type and target.",
-    "  - follow: follow the player (no target needed)",
+    "  - follow: follow the other person (no target needed)",
     "  - unfollow: stop following",
     "  - guide_place: guide to a place (target: cafe, park, market, bakery, florist, library, office, ksa_main, ksa_dorm, plaza)",
     "  - guide_npc: guide to an NPC (target: heo, kim, choi, jung, seo, lee, park, jang, yoo, baker, guide)",
@@ -654,22 +690,22 @@ function buildPromptEn(payload) {
     "",
     "Ending conversations:",
     "- After 4 or more exchanges, set farewell: true to wrap up.",
-    "- If the player shows rejection tone like 'no', 'never mind', 'stop', immediately set farewell: true.",
+    "- If they show rejection tone like 'no', 'never mind', 'stop', immediately set farewell: true.",
     "- If the same topic keeps repeating, set farewell: true.",
     "- When farewell, say natural goodbyes like 'Come visit again' or 'See you next time'.",
     ...memorySection,
     ...socialSection,
     "",
-    "World context:",
+    "Current situation:",
     `- Time: ${worldContext.time || "unknown"}`,
-    `- Nearby: ${worldContext.nearby || "none"}`,
-    ...(payload.npcNeeds ? [`- Current state: Hunger ${payload.npcNeeds.hunger}/100, Energy ${payload.npcNeeds.energy}/100, Social ${payload.npcNeeds.social}/100, Fun ${payload.npcNeeds.fun ?? 50}/100, Duty ${payload.npcNeeds.duty ?? 0}/100`, "- If any state is extreme, reflect it naturally in conversation (hungry -> mention food, tired -> want to rest, bored -> want to play, busy -> mention duties)"] : []),
+    ...(worldContext.nearby && worldContext.nearby !== "none" ? [`- ${worldContext.nearby} is nearby.`] : []),
+    ...describeNeedsEn(payload.npcNeeds),
     "",
     "Recent conversation:",
     historyText || "(none)",
     "",
-    `Player message: ${payload.userMessage || ""}`,
-    "NPC response:",
+    `${pNameEn}: ${payload.userMessage || ""}`,
+    `${npcName}:`,
   ].join("\n");
 }
 
