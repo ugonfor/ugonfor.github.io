@@ -138,7 +138,7 @@ import { createAudioManager } from './systems/audio.js';
   let conversationFocusNpcId = null;
   let lastLlmModel = "local";
   let lastLlmError = "";
-  let nextSocialAt = 0;
+  let nextSocialAt = performance.now() + 5000; // 첫 NPC 대화 5초 후
   let mobileSheetOpen = false;
   let mobileSheetTab = "controls";
   let mobileChatOpen = false;
@@ -3301,8 +3301,9 @@ import { createAudioManager } from './systems/audio.js';
   }
 
   function updateNpcSocialEvents() {
-    if (world.totalMinutes < nextSocialAt) return;
-    nextSocialAt = world.totalMinutes + 2 + Math.random() * 3; // 2~5분마다
+    const now = nowMs();
+    if (now < nextSocialAt) return;
+    nextSocialAt = now + 10000 + Math.random() * 15000; // 10~25초마다 (혼잣말 8~20초와 비슷)
 
     const moving = npcs.filter((n) => !chatSessionActiveFor(n.id) && n.id !== "guide");
     if (moving.length < 2) return;
