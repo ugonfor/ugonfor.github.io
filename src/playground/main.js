@@ -2051,7 +2051,7 @@ import { createAudioManager } from './systems/audio.js';
         const spd = guideNpc.speed * 1.2 * dt; // 살짝 빠르게
         const nx = guideNpc.x + (dx / d) * Math.min(spd, d);
         const ny = guideNpc.y + (dy / d) * Math.min(spd, d);
-        if (canStandInScene(nx, ny, guideNpc)) { guideNpc.x = nx; guideNpc.y = ny; }
+        if (canStandInScene(nx, ny, guideNpc.currentScene || "outdoor")) { guideNpc.x = nx; guideNpc.y = ny; }
         guideNpc.state = "moving";
         guideNpc.roamTarget = null;
         guideNpc.roamWait = 0;
@@ -3184,7 +3184,7 @@ import { createAudioManager } from './systems/audio.js';
           const spd = npc.speed * 0.6 * dt;
           const nx = npc.x + (dx / d) * Math.min(spd, d);
           const ny = npc.y + (dy / d) * Math.min(spd, d);
-          if (canStandInScene(nx, ny, npc)) { npc.x = nx; npc.y = ny; }
+          if (canStandInScene(nx, ny, npc.currentScene || "outdoor")) { npc.x = nx; npc.y = ny; }
         }
         npc.roamWait = Math.max(npc.roamWait, 0.35);
         continue;
@@ -3201,7 +3201,7 @@ import { createAudioManager } from './systems/audio.js';
           const spd = npc.speed * 0.6 * dt;
           const nx = npc.x + (dx / d) * Math.min(spd, d);
           const ny = npc.y + (dy / d) * Math.min(spd, d);
-          if (canStandInScene(nx, ny, npc)) { npc.x = nx; npc.y = ny; }
+          if (canStandInScene(nx, ny, npc.currentScene || "outdoor")) { npc.x = nx; npc.y = ny; }
         }
         npc.roamWait = Math.max(npc.roamWait, 0.35);
         continue;
