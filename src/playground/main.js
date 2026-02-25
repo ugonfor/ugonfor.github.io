@@ -2046,12 +2046,13 @@ import { createAudioManager } from './systems/audio.js';
       guideGreetingTimer += dt;
       const gd = dist(guideNpc, player);
 
-      // 아직 멀면 걸어감
-      if (gd > 2.0) {
+      // 아직 멀면 이동 (거리 5 이상이면 뛰기)
+      if (gd > 1.2) {
         const dx = player.x - guideNpc.x;
         const dy = player.y - guideNpc.y;
         const d = Math.hypot(dx, dy) || 1;
-        const spd = guideNpc.speed * 1.2 * dt;
+        const speedMult = gd > 5 ? 2.5 : 1.2; // 멀면 뛰기
+        const spd = guideNpc.speed * speedMult * dt;
         const nx = guideNpc.x + (dx / d) * Math.min(spd, d);
         const ny = guideNpc.y + (dy / d) * Math.min(spd, d);
         if (canStandInScene(nx, ny, guideNpc.currentScene || "outdoor")) {
@@ -3186,13 +3187,14 @@ import { createAudioManager } from './systems/audio.js';
 
       if ((pinnedNpcId && npc.id === pinnedNpcId) || (typingNpcId && npc.id === typingNpcId)) {
         npc.state = "chatting";
-        // 대화/타이핑 중에도 플레이어가 멀어지면 따라감
+        // 대화 중 플레이어가 멀어지면 따라감 (멀수록 빠르게)
         const chatDist = dist(npc, player);
-        if (chatDist > CHAT_NEARBY_DISTANCE * 0.8) {
+        if (chatDist > 1.5) {
           const dx = player.x - npc.x;
           const dy = player.y - npc.y;
           const d = Math.hypot(dx, dy) || 1;
-          const spd = npc.speed * 0.6 * dt;
+          const speedMult = chatDist > 5 ? 2.0 : chatDist > 3 ? 1.2 : 0.7;
+          const spd = npc.speed * speedMult * dt;
           const nx = npc.x + (dx / d) * Math.min(spd, d);
           const ny = npc.y + (dy / d) * Math.min(spd, d);
           if (canStandInScene(nx, ny, npc.currentScene || "outdoor")) { npc.x = nx; npc.y = ny; }
@@ -3203,13 +3205,14 @@ import { createAudioManager } from './systems/audio.js';
 
       if (chatSessionActiveFor(npc.id)) {
         npc.state = "chatting";
-        // 대화 중 플레이어가 멀어지면 따라감
+        // 대화 중 플레이어가 멀어지면 따라감 (멀수록 빠르게)
         const chatDist = dist(npc, player);
-        if (chatDist > CHAT_NEARBY_DISTANCE * 0.8) {
+        if (chatDist > 1.5) {
           const dx = player.x - npc.x;
           const dy = player.y - npc.y;
           const d = Math.hypot(dx, dy) || 1;
-          const spd = npc.speed * 0.6 * dt;
+          const speedMult = chatDist > 5 ? 2.0 : chatDist > 3 ? 1.2 : 0.7;
+          const spd = npc.speed * speedMult * dt;
           const nx = npc.x + (dx / d) * Math.min(spd, d);
           const ny = npc.y + (dy / d) * Math.min(spd, d);
           if (canStandInScene(nx, ny, npc.currentScene || "outdoor")) { npc.x = nx; npc.y = ny; }
