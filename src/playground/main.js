@@ -152,6 +152,7 @@ import { createAudioManager } from './systems/audio.js';
   let autoConversationBusy = false;
   let playerBubblePending = false;
   let ambientLlmPending = false;
+  let lastAmbientNpcId = null;
   let npcChatLlmPending = false;
   let npcProactiveGreetPending = false;
   let nextNpcProactiveAt = 0;
@@ -1623,20 +1624,21 @@ import { createAudioManager } from './systems/audio.js';
           const nearOther = npcs.some(o => o.id !== visible[i].id && dist(visible[i], o) < 3);
           if (Math.random() < 0.3) upsertSpeechBubble(visible[i].id, ambientEmoji(visible[i], nearOther), 2500);
         }
-        // 가장 가까운 NPC는 LLM으로 혼잣말
+        // 가장 가까운 NPC는 LLM으로 혼잣말 (같은 NPC 연속 방지)
+        const ambientNpc = (visible.length > 1 && closest.id === lastAmbientNpcId) ? visible[1] : closest;
         if (!ambientLlmPending) {
           ambientLlmPending = true;
-          upsertSpeechBubble(closest.id, ambientEmoji(closest, false), 6000);
-          const n = closest.needs || {};
+          lastAmbientNpcId = ambientNpc.id;
+          upsertSpeechBubble(ambientNpc.id, ambientEmoji(ambientNpc, false), 6000);
+          const n = ambientNpc.needs || {};
           const needHint = n.hunger > 60 ? t("llm_need_hungry") : n.energy < 30 ? t("llm_need_tired") : n.social < 30 ? t("llm_need_lonely") : n.fun < 20 ? t("llm_need_bored") : n.duty > 70 ? t("llm_need_busy") : "";
           const _wMap = { clear: t("llm_weather_clear"), cloudy: t("llm_weather_cloudy"), rain: t("llm_weather_rain"), storm: t("llm_weather_storm"), snow: t("llm_weather_snow"), fog: t("llm_weather_fog") };
           const _tw = t("llm_ambient_weather", { time: formatTime(), weather: _wMap[weather.current] || t("llm_weather_clear") });
-          llmReplyOrEmpty(closest, t("llm_ambient_prompt", { weather: _tw, need: needHint }))
+          llmReplyOrEmpty(ambientNpc, t("llm_ambient_prompt", { weather: _tw, need: needHint }))
             .then((line) => {
               if (line) {
-                upsertSpeechBubble(closest.id, line, 4000);
-                // 대화 중이 아닐 때만 채팅 로그에 표시 (대화 중이면 말풍선만)
-                if (!conversationFocusNpcId) addChat(closest.name, line, "ambient");
+                upsertSpeechBubble(ambientNpc.id, line, 4000);
+                if (!conversationFocusNpcId) addChat(ambientNpc.name, line, "ambient");
               }
             })
             .catch(e => console.warn("[ambient LLM]", e.message))
