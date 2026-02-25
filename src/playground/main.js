@@ -3658,9 +3658,9 @@ import { createAudioManager } from './systems/audio.js';
     if (introPhase === 0) {
       if (introTargets.length === 0) initIntroTargets();
 
-      // NPC에 줌인 (기본보다 살짝 가깝게)
-      const targetZoom = DEFAULT_ZOOM * 1.15;
-      world.zoom += (targetZoom - world.zoom) * 0.1;
+      // NPC에 확실히 줌인 (기본의 1.8배)
+      const targetZoom = DEFAULT_ZOOM * 1.8;
+      world.zoom += (targetZoom - world.zoom) * 0.12;
 
       // 현재 타겟에게 카메라 이동 (빠르게)
       const target = introTargets[introTargetIdx];
