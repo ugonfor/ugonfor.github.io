@@ -3657,20 +3657,21 @@ import { createAudioManager } from './systems/audio.js';
 
     if (introPhase === 0) {
       if (introTargets.length === 0) initIntroTargets();
-      // 줌 아웃
-      const targetZoom = DEFAULT_ZOOM * 0.65;
-      world.zoom += (targetZoom - world.zoom) * 0.08;
 
-      // 현재 타겟에게 카메라 이동
+      // NPC에 줌인 (기본보다 살짝 가깝게)
+      const targetZoom = DEFAULT_ZOOM * 1.15;
+      world.zoom += (targetZoom - world.zoom) * 0.1;
+
+      // 현재 타겟에게 카메라 이동 (빠르게)
       const target = introTargets[introTargetIdx];
       if (target) {
-        // 타겟이 바뀐 직후 혼잣말/대화 트리거
         triggerIntroSpeech(target);
 
-        const tx = (target.x - player.x) * 20;
-        const ty = (target.y - player.y) * 12;
-        cameraPan.x += (clamp(tx, -400, 400) - cameraPan.x) * 0.06;
-        cameraPan.y += (clamp(ty, -300, 300) - cameraPan.y) * 0.06;
+        // NPC 실시간 위치 추적 (이동 중일 수 있으므로)
+        const tx = ((target.npc ? target.npc.x : target.x) - player.x) * 22;
+        const ty = ((target.npc ? target.npc.y : target.y) - player.y) * 14;
+        cameraPan.x += (clamp(tx, -500, 500) - cameraPan.x) * 0.12;
+        cameraPan.y += (clamp(ty, -350, 350) - cameraPan.y) * 0.12;
       }
 
       // 일정 시간마다 다음 타겟
