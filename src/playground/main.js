@@ -3167,6 +3167,9 @@ import { createAudioManager } from './systems/audio.js';
         continue;
       }
 
+      // 도슨트 접근 중이면 updateGuideGreeting에서 직접 이동하므로 스킵
+      if (npc.id === "guide" && guideGreetingPhase === 1) continue;
+
       // 술래잡기 중인 NPC는 updateTagGame에서 이동 처리
       if (tagGame.active && npc.id === tagGame.targetNpcId) continue;
 
@@ -3776,11 +3779,11 @@ import { createAudioManager } from './systems/audio.js';
       // 실제 시간과 1:1 동기화 (dt는 초 단위, 1분 = 60초)
       world.totalMinutes += dt / 60;
       updatePlayer(dt);
+      updateGuideGreeting(dt);  // 유진 이동을 updateNpcs보다 먼저
       updateNpcs(dt);
       updateNpcSocialEvents();
       updateAmbientEvents();
       updateFavorRequests();
-      updateGuideGreeting(dt);
       updateTagGame(dt);
       updateSceneFade(dt);
       if (sceneState.current === "outdoor") {
