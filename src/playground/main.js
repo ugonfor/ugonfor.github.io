@@ -3578,28 +3578,60 @@ import { createAudioManager } from './systems/audio.js';
     mctx.restore();
   }
 
-  // ─── 인트로 카메라 시퀀스 업데이트 ───
+  // ─── 인트로 카메라 시퀀스: NPC 순회 후 플레이어로 ───
+  const introTargets = [];  // [{x, y}] — 인트로에서 보여줄 위치들
+  let introTargetIdx = 0;
+  const INTRO_PHASE0_EACH = 1.8;  // 각 타겟당 시간
+
+  function initIntroTargets() {
+    // 활동 중인 NPC 중 플레이어와 먼 순서로 3-4명 선택
+    const candidates = npcs
+      .filter(n => n.id !== "guide" && (n.currentScene || "outdoor") === "outdoor")
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 4);
+    for (const n of candidates) {
+      introTargets.push({ x: n.x, y: n.y, name: n.name });
+    }
+    // 마지막에 광장/분수 근처
+    introTargets.push({ x: places.plaza.x, y: places.plaza.y, name: "plaza" });
+  }
+
   function updateIntro(dt) {
     if (introPhase >= 2) return;
     introTimer += dt;
 
-    if (introPhase === 0 && introTimer < 3) {
-      // Phase 0: 마을 전경 패닝 (0-3초)
-      const progress = introTimer / 3;
-      cameraPan.x = Math.sin(progress * Math.PI) * 150;
-      cameraPan.y = -80 + progress * 50;
-      world.zoom = Math.max(DEFAULT_ZOOM * 0.7, world.zoom - dt * 0.3);
-    } else if (introPhase === 0) {
-      introPhase = 1;
+    if (introPhase === 0) {
+      if (introTargets.length === 0) initIntroTargets();
+      // 줌 아웃
+      const targetZoom = DEFAULT_ZOOM * 0.65;
+      world.zoom += (targetZoom - world.zoom) * 0.08;
+
+      // 현재 타겟 NPC에게 카메라 이동
+      const target = introTargets[introTargetIdx];
+      if (target) {
+        const tx = (target.x - player.x) * 20;
+        const ty = (target.y - player.y) * 12;
+        cameraPan.x += (clamp(tx, -400, 400) - cameraPan.x) * 0.06;
+        cameraPan.y += (clamp(ty, -300, 300) - cameraPan.y) * 0.06;
+      }
+
+      // 일정 시간마다 다음 타겟
+      const elapsed = introTimer - introTargetIdx * INTRO_PHASE0_EACH;
+      if (elapsed >= INTRO_PHASE0_EACH) {
+        introTargetIdx++;
+        if (introTargetIdx >= introTargets.length) {
+          introPhase = 1;
+        }
+      }
     }
 
     if (introPhase === 1) {
-      // Phase 1: 플레이어에게 복귀 (3-5초)
-      cameraPan.x *= 0.9;
-      cameraPan.y *= 0.9;
-      world.zoom += (DEFAULT_ZOOM - world.zoom) * 0.05;
+      // 플레이어에게 부드럽게 복귀
+      cameraPan.x += (0 - cameraPan.x) * 0.08;
+      cameraPan.y += (0 - cameraPan.y) * 0.08;
+      world.zoom += (DEFAULT_ZOOM - world.zoom) * 0.06;
 
-      if (introTimer > INTRO_DURATION) {
+      if (Math.abs(cameraPan.x) < 2 && Math.abs(cameraPan.y) < 2) {
         introPhase = 2;
         cameraPan.x = 0;
         cameraPan.y = 0;
