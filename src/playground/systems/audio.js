@@ -1,107 +1,78 @@
 /**
- * Audio manager using Web Audio API.
- * Handles BGM loops with crossfade, SFX one-shots, and mute toggle.
+ * Audio manager using HTML5 Audio element.
+ * Simpler and more reliable than Web Audio API for BGM looping.
+ * No crackling, no gain scheduling issues.
  */
 export function createAudioManager() {
-  let ctx = null;
-  let masterGain = null;
-  let bgmGain = null;
-  let currentBgmSource = null;
+  let bgmEl = null;
   let currentBgmUrl = null;
   let muted = false;
   try { muted = localStorage.getItem('pg_audio_muted') === 'true'; } catch { /* ignore */ }
-  const audioCache = new Map();  // url -> AudioBuffer
+  let bgmVolume = 0.25;
+  let initialized = false;
 
-  async function loadAudio(url) {
-    if (audioCache.has(url)) return audioCache.get(url);
-    try {
-      const resp = await fetch(url);
-      if (!resp.ok) return null;
-      const arrayBuf = await resp.arrayBuffer();
-      const audioBuf = await ctx.decodeAudioData(arrayBuf);
-      audioCache.set(url, audioBuf);
-      return audioBuf;
-    } catch (e) {
-      console.warn('[Audio] Failed to load:', url, e.message);
-      return null;
-    }
+  function ensureBgmElement() {
+    if (bgmEl) return bgmEl;
+    bgmEl = document.createElement('audio');
+    bgmEl.loop = true;
+    bgmEl.volume = muted ? 0 : bgmVolume;
+    bgmEl.preload = 'auto';
+    return bgmEl;
   }
 
   return {
     init() {
-      if (ctx) return;
-      ctx = new (window.AudioContext || window.webkitAudioContext)();
-      masterGain = ctx.createGain();
-      masterGain.connect(ctx.destination);
-      masterGain.gain.value = muted ? 0 : 1;
-      bgmGain = ctx.createGain();
-      bgmGain.gain.value = 0.3;
-      bgmGain.connect(masterGain);
+      if (initialized) return;
+      initialized = true;
+      ensureBgmElement();
     },
 
-    isReady() { return !!ctx; },
+    isReady() { return initialized; },
 
-    async playBgm(url, fadeInSec = 2) {
-      if (!ctx || !url) return;
-      if (url === currentBgmUrl) return;
+    async playBgm(url) {
+      if (!initialized || !url) return;
+      if (url === currentBgmUrl && bgmEl && !bgmEl.paused) return;
 
-      // Fade out current (cancel any pending ramps first to prevent clicks)
-      if (currentBgmSource) {
-        bgmGain.gain.cancelScheduledValues(ctx.currentTime);
-        bgmGain.gain.setValueAtTime(bgmGain.gain.value, ctx.currentTime);
-        bgmGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
-        const oldSource = currentBgmSource;
-        currentBgmSource = null;
-        setTimeout(() => {
-          try { oldSource.stop(); } catch (e) { /* ignore */ }
-        }, 1100);
-        await new Promise(r => setTimeout(r, 1200));
+      const el = ensureBgmElement();
+
+      // Fade out current if playing
+      if (!el.paused && currentBgmUrl) {
+        // Quick fade out
+        const startVol = el.volume;
+        const steps = 10;
+        for (let i = steps; i >= 0; i--) {
+          el.volume = startVol * (i / steps);
+          await new Promise(r => setTimeout(r, 80));
+        }
+        el.pause();
       }
 
-      const buf = await loadAudio(url);
-      if (!buf) {
-        currentBgmUrl = null;
-        return;
-      }
-
-      // Use individual gain node per source to avoid shared gain clicks
-      const source = ctx.createBufferSource();
-      const sourceGain = ctx.createGain();
-      source.buffer = buf;
-      source.loop = true;
-      // Offset loop start slightly to avoid MP3 encoder gap pop
-      const loopStart = 0.05;
-      source.loopStart = loopStart;
-      source.connect(sourceGain);
-      sourceGain.connect(bgmGain);
-
-      // Fade in from silence
-      sourceGain.gain.setValueAtTime(0, ctx.currentTime);
-      sourceGain.gain.linearRampToValueAtTime(1, ctx.currentTime + fadeInSec);
-      bgmGain.gain.setValueAtTime(0.3, ctx.currentTime);
-      source.start(0, loopStart);
-
-      currentBgmSource = source;
+      el.src = url;
+      el.volume = 0;
       currentBgmUrl = url;
+
+      try {
+        await el.play();
+        // Fade in
+        const targetVol = muted ? 0 : bgmVolume;
+        const steps = 15;
+        for (let i = 1; i <= steps; i++) {
+          el.volume = targetVol * (i / steps);
+          await new Promise(r => setTimeout(r, 100));
+        }
+      } catch (e) {
+        console.warn('[Audio] BGM play failed:', e.message);
+      }
     },
 
-    async playSfx(url, volume = 0.5) {
-      if (!ctx || muted) return;
-      const buf = await loadAudio(url);
-      if (!buf) return;
-      const source = ctx.createBufferSource();
-      const gain = ctx.createGain();
-      gain.gain.value = volume;
-      source.buffer = buf;
-      source.connect(gain);
-      gain.connect(masterGain);
-      source.start();
+    playSfx(_url) {
+      // SFX placeholder — currently no-op until real SFX files are added
     },
 
     setMuted(val) {
       muted = val;
-      try { localStorage.setItem('pg_audio_muted', muted); } catch { /* ignore */ }
-      if (masterGain) masterGain.gain.value = muted ? 0 : 1;
+      try { localStorage.setItem('pg_audio_muted', String(muted)); } catch { /* ignore */ }
+      if (bgmEl) bgmEl.volume = muted ? 0 : bgmVolume;
     },
 
     toggleMute() {
@@ -113,7 +84,7 @@ export function createAudioManager() {
 
     /** Call periodically to auto-switch BGM based on time/weather */
     updateForScene(weatherCurrent, hour) {
-      if (!ctx) return;
+      if (!initialized) return;
       let targetBgm = '/assets/audio/bgm-day.mp3';
       if (weatherCurrent === 'rain' || weatherCurrent === 'storm') {
         targetBgm = '/assets/audio/bgm-rain.mp3';
