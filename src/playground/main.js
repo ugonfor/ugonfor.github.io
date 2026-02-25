@@ -1668,13 +1668,20 @@ import { createAudioManager } from './systems/audio.js';
         npc.pose = "waving";
         // 기억 기반 선제 인사 프롬프트
         const mem = ensureMemoryFormat(npc);
+        const convCount = mem.conversationCount || 0;
         const lastChat = mem.entries.filter(e => e.type === "chat").slice(-1)[0];
         const memHint = lastChat
           ? t("llm_proactive_last_chat", { summary: lastChat.summary.slice(0, 30) })
           : t("llm_proactive_first_meet");
-        const greetPrompt = npc.favorLevel >= 1
-          ? t("llm_proactive_friendly", { hint: memHint })
-          : t("llm_proactive_stranger", { hint: memHint });
+
+        let greetPrompt;
+        if (convCount >= 5) {
+          greetPrompt = t("llm_proactive_many_chats", { hint: memHint, name: player.name });
+        } else if (convCount >= 1) {
+          greetPrompt = t("llm_proactive_few_chats", { hint: memHint, name: player.name });
+        } else {
+          greetPrompt = t("llm_proactive_stranger", { hint: memHint });
+        }
         llmReplyOrEmpty(npc, greetPrompt)
           .then((line) => {
             if (line) {
