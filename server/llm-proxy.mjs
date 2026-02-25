@@ -409,11 +409,11 @@ function buildPromptKo(payload) {
     return [
       `당신은 ${npcName}입니다. 성격: ${persona.personality || "평범"}.`,
       ...(persona.quirk ? [`[말버릇] ${persona.quirk}`] : []),
-      `시간: ${worldContext.time || ""}, 날씨: ${worldContext.weather || ""}`,
-      ...(payload.npcNeeds ? [`상태: 배고픔 ${payload.npcNeeds.hunger}/100, 에너지 ${payload.npcNeeds.energy}/100`] : []),
+      `시각: ${worldContext.time || ""}`,
+      ...describeNeedsKo(payload.npcNeeds),
       "",
-      `유저 메시지: ${userMsg}`,
-      "NPC 답변 (reply만, JSON 없이 텍스트만):",
+      `→ ${userMsg}`,
+      `${npcName}:`,
     ].join("\n");
   }
 
@@ -485,7 +485,7 @@ function buildPromptKo(payload) {
     "- 마을의 모토: '느린 삶, 깊은 관계'. 서두르지 않아도 되는 곳.",
   ];
 
-  return [
+  const system = [
     "당신은 작은 마을에 사는 주민입니다. 이 마을은 어떤 개발자의 홈페이지 속에 있는 살아 숨쉬는 세계입니다.",
     `이름: ${npcName}`,
     `프로필: ${persona.gender || "남성"}, ${persona.age || "20대"}, 성격: ${persona.personality || "균형 잡힘"}.`,
@@ -514,7 +514,7 @@ function buildPromptKo(payload) {
     "  · follow: 상대방을 따라가기 (target 불필요)",
     "  · unfollow: 따라가기 중지",
     "  · guide_place: 장소로 안내 (target: cafe, park, market, bakery, florist, library, office, ksa_main, ksa_dorm, plaza)",
-    "  · guide_npc: NPC에게 안내 (target: heo, kim, choi, jung, seo, lee, park, jang, yoo, baker, guide)",
+    "  · guide_npc: 주민에게 안내 (target: heo, kim, choi, jung, seo, lee, park, jang, yoo, baker, guide)",
     "  · go_place: 대화 후 혼자 이동 (target: place id)",
     "  · request_item: 아이템 부탁 (target: flower_red, flower_yellow, coffee, snack, letter, gem)",
     "  · request_deliver: 전달 부탁 (target: npc id)",
@@ -544,13 +544,24 @@ function buildPromptKo(payload) {
     `- 시각: ${worldContext.time || "알 수 없음"}`,
     ...(worldContext.nearby && worldContext.nearby !== "none" ? [`- 근처에 ${worldContext.nearby}이(가) 있다.`] : []),
     ...describeNeedsKo(payload.npcNeeds),
-    "",
-    "최근 대화:",
-    historyText || "(없음)",
-    "",
-    `${pName}: ${payload.userMessage || ""}`,
-    `${npcName}:`,
   ].join("\n");
+
+  // Build multi-turn conversation history
+  const turns = [];
+  for (const m of recent) {
+    const speaker = m.speaker || "Unknown";
+    const text = m.text || "";
+    // Player messages → user turn, NPC messages → model turn
+    if (speaker === pName || speaker === payload.playerName) {
+      turns.push({ role: "user", text });
+    } else {
+      turns.push({ role: "model", text });
+    }
+  }
+  // Current user message as the final user turn
+  turns.push({ role: "user", text: payload.userMessage || "" });
+
+  return { system, turns };
 }
 
 function buildPromptEn(payload) {
@@ -565,11 +576,11 @@ function buildPromptEn(payload) {
     return [
       `You are ${npcName}. Personality: ${persona.personality || "balanced"}.`,
       ...(persona.quirk ? [`[Speech quirk] ${persona.quirk}`] : []),
-      `Time: ${worldContext.time || ""}, Weather: ${worldContext.weather || ""}`,
-      ...(payload.npcNeeds ? [`State: hunger ${payload.npcNeeds.hunger}/100, energy ${payload.npcNeeds.energy}/100`] : []),
+      `Time: ${worldContext.time || ""}`,
+      ...describeNeedsEn(payload.npcNeeds),
       "",
-      `User message: ${userMsg}`,
-      "NPC reply (text only, no JSON):",
+      `→ ${userMsg}`,
+      `${npcName}:`,
     ].join("\n");
   }
 
@@ -641,7 +652,7 @@ function buildPromptEn(payload) {
     "- The village motto: 'Slow life, deep connections'. A place where you don't need to rush.",
   ];
 
-  return [
+  const system = [
     "You are a resident of a small village. This village exists inside a developer's personal homepage as a living, breathing world.",
     `Name: ${npcName}`,
     `Profile: ${persona.gender || "Male"}, ${persona.age || "20s"}, Personality: ${persona.personality || "Balanced"}.`,
@@ -670,7 +681,7 @@ function buildPromptEn(payload) {
     "  - follow: follow the other person (no target needed)",
     "  - unfollow: stop following",
     "  - guide_place: guide to a place (target: cafe, park, market, bakery, florist, library, office, ksa_main, ksa_dorm, plaza)",
-    "  - guide_npc: guide to an NPC (target: heo, kim, choi, jung, seo, lee, park, jang, yoo, baker, guide)",
+    "  - guide_npc: guide to a resident (target: heo, kim, choi, jung, seo, lee, park, jang, yoo, baker, guide)",
     "  - go_place: go somewhere alone after conversation (target: place id)",
     "  - request_item: ask for an item (target: flower_red, flower_yellow, coffee, snack, letter, gem)",
     "  - request_deliver: ask to deliver a message (target: npc id)",
@@ -700,13 +711,22 @@ function buildPromptEn(payload) {
     `- Time: ${worldContext.time || "unknown"}`,
     ...(worldContext.nearby && worldContext.nearby !== "none" ? [`- ${worldContext.nearby} is nearby.`] : []),
     ...describeNeedsEn(payload.npcNeeds),
-    "",
-    "Recent conversation:",
-    historyText || "(none)",
-    "",
-    `${pNameEn}: ${payload.userMessage || ""}`,
-    `${npcName}:`,
   ].join("\n");
+
+  // Build multi-turn conversation history
+  const turns = [];
+  for (const m of recent) {
+    const speaker = m.speaker || "Unknown";
+    const text = m.text || "";
+    if (speaker === pNameEn || speaker === payload.playerName) {
+      turns.push({ role: "user", text });
+    } else {
+      turns.push({ role: "model", text });
+    }
+  }
+  turns.push({ role: "user", text: payload.userMessage || "" });
+
+  return { system, turns };
 }
 
 function buildAuditBase(req, endpoint, requestId, payload, prompt, startedAtMs) {
@@ -731,9 +751,29 @@ function buildAuditBase(req, endpoint, requestId, payload, prompt, startedAtMs) 
       npcName: truncateText(payload?.npcName || "", 120),
       userMessage: truncateText(payload?.userMessage || ""),
       payload,
-      prompt: truncateText(prompt || ""),
+      prompt: truncateText(typeof prompt === "object" ? prompt.system || "" : prompt || ""),
     },
   };
+}
+
+/** Convert turns array to Gemini contents, merging consecutive same-role turns */
+function buildGeminiContents(turns) {
+  if (!turns || !turns.length) return [{ role: "user", parts: [{ text: "" }] }];
+  const contents = [];
+  for (const t of turns) {
+    const last = contents[contents.length - 1];
+    if (last && last.role === t.role) {
+      // Gemini doesn't allow consecutive same-role — merge
+      last.parts[0].text += "\n" + t.text;
+    } else {
+      contents.push({ role: t.role, parts: [{ text: t.text }] });
+    }
+  }
+  // Gemini requires contents to start with "user" role
+  if (contents.length > 0 && contents[0].role !== "user") {
+    contents.unshift({ role: "user", parts: [{ text: "(대화 시작)" }] });
+  }
+  return contents;
 }
 
 const STRUCTURED_SCHEMA = {
@@ -778,15 +818,18 @@ async function callGemini(prompt, useStructured = false) {
     genConfig.responseSchema = STRUCTURED_SCHEMA;
   }
 
-  const payload = {
-    generationConfig: genConfig,
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: prompt }],
-      },
-    ],
-  };
+  // Support both string prompts (legacy) and structured { system, turns }
+  const isStructuredPrompt = typeof prompt === "object" && prompt.system;
+  const payload = isStructuredPrompt
+    ? {
+        generationConfig: genConfig,
+        systemInstruction: { parts: [{ text: prompt.system }] },
+        contents: buildGeminiContents(prompt.turns),
+      }
+    : {
+        generationConfig: genConfig,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      };
 
   const errors = [];
   for (const model of MODEL_CHAIN) {
@@ -798,10 +841,21 @@ async function callGemini(prompt, useStructured = false) {
       modelPayload = JSON.parse(JSON.stringify(payload));
       delete modelPayload.generationConfig.responseMimeType;
       delete modelPayload.generationConfig.responseSchema;
-      // Add JSON format instruction for non-Gemini models
+      // Gemma doesn't support systemInstruction — merge into first user content
+      if (modelPayload.systemInstruction) {
+        const sysText = modelPayload.systemInstruction.parts?.[0]?.text || "";
+        if (modelPayload.contents?.[0]?.role === "user") {
+          modelPayload.contents[0].parts[0].text = sysText + "\n\n" + modelPayload.contents[0].parts[0].text;
+        } else {
+          modelPayload.contents.unshift({ role: "user", parts: [{ text: sysText }] });
+        }
+        delete modelPayload.systemInstruction;
+      }
+      // Add JSON format instruction to last user message
       const jsonHint = '\n\nYou MUST respond with ONLY the following JSON format (no other text, pure JSON only):\n{"reply":"dialogue","suggestions":["choice1","choice2","choice3"],"emotion":"happy|sad|angry|neutral","farewell":false,"action":{"type":"none","target":""},"mention":{"npc":null,"place":null}}';
-      if (modelPayload.contents?.[0]?.parts?.[0]?.text) {
-        modelPayload.contents[0].parts[0].text += jsonHint;
+      const lastContent = modelPayload.contents[modelPayload.contents.length - 1];
+      if (lastContent?.parts?.[0]?.text != null) {
+        lastContent.parts[0].text += jsonHint;
       }
     }
     const body = needsThinkingOff
@@ -881,18 +935,17 @@ async function callGeminiStream(prompt) {
   if (!API_KEY) throw new Error("GOOGLE_API_KEY is not set");
   if (!MODEL_CHAIN.length) throw new Error("MODEL_CHAIN is empty");
 
-  const payload = {
-    generationConfig: {
-      temperature: 0.8,
-      maxOutputTokens: 180,
-    },
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: prompt }],
-      },
-    ],
-  };
+  const isStructuredPrompt = typeof prompt === "object" && prompt.system;
+  const payload = isStructuredPrompt
+    ? {
+        generationConfig: { temperature: 0.8, maxOutputTokens: 180 },
+        systemInstruction: { parts: [{ text: prompt.system }] },
+        contents: buildGeminiContents(prompt.turns),
+      }
+    : {
+        generationConfig: { temperature: 0.8, maxOutputTokens: 180 },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      };
 
   const errors = [];
   for (const model of MODEL_CHAIN) {
@@ -1257,7 +1310,10 @@ const server = createServer(async (req, res) => {
     const responseBody = { reply, model, requestId, suggestions, emotion, farewell, action, mention };
     // debug=1 헤더 → full prompt 포함
     if (req.headers["x-debug"] === "1") {
-      responseBody._debug = { prompt };
+      responseBody._debug = {
+        prompt: typeof prompt === "object" ? prompt.system : prompt,
+        turns: typeof prompt === "object" ? prompt.turns : undefined,
+      };
     }
     return writeJson(res, 200, responseBody, origin);
   } catch (err) {
