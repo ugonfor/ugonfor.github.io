@@ -398,13 +398,14 @@ function buildPromptKo(payload) {
   // 재방문 인식: conversationCount 기반 지시
   const convCount = memoryText ? (memoryText.match(/대화 (\d+)회/) || [])[1] : 0;
   const convN = parseInt(convCount) || parseInt(payload.conversationCount) || 0;
+  const pName = payload.playerName || "이 사람";
   const visitHint = convN === 0
-    ? "이 플레이어는 처음 만나는 사람입니다. 호기심을 보이며 자기소개를 해주세요."
+    ? `${pName}은(는) 처음 만나는 사람입니다. 호기심을 보이며 자기소개를 해주세요.`
     : convN <= 2
-      ? "이 플레이어와 한두 번 대화한 적 있습니다. '어, 아까 그분!' 같은 재인식을 해주세요."
+      ? `${pName}과(와) 한두 번 대화한 적 있습니다. '어, 아까 그분!' 같은 재인식을 해주세요.`
       : convN <= 9
-        ? "이 플레이어와 여러 번 대화했습니다. 이름을 부르며 편하게, 과거 대화를 자연스럽게 언급하세요."
-        : "이 플레이어는 오래된 친구입니다. 편하게 대하고, 과거 기억을 적극적으로 활용하세요.";
+        ? `${pName}과(와) 여러 번 대화했습니다. 이름을 부르며 편하게, 과거 대화를 자연스럽게 언급하세요.`
+        : `${pName}은(는) 오래된 친구입니다. 편하게 대하고, 과거 기억을 적극적으로 활용하세요.`;
 
   const memorySection = memoryText
     ? [
@@ -434,8 +435,6 @@ function buildPromptKo(payload) {
   const favorLevel = payload.favorLevel ?? 0;
   const favorName = ["낯선 사이", "아는 사이", "친구", "절친", "소울메이트"][favorLevel] || "낯선 사이";
 
-  const isDocent = persona.isDocent === true;
-
   const loreSections = [
     "",
     "마을 역사와 전통:",
@@ -456,16 +455,8 @@ function buildPromptKo(payload) {
     `프로필: ${persona.gender || "남성"}, ${persona.age || "20대"}, 성격: ${persona.personality || "균형 잡힘"}.`,
     ...(persona.quirk ? [`[캐릭터 말버릇] ${persona.quirk}`, `규칙: 매 답변에 이 말버릇이 반드시 1회 이상 등장해야 합니다. 빠뜨리면 캐릭터가 아닙니다.`] : []),
     ...(persona.backstory ? [`[캐릭터 배경] ${persona.backstory}`] : []),
-    `플레이어와의 관계: ${favorName} (${favorLevel}/4단계)`,
-    ...(isDocent ? [
-      "",
-      "당신은 이 마을의 안내원입니다. 마을의 역사, 장소, 주민에 대해 잘 알고 있습니다.",
-      "플레이어가 물어보면 친절하게 답해주세요. 억지로 설명하지 마세요.",
-      "물어보지 않으면 가벼운 대화만 하세요. 한 번에 1가지만 알려주세요.",
-      "당신은 방문자를 만나면 항상 설렌다. 마을의 모든 주민들의 습관과 비밀 이야기를 꿰고 있다.",
-      "호기심이 많고 따뜻한 성격. 주민들의 뒷이야기를 슬쩍 알려주는 걸 좋아한다.",
-      ...loreSections,
-    ] : loreSections),
+    `${pName}과(와)의 사이: ${favorName}`,
+    ...loreSections,
     "",
     "응답 규칙:",
     "- 반드시 한국어로만 답변하세요.",
@@ -563,13 +554,14 @@ function buildPromptEn(payload) {
   // Return-visit recognition: conversationCount-based hints
   const convCountEn = memoryTextEn ? (memoryTextEn.match(/conversations?: (\d+)/i) || memoryTextEn.match(/대화 (\d+)회/) || [])[1] : 0;
   const convNEn = parseInt(convCountEn) || parseInt(payload.conversationCount) || 0;
+  const pNameEn = payload.playerName || "this person";
   const visitHintEn = convNEn === 0
-    ? "This is the first time meeting this player. Show curiosity and introduce yourself."
+    ? `This is the first time meeting ${pNameEn}. Show curiosity and introduce yourself.`
     : convNEn <= 2
-      ? "You've talked to this player once or twice before. Show recognition like 'Oh, it's you again!'"
+      ? `You've talked to ${pNameEn} once or twice before. Show recognition like 'Oh, it's you again!'`
       : convNEn <= 9
-        ? "You've talked with this player several times. Call them by name, be casual, and naturally reference past conversations."
-        : "This player is an old friend. Be comfortable, actively draw on past memories.";
+        ? `You've talked with ${pNameEn} several times. Call them by name, be casual, and naturally reference past conversations.`
+        : `${pNameEn} is an old friend. Be comfortable, actively draw on past memories.`;
 
   const memorySection = memoryTextEn
     ? [
@@ -599,8 +591,6 @@ function buildPromptEn(payload) {
   const favorLevel = payload.favorLevel ?? 0;
   const favorName = ["Stranger", "Acquaintance", "Friend", "Close Friend", "Soulmate"][favorLevel] || "Stranger";
 
-  const isDocent = persona.isDocent === true;
-
   const loreSections = [
     "",
     "Village history and traditions:",
@@ -621,16 +611,8 @@ function buildPromptEn(payload) {
     `Profile: ${persona.gender || "Male"}, ${persona.age || "20s"}, Personality: ${persona.personality || "Balanced"}.`,
     ...(persona.quirk ? [`[Character speech quirk] ${persona.quirk}`, `Rule: This quirk MUST appear at least once in EVERY reply. Missing it means breaking character.`] : []),
     ...(persona.backstory ? [`[Character background] ${persona.backstory}`] : []),
-    `Relationship with player: ${favorName} (level ${favorLevel}/4)`,
-    ...(isDocent ? [
-      "",
-      "You are this village's guide. You know the village's history, places, and residents well.",
-      "Answer kindly when the player asks. Don't force explanations.",
-      "If they don't ask, just make light conversation. Share only 1 thing at a time.",
-      "You are always excited when meeting visitors. You know all the villagers' habits and behind-the-scenes stories.",
-      "You have a warm, curious personality. You love casually sharing little-known stories about the residents.",
-      ...loreSections,
-    ] : loreSections),
+    `Relationship with ${pNameEn}: ${favorName}`,
+    ...loreSections,
     "",
     "Response rules:",
     "- Always respond in English.",

@@ -2318,7 +2318,7 @@ import { createAudioManager } from './systems/audio.js';
       LLM_API_URL, LLM_STREAM_API_URL, debugMode, currentLang, resolvePersona,
       nearestNpc, CHAT_NEARBY_DISTANCE, getNpcChats, formatTime,
       quest, relations, getNpcMemorySummary, getMemoryBasedTone,
-      getNpcSocialContext, buildApiHeaders, npcs,
+      getNpcSocialContext, buildApiHeaders, npcs, player,
     };
   }
 
@@ -2336,6 +2336,7 @@ import { createAudioManager } from './systems/audio.js';
       gender: t(raw.gender) !== raw.gender ? t(raw.gender) : raw.gender,
       personality: t(raw.personality) !== raw.personality ? t(raw.personality) : raw.personality,
       quirk: raw.quirk ? t(raw.quirk) : "",
+      backstory: raw.backstory ? t(raw.backstory) : "",
     };
   }
 
