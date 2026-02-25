@@ -365,6 +365,22 @@ function buildPromptKo(payload) {
   const npcName = payload.npcName || "NPC";
   const persona = payload.persona || {};
   const worldContext = payload.worldContext || {};
+
+  // Ambient 독백 감지: 유저 메시지에 "독백" "중얼거" "혼잣말" 키워드가 있으면 경량 프롬프트
+  const userMsg = payload.message || "";
+  const isAmbient = /독백|중얼거|혼잣말|monologue|mutter/i.test(userMsg);
+  if (isAmbient) {
+    return [
+      `당신은 ${npcName}입니다. 성격: ${persona.personality || "평범"}.`,
+      ...(persona.quirk ? [`[말버릇] ${persona.quirk}`] : []),
+      `시간: ${worldContext.time || ""}, 날씨: ${worldContext.weather || ""}`,
+      ...(payload.npcNeeds ? [`상태: 배고픔 ${payload.npcNeeds.hunger}/100, 에너지 ${payload.npcNeeds.energy}/100`] : []),
+      "",
+      `유저 메시지: ${userMsg}`,
+      "NPC 답변 (reply만, JSON 없이 텍스트만):",
+    ].join("\n");
+  }
+
   const recent = Array.isArray(payload.recentMessages) ? payload.recentMessages.slice(-6) : [];
   const historyText = recent
     .map((m) => `${m.speaker || "Unknown"}: ${m.text || ""}`)
@@ -513,6 +529,22 @@ function buildPromptEn(payload) {
   const npcName = payload.npcName || "NPC";
   const persona = payload.persona || {};
   const worldContext = payload.worldContext || {};
+
+  // Ambient monologue detection
+  const userMsg = payload.message || "";
+  const isAmbient = /독백|중얼거|혼잣말|monologue|mutter/i.test(userMsg);
+  if (isAmbient) {
+    return [
+      `You are ${npcName}. Personality: ${persona.personality || "balanced"}.`,
+      ...(persona.quirk ? [`[Speech quirk] ${persona.quirk}`] : []),
+      `Time: ${worldContext.time || ""}, Weather: ${worldContext.weather || ""}`,
+      ...(payload.npcNeeds ? [`State: hunger ${payload.npcNeeds.hunger}/100, energy ${payload.npcNeeds.energy}/100`] : []),
+      "",
+      `User message: ${userMsg}`,
+      "NPC reply (text only, no JSON):",
+    ].join("\n");
+  }
+
   const recent = Array.isArray(payload.recentMessages) ? payload.recentMessages.slice(-6) : [];
   const historyText = recent
     .map((m) => `${m.speaker || "Unknown"}: ${m.text || ""}`)
