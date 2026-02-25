@@ -335,9 +335,15 @@ export class GameRenderer {
           const ndy = npc.y - prevNZ;
           const npcMoving = Math.abs(ndx) > 0.005 || Math.abs(ndy) > 0.005;
 
-          // Face direction if moving
+          // Face direction: moving → face movement, chatting → face player
           if (npcMoving) {
             mesh.rotation.y = Math.atan2(ndx, ndy);
+          } else if (npc.state === 'chatting' && player) {
+            const toPx = player.x - npc.x;
+            const toPy = player.y - npc.y;
+            if (Math.abs(toPx) > 0.1 || Math.abs(toPy) > 0.1) {
+              mesh.rotation.y = Math.atan2(toPx, toPy);
+            }
           }
 
           // Animate by state + mood + pose
