@@ -3594,6 +3594,7 @@ import { createAudioManager } from './systems/audio.js';
   const introTargets = [];  // [{npc, x, y}]
   let introTargetIdx = 0;
   let introTriggeredSpeech = new Set();
+  let introPlayerOrigPos = null;  // 원래 플레이어 위치 저장
   const INTRO_PHASE0_EACH = 2.5;  // 각 타겟당 시간 (혼잣말 볼 여유)
 
   function initIntroTargets() {
@@ -3656,22 +3657,25 @@ import { createAudioManager } from './systems/audio.js';
     introTimer += dt;
 
     if (introPhase === 0) {
-      if (introTargets.length === 0) initIntroTargets();
+      if (introTargets.length === 0) {
+        initIntroTargets();
+        // 플레이어 원래 위치 저장 (렌더링용으로 임시 이동할 예정)
+        introPlayerOrigPos = { x: player.x, y: player.y };
+      }
 
-      // NPC에 확실히 줌인 (기본의 1.8배)
-      const targetZoom = DEFAULT_ZOOM * 1.8;
+      // NPC에 줌인
+      const targetZoom = DEFAULT_ZOOM * 1.6;
       world.zoom += (targetZoom - world.zoom) * 0.12;
 
-      // 현재 타겟에게 카메라 이동 (빠르게)
+      // 카메라를 NPC 위치로 직접 이동 (플레이어 좌표를 임시로 NPC 위치로)
       const target = introTargets[introTargetIdx];
       if (target) {
         triggerIntroSpeech(target);
-
-        // NPC 실시간 위치 추적 (이동 중일 수 있으므로)
-        const tx = ((target.npc ? target.npc.x : target.x) - player.x) * 22;
-        const ty = ((target.npc ? target.npc.y : target.y) - player.y) * 14;
-        cameraPan.x += (clamp(tx, -500, 500) - cameraPan.x) * 0.12;
-        cameraPan.y += (clamp(ty, -350, 350) - cameraPan.y) * 0.12;
+        const targetX = target.npc ? target.npc.x : target.x;
+        const targetY = target.npc ? target.npc.y : target.y;
+        // 부드럽게 이동 (카메라가 플레이어를 따라가니까, 플레이어를 NPC 위치로)
+        player.x += (targetX - player.x) * 0.08;
+        player.y += (targetY - player.y) * 0.08;
       }
 
       // 일정 시간마다 다음 타겟
@@ -3685,13 +3689,20 @@ import { createAudioManager } from './systems/audio.js';
     }
 
     if (introPhase === 1) {
-      // 플레이어에게 부드럽게 복귀
-      cameraPan.x += (0 - cameraPan.x) * 0.08;
-      cameraPan.y += (0 - cameraPan.y) * 0.08;
-      world.zoom += (DEFAULT_ZOOM - world.zoom) * 0.06;
+      // 플레이어를 원래 위치로 복귀
+      if (introPlayerOrigPos) {
+        player.x += (introPlayerOrigPos.x - player.x) * 0.08;
+        player.y += (introPlayerOrigPos.y - player.y) * 0.08;
+      }
+      cameraPan.x += (0 - cameraPan.x) * 0.1;
+      cameraPan.y += (0 - cameraPan.y) * 0.1;
+      world.zoom += (DEFAULT_ZOOM - world.zoom) * 0.08;
 
-      if (Math.abs(cameraPan.x) < 2 && Math.abs(cameraPan.y) < 2) {
+      const dx = introPlayerOrigPos ? Math.abs(player.x - introPlayerOrigPos.x) : 0;
+      const dy = introPlayerOrigPos ? Math.abs(player.y - introPlayerOrigPos.y) : 0;
+      if (dx < 0.1 && dy < 0.1) {
         introPhase = 2;
+        if (introPlayerOrigPos) { player.x = introPlayerOrigPos.x; player.y = introPlayerOrigPos.y; }
         cameraPan.x = 0;
         cameraPan.y = 0;
         world.zoom = DEFAULT_ZOOM;
