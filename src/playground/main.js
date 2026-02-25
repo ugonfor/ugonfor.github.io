@@ -3168,20 +3168,36 @@ import { createAudioManager } from './systems/audio.js';
       // 술래잡기 중인 NPC는 updateTagGame에서 이동 처리
       if (tagGame.active && npc.id === tagGame.targetNpcId) continue;
 
-      if (pinnedNpcId && npc.id === pinnedNpcId) {
+      if ((pinnedNpcId && npc.id === pinnedNpcId) || (typingNpcId && npc.id === typingNpcId)) {
         npc.state = "chatting";
-        npc.roamWait = Math.max(npc.roamWait, 0.35);
-        continue;
-      }
-
-      if (typingNpcId && npc.id === typingNpcId) {
-        npc.state = "chatting";
+        // 대화/타이핑 중에도 플레이어가 멀어지면 따라감
+        const chatDist = dist(npc, player);
+        if (chatDist > CHAT_NEARBY_DISTANCE * 0.8) {
+          const dx = player.x - npc.x;
+          const dy = player.y - npc.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const spd = npc.speed * 0.6 * dt;
+          const nx = npc.x + (dx / d) * Math.min(spd, d);
+          const ny = npc.y + (dy / d) * Math.min(spd, d);
+          if (canStandInScene(nx, ny, npc)) { npc.x = nx; npc.y = ny; }
+        }
         npc.roamWait = Math.max(npc.roamWait, 0.35);
         continue;
       }
 
       if (chatSessionActiveFor(npc.id)) {
         npc.state = "chatting";
+        // 대화 중 플레이어가 멀어지면 따라감
+        const chatDist = dist(npc, player);
+        if (chatDist > CHAT_NEARBY_DISTANCE * 0.8) {
+          const dx = player.x - npc.x;
+          const dy = player.y - npc.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const spd = npc.speed * 0.6 * dt;
+          const nx = npc.x + (dx / d) * Math.min(spd, d);
+          const ny = npc.y + (dy / d) * Math.min(spd, d);
+          if (canStandInScene(nx, ny, npc)) { npc.x = nx; npc.y = ny; }
+        }
         npc.roamWait = Math.max(npc.roamWait, 0.35);
         continue;
       }
