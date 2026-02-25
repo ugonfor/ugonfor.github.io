@@ -370,9 +370,18 @@ function buildPromptKo(payload) {
     .map((m) => `${m.speaker || "Unknown"}: ${m.text || ""}`)
     .join("\n");
 
+  // Gate memory detail by relationship level
+  let memoryText = payload.memory || "";
+  if (payload.favorLevel <= 0 && memoryText) {
+    const convCountRaw = parseInt(payload.conversationCount) || 0;
+    memoryText = convCountRaw > 0
+      ? `이전에 ${convCountRaw}번 대화한 적 있음. 구체적 내용은 기억나지 않음.`
+      : "";
+  }
+
   // 재방문 인식: conversationCount 기반 지시
-  const convCount = payload.memory ? (payload.memory.match(/대화 (\d+)회/) || [])[1] : 0;
-  const convN = parseInt(convCount) || 0;
+  const convCount = memoryText ? (memoryText.match(/대화 (\d+)회/) || [])[1] : 0;
+  const convN = parseInt(convCount) || parseInt(payload.conversationCount) || 0;
   const visitHint = convN === 0
     ? "이 플레이어는 처음 만나는 사람입니다. 호기심을 보이며 자기소개를 해주세요."
     : convN <= 2
@@ -381,11 +390,11 @@ function buildPromptKo(payload) {
         ? "이 플레이어와 여러 번 대화했습니다. 이름을 부르며 편하게, 과거 대화를 자연스럽게 언급하세요."
         : "이 플레이어는 오래된 친구입니다. 편하게 대하고, 과거 기억을 적극적으로 활용하세요.";
 
-  const memorySection = payload.memory
+  const memorySection = memoryText
     ? [
         "",
         "과거 기억:",
-        payload.memory,
+        memoryText,
         `- ${visitHint}`,
         "- 과거 기억 중 가장 최근 1개를 반드시 대화에 녹여주세요. 예: '저번에 커피 고마웠어요', '지난번에 얘기했던 그거...'",
         "- 기억이 없으면 새로운 대화를 자연스럽게 시작하세요.",
@@ -399,7 +408,12 @@ function buildPromptKo(payload) {
     ? ["", "NPC 인간관계:", payload.socialContext, "- 다른 NPC에 대해 물어보면 관계에 맞게 자연스럽게 답하세요."]
     : [];
 
-  const toneHint = payload.tone || "정중한 존댓말로 대화하세요.";
+  let toneHint = payload.tone || "정중한 존댓말로 대화하세요.";
+  if (payload.npcNeeds) {
+    if (payload.npcNeeds.hunger > 80) toneHint += " 배가 고파서 약간 짜증 섞인 톤.";
+    else if (payload.npcNeeds.energy < 20) toneHint += " 피곤해서 느릿느릿한 톤.";
+    else if (payload.npcNeeds.social < 20) toneHint += " 외로워서 대화를 반기는 톤.";
+  }
 
   const favorLevel = payload.favorLevel ?? 0;
   const favorName = ["낯선 사이", "아는 사이", "친구", "절친", "소울메이트"][favorLevel] || "낯선 사이";
@@ -424,13 +438,13 @@ function buildPromptKo(payload) {
     "당신은 작은 마을에 사는 주민입니다. 이 마을은 어떤 개발자의 홈페이지 속에 있는 살아 숨쉬는 세계입니다.",
     `이름: ${npcName}`,
     `프로필: ${persona.gender || "남성"}, ${persona.age || "20대"}, 성격: ${persona.personality || "균형 잡힘"}.`,
-    ...(persona.quirk ? [`말버릇/특성: ${persona.quirk}. 이 특성을 대화에 자연스럽게 녹여주세요. 매 대화에서 반드시 이 특성이 드러나야 합니다.`] : []),
+    ...(persona.quirk ? [`[캐릭터 말버릇] ${persona.quirk}`, `규칙: 매 답변에 이 말버릇이 반드시 1회 이상 등장해야 합니다. 빠뜨리면 캐릭터가 아닙니다.`] : []),
     `플레이어와의 관계: ${favorName} (${favorLevel}/4단계)`,
     ...(isDocent ? [
       "",
-      "당신은 이 마을의 안내원입니다. 마을의 역사, 장소, 주민에 대해 누구보다 잘 알고 있습니다.",
-      "방문자에게 마을을 소개하고, 장소를 안내하고, 주민들의 이야기를 들려주세요.",
-      "한 번에 모든 것을 설명하지 말고, 대화할 때마다 새로운 이야기를 하나씩 꺼내주세요.",
+      "당신은 이 마을의 안내원입니다. 마을의 역사, 장소, 주민에 대해 잘 알고 있습니다.",
+      "플레이어가 물어보면 친절하게 답해주세요. 억지로 설명하지 마세요.",
+      "물어보지 않으면 가벼운 대화만 하세요. 한 번에 1가지만 알려주세요.",
       "당신은 방문자를 만나면 항상 설렌다. 마을의 모든 주민들의 습관과 비밀 이야기를 꿰고 있다.",
       "호기심이 많고 따뜻한 성격. 주민들의 뒷이야기를 슬쩍 알려주는 걸 좋아한다.",
       ...loreSections,
@@ -460,24 +474,25 @@ function buildPromptKo(payload) {
     "  · go_place: 대화 후 혼자 이동 (target: place id)",
     "  · request_item: 아이템 부탁 (target: flower_red, flower_yellow, coffee, snack, letter, gem)",
     "  · request_deliver: 전달 부탁 (target: npc id)",
-    "  · request_visit: 장소 확인 부탁 (target: place id)",
-    "  · give_item: 선물 (target: item id)",
     "  · none: 행동 없음 (기본)",
     "- mention: 대화에서 언급한 npc id나 place id (없으면 null)",
     "",
     "후속 선택지 규칙:",
-    "- 선택지는 방금 한 이야기의 자연스러운 후속 질문/반응이어야 합니다.",
-    "- 매번 다른 선택지를 만드세요.",
-    "- 마지막 선택지는 대화를 끝낼 수 있는 것으로.",
+    "- suggestions는 반드시 3개 배열. 예: [\"선택지1\", \"선택지2\", \"선택지3\"]",
+    "- 이전 대화에서 나온 선택지와 겹치면 안 됩니다.",
+    "- 각 선택지는 3~8자 (한국어).",
+    "- 마지막 선택지는 대화를 끝내는 것 (예: \"다음에 봐\", \"고마워\").",
+    "- 방금 대화 내용과 직접 관련된 후속 질문/반응이어야 합니다.",
     "",
     "부탁 규칙:",
     "- 관계가 '아는 사이' 이상이고 대화가 자연스럽게 흘러갈 때, 가끔 action으로 부탁할 수 있습니다.",
     "- 부탁은 5번 대화에 1번 정도, 자연스러울 때만. 억지로 하지 마세요.",
     "",
     "대화 마무리:",
-    "- 대화가 자연스럽게 끝났다고 느끼면 작별 인사를 하고 farewell: true로 설정하세요.",
-    "- 같은 이야기가 반복되거나, 할 말이 없어지면 마무리하세요.",
-    "- 3~5번 주고받으면 자연스럽게 마무리를 시도하세요.",
+    "- 대화가 4회 이상 오갔으면 farewell: true로 마무리하세요.",
+    "- 플레이어가 '아니' '됐어' '그만' 같은 거부 톤이면 즉시 farewell: true.",
+    "- 같은 주제가 반복되면 farewell: true.",
+    "- farewell 시 \"또 놀러 와\" \"다음에 봐\" 같은 자연스러운 작별.",
     ...memorySection,
     ...socialSection,
     "",
@@ -503,9 +518,18 @@ function buildPromptEn(payload) {
     .map((m) => `${m.speaker || "Unknown"}: ${m.text || ""}`)
     .join("\n");
 
+  // Gate memory detail by relationship level
+  let memoryTextEn = payload.memory || "";
+  if (payload.favorLevel <= 0 && memoryTextEn) {
+    const convCountRaw = parseInt(payload.conversationCount) || 0;
+    memoryTextEn = convCountRaw > 0
+      ? `Chatted ${convCountRaw} times before. Don't remember specifics.`
+      : "";
+  }
+
   // Return-visit recognition: conversationCount-based hints
-  const convCountEn = payload.memory ? (payload.memory.match(/conversations?: (\d+)/i) || payload.memory.match(/대화 (\d+)회/) || [])[1] : 0;
-  const convNEn = parseInt(convCountEn) || 0;
+  const convCountEn = memoryTextEn ? (memoryTextEn.match(/conversations?: (\d+)/i) || memoryTextEn.match(/대화 (\d+)회/) || [])[1] : 0;
+  const convNEn = parseInt(convCountEn) || parseInt(payload.conversationCount) || 0;
   const visitHintEn = convNEn === 0
     ? "This is the first time meeting this player. Show curiosity and introduce yourself."
     : convNEn <= 2
@@ -514,11 +538,11 @@ function buildPromptEn(payload) {
         ? "You've talked with this player several times. Call them by name, be casual, and naturally reference past conversations."
         : "This player is an old friend. Be comfortable, actively draw on past memories.";
 
-  const memorySection = payload.memory
+  const memorySection = memoryTextEn
     ? [
         "",
         "Past memories:",
-        payload.memory,
+        memoryTextEn,
         `- ${visitHintEn}`,
         "- You must weave at least one recent memory into the conversation. E.g., 'Thanks for the coffee last time', 'About what we talked about before...'",
         "- If there are no memories, start a new conversation naturally.",
@@ -532,7 +556,12 @@ function buildPromptEn(payload) {
     ? ["", "NPC relationships:", payload.socialContext, "- When asked about other NPCs, respond naturally based on the relationship."]
     : [];
 
-  const toneHint = payload.tone || "Speak politely and respectfully.";
+  let toneHint = payload.tone || "Speak politely and respectfully.";
+  if (payload.npcNeeds) {
+    if (payload.npcNeeds.hunger > 80) toneHint += " Slightly irritated tone because of hunger.";
+    else if (payload.npcNeeds.energy < 20) toneHint += " Sluggish tone because of tiredness.";
+    else if (payload.npcNeeds.social < 20) toneHint += " Welcoming tone because of loneliness.";
+  }
 
   const favorLevel = payload.favorLevel ?? 0;
   const favorName = ["Stranger", "Acquaintance", "Friend", "Close Friend", "Soulmate"][favorLevel] || "Stranger";
@@ -557,13 +586,13 @@ function buildPromptEn(payload) {
     "You are a resident of a small village. This village exists inside a developer's personal homepage as a living, breathing world.",
     `Name: ${npcName}`,
     `Profile: ${persona.gender || "Male"}, ${persona.age || "20s"}, Personality: ${persona.personality || "Balanced"}.`,
-    ...(persona.quirk ? [`Speech quirk: ${persona.quirk}. Weave this naturally into every conversation. This quirk MUST show in every reply.`] : []),
+    ...(persona.quirk ? [`[Character speech quirk] ${persona.quirk}`, `Rule: This quirk MUST appear at least once in EVERY reply. Missing it means breaking character.`] : []),
     `Relationship with player: ${favorName} (level ${favorLevel}/4)`,
     ...(isDocent ? [
       "",
-      "You are this village's guide. You know the village's history, places, and residents better than anyone.",
-      "Introduce the village to visitors, guide them to places, and share stories about the residents.",
-      "Don't explain everything at once; share a new story each time you talk.",
+      "You are this village's guide. You know the village's history, places, and residents well.",
+      "Answer kindly when the player asks. Don't force explanations.",
+      "If they don't ask, just make light conversation. Share only 1 thing at a time.",
       "You are always excited when meeting visitors. You know all the villagers' habits and behind-the-scenes stories.",
       "You have a warm, curious personality. You love casually sharing little-known stories about the residents.",
       ...loreSections,
@@ -593,24 +622,25 @@ function buildPromptEn(payload) {
     "  - go_place: go somewhere alone after conversation (target: place id)",
     "  - request_item: ask for an item (target: flower_red, flower_yellow, coffee, snack, letter, gem)",
     "  - request_deliver: ask to deliver a message (target: npc id)",
-    "  - request_visit: ask to check a place (target: place id)",
-    "  - give_item: give a gift (target: item id)",
     "  - none: no action (default)",
     "- mention: npc id or place id mentioned in conversation (null if none)",
     "",
     "Follow-up choice rules:",
-    "- Choices should be natural follow-ups to what you just said.",
-    "- Make different choices each time.",
-    "- The last choice should let the player end the conversation.",
+    "- suggestions must be an array of exactly 3. E.g.: [\"choice1\", \"choice2\", \"choice3\"]",
+    "- Must not overlap with choices from previous exchanges.",
+    "- Each choice should be 5-15 characters.",
+    "- The last choice should end the conversation (e.g., \"See you later\", \"Thanks\").",
+    "- Each choice must be a direct follow-up question/reaction to what was just said.",
     "",
     "Favor rules:",
     "- When the relationship is 'Acquaintance' or higher and the conversation flows naturally, you may occasionally use action to ask favors.",
     "- Only ask about once every 5 exchanges, and only when it feels natural. Don't force it.",
     "",
     "Ending conversations:",
-    "- When the conversation feels like it's naturally ending, say goodbye and set farewell: true.",
-    "- If the same topic keeps repeating or there's nothing left to say, wrap things up.",
-    "- After 3-5 exchanges, naturally try to wrap things up.",
+    "- After 4 or more exchanges, set farewell: true to wrap up.",
+    "- If the player shows rejection tone like 'no', 'never mind', 'stop', immediately set farewell: true.",
+    "- If the same topic keeps repeating, set farewell: true.",
+    "- When farewell, say natural goodbyes like 'Come visit again' or 'See you next time'.",
     ...memorySection,
     ...socialSection,
     "",
@@ -664,7 +694,7 @@ const STRUCTURED_SCHEMA = {
     action: {
       type: "object",
       properties: {
-        type: { type: "string", enum: ["none", "follow", "unfollow", "guide_place", "guide_npc", "go_place", "request_item", "request_deliver", "request_visit", "give_item"] },
+        type: { type: "string", enum: ["none", "follow", "unfollow", "guide_place", "guide_npc", "go_place", "request_item", "request_deliver"] },
         target: { type: "string" },
       },
       required: ["type"],
