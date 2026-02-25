@@ -367,7 +367,7 @@ function buildPromptKo(payload) {
   const worldContext = payload.worldContext || {};
 
   // Ambient 독백 감지: 유저 메시지에 "독백" "중얼거" "혼잣말" 키워드가 있으면 경량 프롬프트
-  const userMsg = payload.message || "";
+  const userMsg = payload.userMessage || "";
   const isAmbient = /독백|중얼거|혼잣말|monologue|mutter/i.test(userMsg);
   if (isAmbient) {
     return [
@@ -531,7 +531,7 @@ function buildPromptEn(payload) {
   const worldContext = payload.worldContext || {};
 
   // Ambient monologue detection
-  const userMsg = payload.message || "";
+  const userMsg = payload.userMessage || "";
   const isAmbient = /독백|중얼거|혼잣말|monologue|mutter/i.test(userMsg);
   if (isAmbient) {
     return [
