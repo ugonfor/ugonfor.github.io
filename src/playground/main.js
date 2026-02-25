@@ -3302,28 +3302,39 @@ import { createAudioManager } from './systems/audio.js';
 
   function updateNpcSocialEvents() {
     if (world.totalMinutes < nextSocialAt) return;
-    nextSocialAt = world.totalMinutes + 22 + Math.random() * 34;
+    nextSocialAt = world.totalMinutes + 2 + Math.random() * 3; // 2~5분마다
 
-    const moving = npcs.filter((n) => !chatSessionActiveFor(n.id));
+    const moving = npcs.filter((n) => !chatSessionActiveFor(n.id) && n.id !== "guide");
     if (moving.length < 2) return;
 
-    const a = moving[Math.floor(Math.random() * moving.length)];
-    const aScene = a.currentScene || "outdoor";
-    let b = null;
-    let best = Infinity;
-    for (const cand of moving) {
-      if (cand.id === a.id) continue;
-      if ((cand.currentScene || "outdoor") !== aScene) continue;
-      const d = dist(a, cand);
-      if (d < best) {
-        best = d;
-        b = cand;
+    // 가까운 NPC 쌍을 찾기
+    let bestPair = null;
+    let bestDist = Infinity;
+    for (let i = 0; i < moving.length; i++) {
+      for (let j = i + 1; j < moving.length; j++) {
+        if ((moving[i].currentScene || "outdoor") !== (moving[j].currentScene || "outdoor")) continue;
+        const d = dist(moving[i], moving[j]);
+        if (d < bestDist) {
+          bestDist = d;
+          bestPair = [moving[i], moving[j]];
+        }
       }
     }
-    if (!b || best > 2.3) return;
+    if (!bestPair || bestDist > 6) return; // 6타일 이내면 대화 시도
 
-    a.roamWait = Math.max(a.roamWait, 3 + Math.random() * 2);
-    b.roamWait = Math.max(b.roamWait, 3 + Math.random() * 2);
+    const [a, b] = bestPair;
+
+    // 서로 가까이 걸어가게
+    if (bestDist > 2.5) {
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      a.roamTarget = mid;
+      b.roamTarget = mid;
+      a.roamWait = 0;
+      b.roamWait = 0;
+    }
+
+    a.roamWait = Math.max(a.roamWait, 4 + Math.random() * 2);
+    b.roamWait = Math.max(b.roamWait, 4 + Math.random() * 2);
     a.state = "chatting";
     b.state = "chatting";
 
