@@ -2042,12 +2042,23 @@ import { createAudioManager } from './systems/audio.js';
     }
 
     if (guideGreetingPhase === 1) {
-      if (!guideNpc.roamTarget || dist(guideNpc.roamTarget, player) > 2) {
-        guideNpc.roamTarget = { x: player.x, y: player.y };
-      }
-      if (dist(guideNpc, player) < 2.5) {
+      // 유진이 직접 플레이어에게 걸어감 (roamTarget과 별개로 직접 이동)
+      const gd = dist(guideNpc, player);
+      if (gd > 2.0) {
+        const dx = player.x - guideNpc.x;
+        const dy = player.y - guideNpc.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const spd = guideNpc.speed * 1.2 * dt; // 살짝 빠르게
+        const nx = guideNpc.x + (dx / d) * Math.min(spd, d);
+        const ny = guideNpc.y + (dy / d) * Math.min(spd, d);
+        if (canStandInScene(nx, ny, guideNpc)) { guideNpc.x = nx; guideNpc.y = ny; }
+        guideNpc.state = "moving";
+        guideNpc.roamTarget = null;
+        guideNpc.roamWait = 0;
+      } else {
         guideGreetingPhase = 2;
         guideNpc.pose = "waving";
+        guideNpc.state = "chatting";
         // LLM으로 자연스러운 첫 인사
         const mem = ensureMemoryFormat(guideNpc);
         const isReturn = mem.conversationCount > 0;
