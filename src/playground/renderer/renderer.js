@@ -499,7 +499,9 @@ export class GameRenderer {
 
     // --- Camera follow ---
     this.cameraRig.setZoom(world.zoom || 3.2);
-    this.cameraRig.follow(player.x, player.y, dt);
+    // cameraFollowTarget: 인트로 등에서 카메라가 플레이어 대신 다른 위치를 따라가게
+    const camTarget = this._cameraFollowTarget || player;
+    this.cameraRig.follow(camTarget.x, camTarget.y, dt);
 
     // --- Lighting update ---
     const hour = (world.totalMinutes / 60) % 24;
