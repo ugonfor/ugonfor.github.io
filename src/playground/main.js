@@ -2035,48 +2035,59 @@ import { createAudioManager } from './systems/audio.js';
       guideGreetingTimer += dt;
       if (guideGreetingTimer >= 3 && introPhase >= 2) {
         guideGreetingPhase = 1;
-        guideNpc.roamTarget = { x: player.x, y: player.y };
+        guideGreetingTimer = 0; // phase 1 타이머 리셋
+        guideNpc.roamTarget = null;
         guideNpc.roamWait = 0;
       }
       return;
     }
 
     if (guideGreetingPhase === 1) {
-      // 유진이 직접 플레이어에게 걸어감 (roamTarget과 별개로 직접 이동)
+      guideGreetingTimer += dt;
       const gd = dist(guideNpc, player);
+
+      // 아직 멀면 걸어감
       if (gd > 2.0) {
         const dx = player.x - guideNpc.x;
         const dy = player.y - guideNpc.y;
         const d = Math.hypot(dx, dy) || 1;
-        const spd = guideNpc.speed * 1.2 * dt; // 살짝 빠르게
+        const spd = guideNpc.speed * 1.2 * dt;
         const nx = guideNpc.x + (dx / d) * Math.min(spd, d);
         const ny = guideNpc.y + (dy / d) * Math.min(spd, d);
-        if (canStandInScene(nx, ny, guideNpc.currentScene || "outdoor")) { guideNpc.x = nx; guideNpc.y = ny; }
+        if (canStandInScene(nx, ny, guideNpc.currentScene || "outdoor")) {
+          guideNpc.x = nx;
+          guideNpc.y = ny;
+        }
         guideNpc.state = "moving";
         guideNpc.roamTarget = null;
         guideNpc.roamWait = 0;
-      } else {
-        guideGreetingPhase = 2;
-        guideNpc.pose = "waving";
-        guideNpc.state = "chatting";
-        // LLM으로 자연스러운 첫 인사
-        const mem = ensureMemoryFormat(guideNpc);
-        const isReturn = mem.conversationCount > 0;
-        const greetPrompt = isReturn
-          ? t("llm_guide_return", { name: player.name })
-          : t("llm_guide_first", { name: player.name });
-        // 인사 1회 후 대화 세션 연결 → 바로 대화 가능
-        conversationFocusNpcId = guideNpc.id;
-        setChatSession(guideNpc.id, 30_000);
-        llmReplyOrEmpty(guideNpc, greetPrompt).then((hi) => {
-          const line = hi || t("docent_hi");
-          addChat(guideNpc.name, line);
-          upsertSpeechBubble(guideNpc.id, line, 5000);
-          setTimeout(() => { guideNpc.pose = "standing"; }, 3000);
-        }).catch(e => console.warn("[guide greet]", e.message));
-        guideNpc.roamTarget = null;
-        guideNpc.roamWait = 8;
+        // 8초 이상 걸어도 도착 못하면 플레이어 근처로 텔레포트
+        if (guideGreetingTimer > 8) {
+          guideNpc.x = player.x + (Math.random() - 0.5) * 2;
+          guideNpc.y = player.y + (Math.random() - 0.5) * 2;
+        }
+        return; // 다음 프레임에 다시 체크
       }
+
+      // 도착 → phase 2: 인사
+      guideGreetingPhase = 2;
+      guideNpc.pose = "waving";
+      guideNpc.state = "chatting";
+      const mem = ensureMemoryFormat(guideNpc);
+      const isReturn = mem.conversationCount > 0;
+      const greetPrompt = isReturn
+        ? t("llm_guide_return", { name: player.name })
+        : t("llm_guide_first", { name: player.name });
+      conversationFocusNpcId = guideNpc.id;
+      setChatSession(guideNpc.id, 30_000);
+      llmReplyOrEmpty(guideNpc, greetPrompt).then((hi) => {
+        const line = hi || t("docent_hi");
+        addChat(guideNpc.name, line);
+        upsertSpeechBubble(guideNpc.id, line, 5000);
+        setTimeout(() => { guideNpc.pose = "standing"; }, 3000);
+      }).catch(e => console.warn("[guide greet]", e.message));
+      guideNpc.roamTarget = null;
+      guideNpc.roamWait = 8;
     }
   }
 
