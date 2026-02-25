@@ -95,7 +95,7 @@ export function getNpcSocialContext(npc, npcs, getNpcRelation, t) {
   if (others.length === 0) return "";
   const lines = others.map(o => {
     const rel = getNpcRelation(npc.id, o.id);
-    return `${o.name}: ${npcRelationLabel(rel, t)}(${rel})`;
+    return `${o.name}: ${npcRelationLabel(rel, t)}`;
   });
   return t("npc_social_header") + "\n" + lines.join(", ");
 }

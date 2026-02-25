@@ -1530,13 +1530,13 @@ import { createAudioManager } from './systems/audio.js';
     return lines[Math.floor(Math.random() * lines.length)];
   }
 
-  async function llmReplyOrEmpty(npc, prompt) {
+  async function llmReplyOrEmpty(npc, prompt, overrides = {}) {
     if (!LLM_API_URL) return "";
     if (debugMode) {
       console.log(`%c[LLM DEBUG] llmReplyOrEmpty → ${npc.name}: ${prompt.slice(0, 80)}...`, 'color:#ff9800');
     }
     try {
-      const llm = await requestLlmNpcReply(npc, prompt);
+      const llm = await requestLlmNpcReply(npc, prompt, overrides);
       lastLlmModel = llm.model || "gemini";
       llmAvailable = true;
       lastLlmError = "";
@@ -2340,12 +2340,12 @@ import { createAudioManager } from './systems/audio.js';
     };
   }
 
-  async function requestLlmNpcReply(npc, userMessage) {
-    return _requestLlmNpcReply(npc, userMessage, convoCtx());
+  async function requestLlmNpcReply(npc, userMessage, overrides = {}) {
+    return _requestLlmNpcReply(npc, userMessage, convoCtx(), overrides);
   }
 
-  async function requestLlmNpcReplyStream(npc, userMessage, onChunk) {
-    return _requestLlmNpcReplyStream(npc, userMessage, onChunk, convoCtx());
+  async function requestLlmNpcReplyStream(npc, userMessage, onChunk, overrides = {}) {
+    return _requestLlmNpcReplyStream(npc, userMessage, onChunk, convoCtx(), overrides);
   }
 
   // 키워드 기반 액션 감지 (스트리밍 폴백)
@@ -2786,7 +2786,7 @@ import { createAudioManager } from './systems/audio.js';
           const sentiment = rel >= 60 ? "positive" : rel < 35 ? "negative" : "neutral";
           socialGossipLlmPending = true;
           const gossipPrompt = t("llm_gossip_prompt", { nameB: b.name, rel: relLabel });
-          llmReplyOrEmpty(a, gossipPrompt).then((line) => {
+          llmReplyOrEmpty(a, gossipPrompt, { favorLevel: 2, isNpcChat: true }).then((line) => {
             if (line) {
               upsertSpeechBubble(a.id, line, 3500);
             }
@@ -3348,14 +3348,15 @@ import { createAudioManager } from './systems/audio.js';
       upsertSpeechBubble(a.id, ambientEmoji(a, true), 8000);
       upsertSpeechBubble(b.id, ambientEmoji(b, true), 8000);
       const delay = (ms) => new Promise(r => setTimeout(r, ms));
-      llmReplyOrEmpty(a, t("llm_social_start", { nameB: b.name, rel: rel, time: formatTime() }))
+      const npcChatOverrides = { favorLevel: 2, isNpcChat: true };
+      llmReplyOrEmpty(a, t("llm_social_start", { nameB: b.name, rel: rel, time: formatTime() }), npcChatOverrides)
         .then((lineA) => {
           if (lineA) {
             upsertSpeechBubble(a.id, lineA, 4500);
             if (!conversationFocusNpcId) addChat(a.name, lineA, "npc-chat");
           }
           return delay(2500).then(() =>
-            llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || '...' }))
+            llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || '...' }), npcChatOverrides)
           );
         })
         .then((lineB) => {
@@ -3366,7 +3367,7 @@ import { createAudioManager } from './systems/audio.js';
           // 50% 확률로 A가 한 번 더 반응 (3턴)
           if (Math.random() < GAME.MULTI_TURN_CHANCE && lineB) {
             return delay(2500).then(() =>
-              llmReplyOrEmpty(a, t("llm_social_react", { nameB: b.name, line: lineB }))
+              llmReplyOrEmpty(a, t("llm_social_react", { nameB: b.name, line: lineB }), npcChatOverrides)
             );
           }
         })
@@ -3631,11 +3632,12 @@ import { createAudioManager } from './systems/audio.js';
       // NPC 쌍 대화
       const a = target.npc, b = target.npc2;
       const rel = npcRelationLabel(getNpcRelation(a.id, b.id), t);
-      llmReplyOrEmpty(a, t("llm_social_start", { nameB: b.name, rel, time: formatTime() }))
+      const introNpcOverrides = { favorLevel: 2, isNpcChat: true };
+      llmReplyOrEmpty(a, t("llm_social_start", { nameB: b.name, rel, time: formatTime() }), introNpcOverrides)
         .then(lineA => {
           if (lineA) upsertSpeechBubble(a.id, lineA, 4000);
           return new Promise(r => setTimeout(r, 1500)).then(() =>
-            llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || "..." }))
+            llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || "..." }), introNpcOverrides)
           );
         })
         .then(lineB => { if (lineB) upsertSpeechBubble(b.id, lineB, 4000); })

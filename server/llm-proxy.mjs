@@ -397,6 +397,16 @@ function describeNeedsEn(needs) {
   return [];
 }
 
+/** Check Korean final consonant (받침) and return correct particle */
+function particle(name, consonantForm, vowelForm) {
+  if (!name) return consonantForm;
+  const last = name.charCodeAt(name.length - 1);
+  if (last >= 0xAC00 && last <= 0xD7A3) {
+    return (last - 0xAC00) % 28 === 0 ? vowelForm : consonantForm;
+  }
+  return consonantForm; // non-Korean default
+}
+
 function buildPromptKo(payload) {
   const npcName = payload.npcName || "NPC";
   const persona = payload.persona || {};
@@ -406,15 +416,18 @@ function buildPromptKo(payload) {
   const userMsg = payload.userMessage || "";
   const isAmbient = /독백|중얼거|혼잣말|monologue|mutter/i.test(userMsg);
   if (isAmbient) {
-    return [
-      `당신은 ${npcName}입니다. 성격: ${persona.personality || "평범"}.`,
-      ...(persona.quirk ? [`[말버릇] ${persona.quirk}`] : []),
-      `시각: ${worldContext.time || ""}`,
-      ...describeNeedsKo(payload.npcNeeds),
-      "",
-      `→ ${userMsg}`,
-      `${npcName}:`,
-    ].join("\n");
+    return {
+      prompt: [
+        `당신은 ${npcName}입니다. 성격: ${persona.personality || "평범"}.`,
+        ...(persona.quirk ? [`[말버릇] ${persona.quirk}`] : []),
+        `시각: ${worldContext.time || ""}`,
+        ...describeNeedsKo(payload.npcNeeds),
+        "",
+        `→ ${userMsg}`,
+        `${npcName}:`,
+      ].join("\n"),
+      isAmbient: true,
+    };
   }
 
   const recent = Array.isArray(payload.recentMessages) ? payload.recentMessages.slice(-6) : [];
@@ -436,12 +449,12 @@ function buildPromptKo(payload) {
   const convN = parseInt(convCount) || parseInt(payload.conversationCount) || 0;
   const pName = payload.playerName || "이 사람";
   const visitHint = convN === 0
-    ? `${pName}은(는) 처음 만나는 사람입니다. 호기심을 보이며 자기소개를 해주세요.`
+    ? `${pName}${particle(pName, "은", "는")} 처음 만나는 사람입니다. 호기심을 보이며 자기소개를 해주세요.`
     : convN <= 2
-      ? `${pName}과(와) 한두 번 대화한 적 있습니다. '어, 아까 그분!' 같은 재인식을 해주세요.`
+      ? `${pName}${particle(pName, "과", "와")} 한두 번 대화한 적 있습니다. '어, 아까 그분!' 같은 재인식을 해주세요.`
       : convN <= 9
-        ? `${pName}과(와) 여러 번 대화했습니다. 이름을 부르며 편하게, 과거 대화를 자연스럽게 언급하세요.`
-        : `${pName}은(는) 오래된 친구입니다. 편하게 대하고, 과거 기억을 적극적으로 활용하세요.`;
+        ? `${pName}${particle(pName, "과", "와")} 여러 번 대화했습니다. 이름을 부르며 편하게, 과거 대화를 자연스럽게 언급하세요.`
+        : `${pName}${particle(pName, "은", "는")} 오래된 친구입니다. 편하게 대하고, 과거 기억을 적극적으로 활용하세요.`;
 
   const memorySection = memoryText
     ? [
@@ -471,11 +484,11 @@ function buildPromptKo(payload) {
   const favorLevel = payload.favorLevel ?? 0;
   const favorName = ["낯선 사이", "아는 사이", "친구", "절친", "소울메이트"][favorLevel] || "낯선 사이";
 
-  const loreSections = [
+  const generalLore = [
     "",
     "마을 역사와 전통:",
-    "- 이 마을의 이름은 '유곤포르(ugonfor) 마을'. 개발자 Hyogon Ryu의 홈페이지 속에 자리잡은 작은 세계.",
-    "- 원래는 텅 빈 웹페이지였지만, 어느 날 AI 주민들이 하나둘 생겨나면서 마을이 형성되었다.",
+    "- 이 마을의 이름은 '유곤포르(ugonfor) 마을'.",
+    "- 마을의 기원은 아무도 정확히 모른다. 어느 날 사람들이 하나둘 모여 자연스럽게 마을이 형성되었다.",
     "- 마을 중앙의 대로(x=25)를 따라 카페, 빵집, 꽃집, 사무실, 시장이 늘어서 있다.",
     "- 광장은 주민들이 저녁에 모여 이야기를 나누는 곳. 광장의 바닥에는 오래된 모자이크 무늬가 숨겨져 있다.",
     "- 공원에는 분수가 있고, 자정에 은은하게 빛난다는 전설이 있다.",
@@ -485,13 +498,23 @@ function buildPromptKo(payload) {
     "- 마을의 모토: '느린 삶, 깊은 관계'. 서두르지 않아도 되는 곳.",
   ];
 
+  const npcId = payload.npcId || "";
+  const isMetaAware = !!(persona.isDocent) || npcId === "yoo" || npcId === "grandpa";
+  const metaLore = isMetaAware ? [
+    "- 사실 이 마을은 개발자 Hyogon Ryu의 홈페이지 속에 자리잡은 작은 세계이다.",
+    "- 원래는 텅 빈 웹페이지였지만, 어느 날 주민들이 하나둘 생겨나면서 마을이 형성되었다.",
+  ] : [];
+  const loreSections = [...generalLore, ...metaLore];
+
   const system = [
-    "당신은 작은 마을에 사는 주민입니다. 이 마을은 어떤 개발자의 홈페이지 속에 있는 살아 숨쉬는 세계입니다.",
+    isMetaAware
+      ? "당신은 작은 마을에 사는 주민입니다. 이 마을은 어떤 개발자의 홈페이지 속에 있는 살아 숨쉬는 세계입니다."
+      : "당신은 작은 마을에 사는 주민입니다.",
     `이름: ${npcName}`,
     `프로필: ${persona.gender || "남성"}, ${persona.age || "20대"}, 성격: ${persona.personality || "균형 잡힘"}.`,
     ...(persona.quirk ? [`[캐릭터 말버릇] ${persona.quirk}`, `규칙: 매 답변에 이 말버릇이 반드시 1회 이상 등장해야 합니다. 빠뜨리면 캐릭터가 아닙니다.`] : []),
     ...(persona.backstory ? [`[캐릭터 배경] ${persona.backstory}`] : []),
-    `${pName}과(와)의 사이: ${favorName}`,
+    `${pName}${particle(pName, "과", "와")}의 사이: ${favorName}`,
     ...loreSections,
     "",
     "응답 규칙:",
@@ -542,7 +565,7 @@ function buildPromptKo(payload) {
     "",
     "지금 상황:",
     `- 시각: ${worldContext.time || "알 수 없음"}`,
-    ...(worldContext.nearby && worldContext.nearby !== "none" ? [`- 근처에 ${worldContext.nearby}이(가) 있다.`] : []),
+    ...(worldContext.nearby && worldContext.nearby !== "none" ? [`- 근처에 ${worldContext.nearby}${particle(worldContext.nearby, "이", "가")} 있다.`] : []),
     ...describeNeedsKo(payload.npcNeeds),
   ].join("\n");
 
@@ -573,15 +596,18 @@ function buildPromptEn(payload) {
   const userMsg = payload.userMessage || "";
   const isAmbient = /독백|중얼거|혼잣말|monologue|mutter/i.test(userMsg);
   if (isAmbient) {
-    return [
-      `You are ${npcName}. Personality: ${persona.personality || "balanced"}.`,
-      ...(persona.quirk ? [`[Speech quirk] ${persona.quirk}`] : []),
-      `Time: ${worldContext.time || ""}`,
-      ...describeNeedsEn(payload.npcNeeds),
-      "",
-      `→ ${userMsg}`,
-      `${npcName}:`,
-    ].join("\n");
+    return {
+      prompt: [
+        `You are ${npcName}. Personality: ${persona.personality || "balanced"}.`,
+        ...(persona.quirk ? [`[Speech quirk] ${persona.quirk}`] : []),
+        `Time: ${worldContext.time || ""}`,
+        ...describeNeedsEn(payload.npcNeeds),
+        "",
+        `→ ${userMsg}`,
+        `${npcName}:`,
+      ].join("\n"),
+      isAmbient: true,
+    };
   }
 
   const recent = Array.isArray(payload.recentMessages) ? payload.recentMessages.slice(-6) : [];
@@ -638,11 +664,11 @@ function buildPromptEn(payload) {
   const favorLevel = payload.favorLevel ?? 0;
   const favorName = ["Stranger", "Acquaintance", "Friend", "Close Friend", "Soulmate"][favorLevel] || "Stranger";
 
-  const loreSections = [
+  const generalLoreEn = [
     "",
     "Village history and traditions:",
-    "- This village is called 'Ugonfor Village'. A small world nestled inside developer Hyogon Ryu's personal homepage.",
-    "- It was originally an empty webpage, but one day AI residents began appearing one by one, forming a village.",
+    "- This village is called 'Ugonfor Village'.",
+    "- No one knows exactly how the village began. People gathered one by one and the village naturally formed.",
     "- Along the main road (x=25) in the center of the village, you'll find a cafe, bakery, flower shop, office, and market.",
     "- The plaza is where residents gather in the evening to share stories. Hidden in the plaza floor is an old mosaic pattern.",
     "- The park has a fountain, and legend says it glows softly at midnight.",
@@ -652,8 +678,18 @@ function buildPromptEn(payload) {
     "- The village motto: 'Slow life, deep connections'. A place where you don't need to rush.",
   ];
 
+  const npcIdEn = payload.npcId || "";
+  const isMetaAwareEn = !!(persona.isDocent) || npcIdEn === "yoo" || npcIdEn === "grandpa";
+  const metaLoreEn = isMetaAwareEn ? [
+    "- In truth, this village is a small world nestled inside developer Hyogon Ryu's personal homepage.",
+    "- It was originally an empty webpage, but one day residents began appearing one by one, forming a village.",
+  ] : [];
+  const loreSections = [...generalLoreEn, ...metaLoreEn];
+
   const system = [
-    "You are a resident of a small village. This village exists inside a developer's personal homepage as a living, breathing world.",
+    isMetaAwareEn
+      ? "You are a resident of a small village. This village exists inside a developer's personal homepage as a living, breathing world."
+      : "You are a resident of a small village.",
     `Name: ${npcName}`,
     `Profile: ${persona.gender || "Male"}, ${persona.age || "20s"}, Personality: ${persona.personality || "Balanced"}.`,
     ...(persona.quirk ? [`[Character speech quirk] ${persona.quirk}`, `Rule: This quirk MUST appear at least once in EVERY reply. Missing it means breaking character.`] : []),
@@ -1100,7 +1136,9 @@ const server = createServer(async (req, res) => {
         return writeJson(res, 400, { error: "userMessage and npcName are required" }, origin);
       }
       prompt = buildPrompt(payload);
-      const { stream, model } = await callGeminiStream(prompt);
+      const isAmbientStreamPrompt = typeof prompt === "object" && prompt.isAmbient;
+      const actualStreamPrompt = isAmbientStreamPrompt ? prompt.prompt : prompt;
+      const { stream, model } = await callGeminiStream(actualStreamPrompt);
       resolvedModel = model;
 
       writeSseHead(res, origin);
@@ -1278,7 +1316,9 @@ const server = createServer(async (req, res) => {
       return writeJson(res, 400, { error: "userMessage and npcName are required" }, origin);
     }
     prompt = buildPrompt(payload);
-    const result = await callGemini(prompt, true);
+    const isAmbientPrompt = typeof prompt === "object" && prompt.isAmbient;
+    const actualPrompt = isAmbientPrompt ? prompt.prompt : prompt;
+    const result = await callGemini(actualPrompt, !isAmbientPrompt);
     reply = result.reply;
     model = result.model;
     const suggestions = result.suggestions || [];
