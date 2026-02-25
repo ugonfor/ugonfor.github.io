@@ -245,11 +245,11 @@ export const translations = {
     player_line_3: "다음엔 누구랑 얘기하지?",
 
     // Ambient emoji / sounds
-    ambient_solo: ["🎵", "🎶", "~♪", "흠흠", "후~", "라라~", "음~"],
-    ambient_chat: ["ㅎㅎ", "와~", "그래?", "맞아", "음음", "오~", "헤헤"],
-    ambient_mood_happy: ["😊", "~♪", "흐흐"],
-    ambient_mood_sad: ["😔", "후...", "하아"],
-    ambient_mood_neutral: ["🤔", "음", "..."],
+    ambient_solo: ["🎵", "🎶", "~♪", "💭", "✨"],
+    ambient_chat: ["😄", "😮", "🤭", "👋", "💬"],
+    ambient_mood_happy: ["😊", "🎵", "✨"],
+    ambient_mood_sad: ["😔", "💧", "🌧️"],
+    ambient_mood_neutral: ["🤔", "💭", "..."],
 
     // Docent info center
     docent_welcome: "안녕하세요! 안내소에 오신 걸 환영합니다. 무엇이 궁금하세요?",
@@ -1067,11 +1067,11 @@ export const translations = {
     player_line_3: "Who should I talk to next?",
 
     // Ambient emoji / sounds
-    ambient_solo: ["🎵", "🎶", "~♪", "Hmm", "Phew~", "La la~", "Mm~"],
-    ambient_chat: ["Heh", "Wow~", "Really?", "Right", "Mm", "Oh~", "Hehe"],
-    ambient_mood_happy: ["😊", "~♪", "Heh"],
-    ambient_mood_sad: ["😔", "Sigh...", "Haah..."],
-    ambient_mood_neutral: ["🤔", "Hmm", "..."],
+    ambient_solo: ["🎵", "🎶", "~♪", "💭", "✨"],
+    ambient_chat: ["😄", "😮", "🤭", "👋", "💬"],
+    ambient_mood_happy: ["😊", "🎵", "✨"],
+    ambient_mood_sad: ["😔", "💧", "🌧️"],
+    ambient_mood_neutral: ["🤔", "💭", "..."],
 
     // Docent info center
     docent_welcome: "Hello! Welcome to the Info Center. What would you like to know?",
