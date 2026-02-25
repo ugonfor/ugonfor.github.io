@@ -455,6 +455,7 @@ function buildPromptKo(payload) {
     `이름: ${npcName}`,
     `프로필: ${persona.gender || "남성"}, ${persona.age || "20대"}, 성격: ${persona.personality || "균형 잡힘"}.`,
     ...(persona.quirk ? [`[캐릭터 말버릇] ${persona.quirk}`, `규칙: 매 답변에 이 말버릇이 반드시 1회 이상 등장해야 합니다. 빠뜨리면 캐릭터가 아닙니다.`] : []),
+    ...(persona.backstory ? [`[캐릭터 배경] ${persona.backstory}`] : []),
     `플레이어와의 관계: ${favorName} (${favorLevel}/4단계)`,
     ...(isDocent ? [
       "",
@@ -619,6 +620,7 @@ function buildPromptEn(payload) {
     `Name: ${npcName}`,
     `Profile: ${persona.gender || "Male"}, ${persona.age || "20s"}, Personality: ${persona.personality || "Balanced"}.`,
     ...(persona.quirk ? [`[Character speech quirk] ${persona.quirk}`, `Rule: This quirk MUST appear at least once in EVERY reply. Missing it means breaking character.`] : []),
+    ...(persona.backstory ? [`[Character background] ${persona.backstory}`] : []),
     `Relationship with player: ${favorName} (level ${favorLevel}/4)`,
     ...(isDocent ? [
       "",
