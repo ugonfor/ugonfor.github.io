@@ -1635,7 +1635,8 @@ import { createAudioManager } from './systems/audio.js';
             .then((line) => {
               if (line) {
                 upsertSpeechBubble(closest.id, line, 4000);
-                addChat(closest.name, line, "ambient");
+                // 대화 중이 아닐 때만 채팅 로그에 표시 (대화 중이면 말풍선만)
+                if (!conversationFocusNpcId) addChat(closest.name, line, "ambient");
               }
             })
             .catch(e => console.warn("[ambient LLM]", e.message))
@@ -2053,24 +2054,14 @@ import { createAudioManager } from './systems/audio.js';
         const greetPrompt = isReturn
           ? t("llm_guide_return", { name: player.name })
           : t("llm_guide_first", { name: player.name });
-        // 인사 후 대화 세션 연결 → 유진과 바로 대화 가능
+        // 인사 1회 후 대화 세션 연결 → 바로 대화 가능
         conversationFocusNpcId = guideNpc.id;
         setChatSession(guideNpc.id, 30_000);
         llmReplyOrEmpty(guideNpc, greetPrompt).then((hi) => {
           const line = hi || t("docent_hi");
           addChat(guideNpc.name, line);
           upsertSpeechBubble(guideNpc.id, line, 5000);
-          setTimeout(() => {
-            const hi2Prompt = isReturn
-              ? t("llm_guide_return2", { name: player.name })
-              : t("llm_guide_first2", { name: player.name });
-            llmReplyOrEmpty(guideNpc, hi2Prompt).then((hi2) => {
-              const line2 = hi2 || t("docent_hi2");
-              addChat(guideNpc.name, line2);
-              upsertSpeechBubble(guideNpc.id, line2, 4000);
-              guideNpc.pose = "standing";
-            }).catch(e => console.warn("[guide greet 2]", e.message));
-          }, 4000);
+          setTimeout(() => { guideNpc.pose = "standing"; }, 3000);
         }).catch(e => console.warn("[guide greet]", e.message));
         guideNpc.roamTarget = null;
         guideNpc.roamWait = 8;
@@ -3318,7 +3309,7 @@ import { createAudioManager } from './systems/audio.js';
         .then((lineA) => {
           if (lineA) {
             upsertSpeechBubble(a.id, lineA, 4500);
-            addChat(a.name, lineA, "npc-chat");
+            if (!conversationFocusNpcId) addChat(a.name, lineA, "npc-chat");
           }
           return delay(2500).then(() =>
             llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || '...' }))
@@ -3327,7 +3318,7 @@ import { createAudioManager } from './systems/audio.js';
         .then((lineB) => {
           if (lineB) {
             upsertSpeechBubble(b.id, lineB, 4500);
-            addChat(b.name, lineB, "npc-chat");
+            if (!conversationFocusNpcId) addChat(b.name, lineB, "npc-chat");
           }
           // 50% 확률로 A가 한 번 더 반응 (3턴)
           if (Math.random() < GAME.MULTI_TURN_CHANCE && lineB) {
@@ -3339,7 +3330,7 @@ import { createAudioManager } from './systems/audio.js';
         .then((lineA2) => {
           if (lineA2) {
             upsertSpeechBubble(a.id, lineA2, 3000);
-            addChat(a.name, lineA2, "npc-chat");
+            if (!conversationFocusNpcId) addChat(a.name, lineA2, "npc-chat");
           }
         })
         .catch(e => console.warn("[NPC social chat]", e.message))
