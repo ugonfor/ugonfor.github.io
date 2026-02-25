@@ -3590,22 +3590,65 @@ import { createAudioManager } from './systems/audio.js';
     mctx.restore();
   }
 
-  // ─── 인트로 카메라 시퀀스: NPC 순회 후 플레이어로 ───
-  const introTargets = [];  // [{x, y}] — 인트로에서 보여줄 위치들
+  // ─── 인트로 카메라 시퀀스: NPC 혼잣말/대화를 보여줌 ───
+  const introTargets = [];  // [{npc, x, y}]
   let introTargetIdx = 0;
-  const INTRO_PHASE0_EACH = 1.8;  // 각 타겟당 시간
+  let introTriggeredSpeech = new Set();
+  const INTRO_PHASE0_EACH = 2.5;  // 각 타겟당 시간 (혼잣말 볼 여유)
 
   function initIntroTargets() {
-    // 활동 중인 NPC 중 플레이어와 먼 순서로 3-4명 선택
-    const candidates = npcs
-      .filter(n => n.id !== "guide" && (n.currentScene || "outdoor") === "outdoor")
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 4);
-    for (const n of candidates) {
-      introTargets.push({ x: n.x, y: n.y, name: n.name });
+    const outdoor = npcs.filter(n => n.id !== "guide" && (n.currentScene || "outdoor") === "outdoor");
+    // 가까운 NPC 쌍 1개 (대화용)
+    let closestPair = null;
+    let closestDist = Infinity;
+    for (let i = 0; i < outdoor.length; i++) {
+      for (let j = i + 1; j < outdoor.length; j++) {
+        const d = dist(outdoor[i], outdoor[j]);
+        if (d < closestDist) { closestDist = d; closestPair = [outdoor[i], outdoor[j]]; }
+      }
     }
-    // 마지막에 광장/분수 근처
-    introTargets.push({ x: places.plaza.x, y: places.plaza.y, name: "plaza" });
+    // 나머지에서 랜덤 2명 (혼잣말용)
+    const used = new Set(closestPair ? closestPair.map(n => n.id) : []);
+    const soloPool = outdoor.filter(n => !used.has(n.id)).sort(() => Math.random() - 0.5);
+
+    // 순서: 혼잣말1 → NPC 쌍 대화 → 혼잣말2
+    if (soloPool[0]) introTargets.push({ npc: soloPool[0], x: soloPool[0].x, y: soloPool[0].y, type: "solo" });
+    if (closestPair) {
+      const mid = { x: (closestPair[0].x + closestPair[1].x) / 2, y: (closestPair[0].y + closestPair[1].y) / 2 };
+      introTargets.push({ npc: closestPair[0], npc2: closestPair[1], x: mid.x, y: mid.y, type: "pair" });
+    }
+    if (soloPool[1]) introTargets.push({ npc: soloPool[1], x: soloPool[1].x, y: soloPool[1].y, type: "solo" });
+  }
+
+  function triggerIntroSpeech(target) {
+    const key = target.npc.id + (target.npc2 ? "_" + target.npc2.id : "");
+    if (introTriggeredSpeech.has(key)) return;
+    introTriggeredSpeech.add(key);
+
+    if (target.type === "pair" && target.npc2) {
+      // NPC 쌍 대화
+      const a = target.npc, b = target.npc2;
+      const rel = npcRelationLabel(getNpcRelation(a.id, b.id), t);
+      llmReplyOrEmpty(a, t("llm_social_start", { nameB: b.name, rel, time: formatTime() }))
+        .then(lineA => {
+          if (lineA) upsertSpeechBubble(a.id, lineA, 4000);
+          return new Promise(r => setTimeout(r, 1500)).then(() =>
+            llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || "..." }))
+          );
+        })
+        .then(lineB => { if (lineB) upsertSpeechBubble(b.id, lineB, 4000); })
+        .catch(e => console.warn("[intro pair]", e.message));
+    } else {
+      // 혼잣말
+      const npc = target.npc;
+      const n = npc.needs || {};
+      const needHint = n.hunger > 60 ? t("llm_need_hungry") : n.energy < 30 ? t("llm_need_tired") : "";
+      const _wMap = { clear: t("llm_weather_clear"), cloudy: t("llm_weather_cloudy"), rain: t("llm_weather_rain"), storm: t("llm_weather_storm"), snow: t("llm_weather_snow"), fog: t("llm_weather_fog") };
+      const _tw = t("llm_ambient_weather", { time: formatTime(), weather: _wMap[weather.current] || t("llm_weather_clear") });
+      llmReplyOrEmpty(npc, t("llm_ambient_prompt", { weather: _tw, need: needHint }))
+        .then(line => { if (line) upsertSpeechBubble(npc.id, line, 4000); })
+        .catch(e => console.warn("[intro solo]", e.message));
+    }
   }
 
   function updateIntro(dt) {
@@ -3618,9 +3661,12 @@ import { createAudioManager } from './systems/audio.js';
       const targetZoom = DEFAULT_ZOOM * 0.65;
       world.zoom += (targetZoom - world.zoom) * 0.08;
 
-      // 현재 타겟 NPC에게 카메라 이동
+      // 현재 타겟에게 카메라 이동
       const target = introTargets[introTargetIdx];
       if (target) {
+        // 타겟이 바뀐 직후 혼잣말/대화 트리거
+        triggerIntroSpeech(target);
+
         const tx = (target.x - player.x) * 20;
         const ty = (target.y - player.y) * 12;
         cameraPan.x += (clamp(tx, -400, 400) - cameraPan.x) * 0.06;
