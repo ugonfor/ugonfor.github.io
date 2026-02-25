@@ -75,7 +75,7 @@ export async function requestLlmNpcReply(npc, userMessage, ctx) {
     LLM_API_URL, debugMode, currentLang, resolvePersona,
     nearestNpc, CHAT_NEARBY_DISTANCE, getNpcChats, formatTime,
     quest, relations, getNpcMemorySummary, getMemoryBasedTone,
-    getNpcSocialContext, buildApiHeaders, t,
+    getNpcSocialContext, buildApiHeaders, t, player,
   } = ctx;
 
   if (!LLM_API_URL) throw new Error("LLM API URL is empty");
@@ -85,6 +85,7 @@ export async function requestLlmNpcReply(npc, userMessage, ctx) {
   const payload = {
     npcId: npc.id,
     npcName: npc.name,
+    playerName: player?.name || "",
     persona,
     userMessage,
     lang: currentLang,
@@ -174,6 +175,7 @@ export async function requestLlmNpcReplyStream(npc, userMessage, onChunk, ctx) {
   const payload = {
     npcId: npc.id,
     npcName: npc.name,
+    playerName: player?.name || "",
     persona,
     userMessage,
     lang: currentLang,
