@@ -45,8 +45,10 @@ export function createAudioManager() {
       if (!ctx || !url) return;
       if (url === currentBgmUrl) return;
 
-      // Fade out current
+      // Fade out current (cancel any pending ramps first to prevent clicks)
       if (currentBgmSource) {
+        bgmGain.gain.cancelScheduledValues(ctx.currentTime);
+        bgmGain.gain.setValueAtTime(bgmGain.gain.value, ctx.currentTime);
         bgmGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
         const oldSource = currentBgmSource;
         currentBgmSource = null;
@@ -62,15 +64,22 @@ export function createAudioManager() {
         return;
       }
 
+      // Use individual gain node per source to avoid shared gain clicks
       const source = ctx.createBufferSource();
+      const sourceGain = ctx.createGain();
       source.buffer = buf;
       source.loop = true;
-      source.connect(bgmGain);
-      source.start();
+      // Offset loop start slightly to avoid MP3 encoder gap pop
+      const loopStart = 0.05;
+      source.loopStart = loopStart;
+      source.connect(sourceGain);
+      sourceGain.connect(bgmGain);
 
-      // Fade in
-      bgmGain.gain.setValueAtTime(0, ctx.currentTime);
-      bgmGain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + fadeInSec);
+      // Fade in from silence
+      sourceGain.gain.setValueAtTime(0, ctx.currentTime);
+      sourceGain.gain.linearRampToValueAtTime(1, ctx.currentTime + fadeInSec);
+      bgmGain.gain.setValueAtTime(0.3, ctx.currentTime);
+      source.start(0, loopStart);
 
       currentBgmSource = source;
       currentBgmUrl = url;
