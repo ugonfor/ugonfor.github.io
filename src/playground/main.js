@@ -3594,7 +3594,7 @@ import { createAudioManager } from './systems/audio.js';
   const introTargets = [];  // [{npc, x, y}]
   let introTargetIdx = 0;
   let introTriggeredSpeech = new Set();
-  let introPlayerOrigPos = null;  // 원래 플레이어 위치 저장
+  const introCamPos = { x: 20, y: 25 };  // 카메라 가상 위치 (플레이어는 안 움직임)
   const INTRO_PHASE0_EACH = 2.5;  // 각 타겟당 시간 (혼잣말 볼 여유)
 
   function initIntroTargets() {
@@ -3659,24 +3659,26 @@ import { createAudioManager } from './systems/audio.js';
     if (introPhase === 0) {
       if (introTargets.length === 0) {
         initIntroTargets();
-        // 플레이어 원래 위치 저장 (렌더링용으로 임시 이동할 예정)
-        introPlayerOrigPos = { x: player.x, y: player.y };
+        introCamPos.x = player.x;
+        introCamPos.y = player.y;
       }
 
       // NPC에 줌인
       const targetZoom = DEFAULT_ZOOM * 1.6;
       world.zoom += (targetZoom - world.zoom) * 0.12;
 
-      // 카메라를 NPC 위치로 직접 이동 (플레이어 좌표를 임시로 NPC 위치로)
+      // 카메라 가상 위치를 NPC에게 이동 (플레이어는 안 움직임)
       const target = introTargets[introTargetIdx];
       if (target) {
         triggerIntroSpeech(target);
         const targetX = target.npc ? target.npc.x : target.x;
         const targetY = target.npc ? target.npc.y : target.y;
-        // 부드럽게 이동 (카메라가 플레이어를 따라가니까, 플레이어를 NPC 위치로)
-        player.x += (targetX - player.x) * 0.08;
-        player.y += (targetY - player.y) * 0.08;
+        introCamPos.x += (targetX - introCamPos.x) * 0.08;
+        introCamPos.y += (targetY - introCamPos.y) * 0.08;
       }
+
+      // 렌더러에 카메라 오버라이드 설정
+      if (gameRenderer3D) gameRenderer3D._cameraFollowTarget = introCamPos;
 
       // 일정 시간마다 다음 타겟
       const elapsed = introTimer - introTargetIdx * INTRO_PHASE0_EACH;
@@ -3689,23 +3691,20 @@ import { createAudioManager } from './systems/audio.js';
     }
 
     if (introPhase === 1) {
-      // 플레이어를 원래 위치로 복귀
-      if (introPlayerOrigPos) {
-        player.x += (introPlayerOrigPos.x - player.x) * 0.08;
-        player.y += (introPlayerOrigPos.y - player.y) * 0.08;
-      }
-      cameraPan.x += (0 - cameraPan.x) * 0.1;
-      cameraPan.y += (0 - cameraPan.y) * 0.1;
+      // 카메라를 플레이어 위치로 복귀
+      introCamPos.x += (player.x - introCamPos.x) * 0.08;
+      introCamPos.y += (player.y - introCamPos.y) * 0.08;
       world.zoom += (DEFAULT_ZOOM - world.zoom) * 0.08;
 
-      const dx = introPlayerOrigPos ? Math.abs(player.x - introPlayerOrigPos.x) : 0;
-      const dy = introPlayerOrigPos ? Math.abs(player.y - introPlayerOrigPos.y) : 0;
-      if (dx < 0.1 && dy < 0.1) {
+      if (gameRenderer3D) gameRenderer3D._cameraFollowTarget = introCamPos;
+
+      const dx = Math.abs(introCamPos.x - player.x);
+      const dy = Math.abs(introCamPos.y - player.y);
+      if (dx < 0.2 && dy < 0.2) {
         introPhase = 2;
-        if (introPlayerOrigPos) { player.x = introPlayerOrigPos.x; player.y = introPlayerOrigPos.y; }
-        cameraPan.x = 0;
-        cameraPan.y = 0;
         world.zoom = DEFAULT_ZOOM;
+        // 카메라 오버라이드 해제 → 플레이어 따라가기로 복귀
+        if (gameRenderer3D) gameRenderer3D._cameraFollowTarget = null;
       }
     }
   }
