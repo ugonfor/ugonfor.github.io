@@ -70,7 +70,7 @@ export function applyConversationEffect(npc, playerMsg, npcReplyText, emotion, c
   }
 }
 
-export async function requestLlmNpcReply(npc, userMessage, ctx) {
+export async function requestLlmNpcReply(npc, userMessage, ctx, overrides = {}) {
   const {
     LLM_API_URL, debugMode, currentLang, resolvePersona,
     nearestNpc, CHAT_NEARBY_DISTANCE, getNpcChats, formatTime,
@@ -93,7 +93,7 @@ export async function requestLlmNpcReply(npc, userMessage, ctx) {
       time: formatTime(),
       objective: quest.objective,
       questDone: quest.done,
-      nearby: near ? near.npc.name : "none",
+      nearby: near && near.npc.id !== npc.id ? near.npc.name : "none",
       relationSummary: {
         playerToHeo: relations.playerToHeo,
         playerToKim: relations.playerToKim,
@@ -107,6 +107,7 @@ export async function requestLlmNpcReply(npc, userMessage, ctx) {
     socialContext: getNpcSocialContext(npc),
     favorLevel: npc.favorLevel || 0,
     npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social), fun: Math.round(npc.needs.fun), duty: Math.round(npc.needs.duty) } : null,
+    ...overrides,
   };
 
   if (debugMode) {
@@ -160,7 +161,7 @@ export async function requestLlmNpcReply(npc, userMessage, ctx) {
   }
 }
 
-export async function requestLlmNpcReplyStream(npc, userMessage, onChunk, ctx) {
+export async function requestLlmNpcReplyStream(npc, userMessage, onChunk, ctx, overrides = {}) {
   const {
     LLM_STREAM_API_URL, debugMode, currentLang, resolvePersona,
     nearestNpc, CHAT_NEARBY_DISTANCE, getNpcChats, formatTime,
@@ -183,7 +184,7 @@ export async function requestLlmNpcReplyStream(npc, userMessage, onChunk, ctx) {
       time: formatTime(),
       objective: quest.objective,
       questDone: quest.done,
-      nearby: near ? near.npc.name : "none",
+      nearby: near && near.npc.id !== npc.id ? near.npc.name : "none",
       relationSummary: {
         playerToHeo: relations.playerToHeo,
         playerToKim: relations.playerToKim,
@@ -197,6 +198,7 @@ export async function requestLlmNpcReplyStream(npc, userMessage, onChunk, ctx) {
     socialContext: getNpcSocialContext(npc),
     favorLevel: npc.favorLevel || 0,
     npcNeeds: npc.needs ? { hunger: Math.round(npc.needs.hunger), energy: Math.round(npc.needs.energy), social: Math.round(npc.needs.social), fun: Math.round(npc.needs.fun), duty: Math.round(npc.needs.duty) } : null,
+    ...overrides,
   };
 
   const controller = new AbortController();
