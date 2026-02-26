@@ -13,6 +13,11 @@ import { createAudioManager } from './systems/audio.js';
 import { createConversationManager } from './systems/conversation-manager.js';
 import { createChatManager } from './systems/chat-manager.js';
 import { createGameState } from './core/game-state.js';
+import { createAmbientSpeechSystem } from './systems/ambient-speech.js';
+import { createNpcSocialSystem } from './systems/npc-social-events.js';
+import { createGuideGreetingSystem } from './systems/guide-greeting.js';
+import { createIntroSequence } from './systems/intro-sequence.js';
+import { createSceneManager } from './systems/scene-manager.js';
 
 (function () {
   const USE_3D = true;
@@ -151,23 +156,12 @@ import { createGameState } from './core/game-state.js';
   });
   let lastLlmModel = "local";
   let lastLlmError = "";
-  let nextSocialAt = performance.now() + 5000; // 첫 NPC 대화 5초 후
   let mobileSheetOpen = false;
   let mobileSheetTab = "controls";
   let mobileChatOpen = false;
   let mobileUtilityOpen = false;
   let mobileStatusCollapsed = false;
   let mobileLogCollapsed = false;
-  let nextAmbientBubbleAt = performance.now() + 3000;
-  let nextPlayerBubbleAt = 0;
-  let nextAutoConversationAt = 0;
-  let autoConversationBusy = false;
-  let playerBubblePending = false;
-  let ambientLlmPending = false;
-  let lastAmbientNpcId = null;
-  let npcChatLlmPending = false;
-  let npcProactiveGreetPending = false;
-  let nextNpcProactiveAt = 0;
   const autoWalk = {
     enabled: false,
     nextPickAt: 0,
@@ -212,13 +206,6 @@ import { createGameState } from './core/game-state.js';
     current: "outdoor",
     savedOutdoorPos: null,
     savedCameraPan: null,
-  };
-
-  const sceneFade = {
-    active: false,
-    alpha: 0,
-    direction: "in", // "in" = fade to black, "out" = fade from black
-    callback: null,
   };
 
   const panelState = {
@@ -297,27 +284,6 @@ import { createGameState } from './core/game-state.js';
   }
 
 
-  const gossipQueue = [];
-
-  function spreadGossip(sourceNpcId, aboutNpcId, topic, sentiment) {
-    gossipQueue.push({ sourceNpcId, aboutNpcId, topic, sentiment, time: world.totalMinutes });
-    if (gossipQueue.length > 30) gossipQueue.shift();
-  }
-
-  function processGossip() {
-    if (gossipQueue.length === 0) return;
-    const g = gossipQueue[0];
-    const source = npcById(g.sourceNpcId);
-    if (!source) { gossipQueue.shift(); return; }
-
-    const nearby = npcs.filter(n => n.id !== g.sourceNpcId && n.id !== g.aboutNpcId && dist(source, n) < GAME.GOSSIP_RANGE);
-    for (const listener of nearby) {
-      const change = g.sentiment === "positive" ? 2 : g.sentiment === "negative" ? -2 : 0;
-      if (change !== 0) adjustNpcRelation(listener.id, g.aboutNpcId, change);
-    }
-    gossipQueue.shift();
-  }
-
   const quest = {
     title: "",
     stage: 0,
@@ -334,15 +300,6 @@ import { createGameState } from './core/game-state.js';
   let contemplationTargetIdx = 0;
   let contemplationNextAt = 0;
 
-  // ─── 도슨트 환영 시스템 ───
-  let guideGreetingPhase = 0;    // 0: 대기, 1: 접근중, 2: 완료
-  let guideGreetingTimer = 0;
-
-  // ─── 인트로 카메라 시퀀스 ───
-  let introPhase = 0;  // 0: overview pan, 1: zoom to player, 2: done
-  let introTimer = 0;
-  const INTRO_DURATION = 5;  // seconds total
-
   // ─── 술래잡기 미니게임 (모듈: systems/tag-game.js) ───
   let tagGameModule = null;
   function tagCtx() {
@@ -358,6 +315,46 @@ import { createGameState } from './core/game-state.js';
     get active() { return tagGameModule ? tagGameModule.isActive() : false; },
     get targetNpcId() { return tagGameModule ? tagGameModule.getTargetNpcId() : null; },
   };
+
+  // ─── Ambient Speech System (module: systems/ambient-speech.js) ───
+  let ambientSpeechModule = null;
+  function ensureAmbientSpeech() {
+    if (!ambientSpeechModule) {
+      ambientSpeechModule = createAmbientSpeechSystem({
+        convoMgr, chatMgr, npcs, player, weather, t, autoWalk,
+        addChat, upsertSpeechBubble, llmReplyOrEmpty,
+        nearestNpc, isTypingInInput, formatTime,
+      });
+    }
+    return ambientSpeechModule;
+  }
+
+  // ─── NPC Social System (module: systems/npc-social-events.js) ───
+  let npcSocialSys = null;
+  function ensureNpcSocial() {
+    if (!npcSocialSys) {
+      npcSocialSys = createNpcSocialSystem({
+        npcs, player, world, convoMgr, t,
+        llmReplyOrEmpty, upsertSpeechBubble, addChat, addLog,
+        ambientEmoji: (npc, nearOther) => ensureAmbientSpeech().ambientEmoji(npc, nearOther),
+        formatTime, npcById, getNpcRelation, adjustNpcRelation,
+      });
+    }
+    return npcSocialSys;
+  }
+
+  // ─── Guide Greeting System (module: systems/guide-greeting.js) ───
+  let guideGreetingSys = null;
+  function ensureGuideGreeting() {
+    if (!guideGreetingSys) {
+      guideGreetingSys = createGuideGreetingSystem({
+        npcs, player, convoMgr, t,
+        llmReplyOrEmpty, upsertSpeechBubble, addChat,
+        canStandInScene, isIntroDone: () => introSeq.isDone,
+      });
+    }
+    return guideGreetingSys;
+  }
 
   const worldEvents = {
     day: -1,
@@ -1234,58 +1231,8 @@ import { createGameState } from './core/game-state.js';
     grandpa: { home: "houseA", work: null },
   };
 
-  function enterBuilding(buildingId) {
-    const interior = interiorDefs && interiorDefs[buildingId];
-    if (!interior) return;
-    sceneState.savedOutdoorPos = { x: player.x, y: player.y };
-    sceneState.savedCameraPan = { x: cameraPan.x, y: cameraPan.y };
-    sceneState.current = buildingId;
-    player.x = interior.spawnPoint.x;
-    player.y = interior.spawnPoint.y;
-    cameraPan.x = 0;
-    cameraPan.y = 0;
-    const bld = buildings.find(b => b.id === buildingId);
-    addLog(t("log_entered_building", { label: t(bld?.label || buildingId) }));
-  }
-
-  function exitBuilding() {
-    if (sceneState.current === "outdoor") return;
-    sceneState.current = "outdoor";
-    if (sceneState.savedOutdoorPos) {
-      player.x = sceneState.savedOutdoorPos.x;
-      player.y = sceneState.savedOutdoorPos.y;
-    }
-    if (sceneState.savedCameraPan) {
-      cameraPan.x = sceneState.savedCameraPan.x;
-      cameraPan.y = sceneState.savedCameraPan.y;
-    }
-    addLog(t("log_exited_building"));
-  }
-
-  function startSceneFade(callback) {
-    sceneFade.active = true;
-    sceneFade.alpha = 0;
-    sceneFade.direction = "in";
-    sceneFade.callback = callback;
-  }
-
-  function updateSceneFade(dt) {
-    if (!sceneFade.active) return;
-    const speed = 4.0; // alpha per second
-    if (sceneFade.direction === "in") {
-      sceneFade.alpha = Math.min(1, sceneFade.alpha + speed * dt);
-      if (sceneFade.alpha >= 1) {
-        if (sceneFade.callback) sceneFade.callback();
-        sceneFade.callback = null;
-        sceneFade.direction = "out";
-      }
-    } else {
-      sceneFade.alpha = Math.max(0, sceneFade.alpha - speed * dt);
-      if (sceneFade.alpha <= 0) {
-        sceneFade.active = false;
-      }
-    }
-  }
+  // ─── Scene Manager (모듈: systems/scene-manager.js) ───
+  const sceneMgr = createSceneManager({ sceneState, player, cameraPan, buildings, interiorDefs, addLog, t });
 
   function randomStandPoint() {
     for (let i = 0; i < 60; i += 1) {
@@ -1333,9 +1280,7 @@ import { createGameState } from './core/game-state.js';
     autoWalk.enabled = !!next;
     autoWalk.target = null;
     autoWalk.nextPickAt = 0;
-    nextAutoConversationAt = 0;
-    autoConversationBusy = false;
-    playerBubblePending = false;
+    ensureAmbientSpeech().resetAutoConversation();
     if (!autoWalk.enabled) player.moveTarget = null;
     refreshAutoWalkButton();
     try {
@@ -1364,49 +1309,6 @@ import { createGameState } from './core/game-state.js';
     }
   }
 
-  function npcAmbientLine(npc) {
-    const mem = ensureMemoryFormat(npc);
-    if (mem.entries.length > 0 && Math.random() < 0.3) {
-      const memLines = [];
-      const giftEntries = mem.entries.filter((e) => e.type === "gift");
-      const questEntries = mem.entries.filter((e) => e.type === "quest");
-      if (giftEntries.length > 0) {
-        const last = giftEntries[giftEntries.length - 1];
-        memLines.push(last.metadata.item ? t("ambient_gift_remember") : t("ambient_gift_thanks"));
-      }
-      if (questEntries.length > 0) {
-        memLines.push(t("ambient_quest_memory"));
-      }
-      if (npc.favorLevel >= 2) {
-        memLines.push(t("ambient_meet_often"));
-      }
-      if (mem.conversationCount >= 5) {
-        memLines.push(t("ambient_talked_alot"));
-      }
-      if (memLines.length > 0) return memLines[Math.floor(Math.random() * memLines.length)];
-    }
-
-    const bySpecies = {
-      human_a: [t("ambient_a1"), t("ambient_a2")],
-      human_b: [t("ambient_b1"), t("ambient_b2")],
-      human_c: [t("ambient_c1"), t("ambient_c2")],
-      human_d: [t("ambient_d1"), t("ambient_d2")],
-      human_e: [t("ambient_e1"), t("ambient_e2")],
-      human_f: [t("ambient_f1"), t("ambient_f2")],
-      human_g: [t("ambient_g1"), t("ambient_g2")],
-      human_h: [t("ambient_h1"), t("ambient_h2")],
-      human_i: [t("ambient_i1"), t("ambient_i2")],
-    };
-    const fallback = [t("ambient_fallback_1"), t("ambient_fallback_2"), t("ambient_fallback_3"), t("ambient_fallback_4")];
-    const pool = bySpecies[npc.species] || fallback;
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-
-  function playerFallbackLine() {
-    const lines = [t("player_line_1"), t("player_line_2"), t("player_line_3")];
-    return lines[Math.floor(Math.random() * lines.length)];
-  }
-
   async function llmReplyOrEmpty(npc, prompt, overrides = {}) {
     if (!LLM_API_URL) return "";
     if (debugMode) {
@@ -1425,162 +1327,6 @@ import { createGameState } from './core/game-state.js';
       if (debugMode) console.warn(`[LLM DEBUG] llmReplyOrEmpty failed:`, err.message);
       return "";
     }
-  }
-
-  async function requestLlmPlayerLine(nearNpc = null) {
-    const proxy = {
-      id: "player_inner_voice",
-      name: player.name,
-      personality: t("llm_player_personality"),
-      species: player.species || "cat",
-      color: player.color,
-    };
-    const contextNpc = nearNpc ? t("llm_player_context_near", { name: nearNpc.name }) : t("llm_player_context_alone");
-    const prompt = t("llm_player_line_prompt", { time: formatTime(), context: contextNpc });
-    const reply = await llmReplyOrEmpty(proxy, prompt);
-    return bubbleText(reply || playerFallbackLine());
-  }
-
-  async function requestLlmNpcAutoReply(npc, playerLine) {
-    const prompt = t("llm_npc_auto_reply_prompt", { player: player.name, line: playerLine, npc: npc.name });
-    const reply = await llmReplyOrEmpty(npc, prompt);
-    return bubbleText(reply || npcAmbientLine(npc));
-  }
-
-  function maybeRunAutoConversation(now) {
-    if (!autoWalk.enabled || autoConversationBusy || now < nextAutoConversationAt) return;
-    if (isTypingInInput() || (chatInputEl && document.activeElement === chatInputEl)) return;
-    const near = nearestNpc(GAME.AUTO_CONVO_DIST);
-    if (!near || !near.npc || near.npc.talkCooldown > 0) return;
-    const npc = near.npc;
-
-    autoConversationBusy = true;
-    npc.talkCooldown = Math.max(npc.talkCooldown, GAME.AUTO_WALK_COOLDOWN_SEC);
-    convoMgr.startConversation(npc.id, 9000, "auto");
-    nextAutoConversationAt = now + 13000 + Math.random() * 12000;
-
-    (async () => {
-      const playerLine = await requestLlmPlayerLine(npc);
-      upsertSpeechBubble("player", playerLine, 3000);
-      addChat(player.name, playerLine);
-      const npcLine = await requestLlmNpcAutoReply(npc, playerLine);
-      upsertSpeechBubble(npc.id, npcLine, 3200);
-      addChat(npc.name, npcLine);
-    })()
-      .catch(e => console.warn("[auto conversation]", e.message))
-      .finally(() => {
-        autoConversationBusy = false;
-      });
-  }
-
-  // 분위기 표현 (LLM 없이)
-  const ambientSolo = t("ambient_solo");
-  const ambientChat = t("ambient_chat");
-  const ambientMood = { happy: t("ambient_mood_happy"), sad: t("ambient_mood_sad"), neutral: t("ambient_mood_neutral") };
-  function ambientEmoji(npc, nearOther) {
-    if (nearOther) return ambientChat[Math.floor(Math.random() * ambientChat.length)];
-    const mood = (npc.moodUntil > nowMs() && npc.mood !== "neutral") ? npc.mood : "neutral";
-    const pool = ambientMood[mood] || ambientSolo;
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-
-  function updateAmbientSpeech(now) {
-    const speechBubbles = chatMgr.speechBubbles;
-    for (let i = speechBubbles.length - 1; i >= 0; i -= 1) {
-      if (speechBubbles[i].until <= now) speechBubbles.splice(i, 1);
-    }
-
-    if (now >= nextAmbientBubbleAt) {
-      nextAmbientBubbleAt = now + 8000 + Math.random() * 12000;
-      const visible = npcs.filter((n) => dist(n, player) < GAME.AMBIENT_SPEECH_RANGE && !convoMgr.isSessionActive(n.id));
-      if (visible.length) {
-        // 가장 가까운 NPC → LLM 혼잣말, 나머지 → "..."
-        visible.sort((a, b) => dist(a, player) - dist(b, player));
-        const closest = visible[0];
-        // 먼 NPC들에게 분위기 말풍선
-        for (let i = 1; i < Math.min(visible.length, 4); i++) {
-          const nearOther = npcs.some(o => o.id !== visible[i].id && dist(visible[i], o) < 3);
-          if (Math.random() < 0.3) upsertSpeechBubble(visible[i].id, ambientEmoji(visible[i], nearOther), 2500);
-        }
-        // 가장 가까운 NPC는 LLM으로 혼잣말 (같은 NPC 연속 방지)
-        const ambientNpc = (visible.length > 1 && closest.id === lastAmbientNpcId) ? visible[1] : closest;
-        if (!ambientLlmPending) {
-          ambientLlmPending = true;
-          lastAmbientNpcId = ambientNpc.id;
-          upsertSpeechBubble(ambientNpc.id, ambientEmoji(ambientNpc, false), 6000);
-          const n = ambientNpc.needs || {};
-          const needHint = n.hunger > 60 ? t("llm_need_hungry") : n.energy < 30 ? t("llm_need_tired") : n.social < 30 ? t("llm_need_lonely") : n.fun < 20 ? t("llm_need_bored") : n.duty > 70 ? t("llm_need_busy") : "";
-          const _wMap = { clear: t("llm_weather_clear"), cloudy: t("llm_weather_cloudy"), rain: t("llm_weather_rain"), storm: t("llm_weather_storm"), snow: t("llm_weather_snow"), fog: t("llm_weather_fog") };
-          const _tw = t("llm_ambient_weather", { time: formatTime(), weather: _wMap[weather.current] || t("llm_weather_clear") });
-          llmReplyOrEmpty(ambientNpc, t("llm_ambient_prompt", { weather: _tw, need: needHint }))
-            .then((line) => {
-              if (line) {
-                upsertSpeechBubble(ambientNpc.id, line, 4000);
-                if (!convoMgr.focusNpcId) addChat(ambientNpc.name, line, "ambient");
-              }
-            })
-            .catch(e => console.warn("[ambient LLM]", e.message))
-            .finally(() => { ambientLlmPending = false; });
-        }
-      }
-    }
-
-    if (autoWalk.enabled && now >= nextPlayerBubbleAt && !playerBubblePending) {
-      nextPlayerBubbleAt = now + 12000 + Math.random() * 14000;
-      playerBubblePending = true;
-      const near = nearestNpc(2.4);
-      requestLlmPlayerLine(near ? near.npc : null)
-        .then((line) => {
-          upsertSpeechBubble("player", line, 2800);
-        })
-        .catch(e => console.warn("[player bubble]", e.message))
-        .finally(() => {
-          playerBubblePending = false;
-        });
-    }
-
-    // NPC 선제적 말 걸기: 가까이 + 호감도 있으면 가끔 먼저 인사
-    if (!npcProactiveGreetPending && now > nextNpcProactiveAt && !convoMgr.focusNpcId) {
-      nextNpcProactiveAt = now + 20000 + Math.random() * 30000;
-      const close = npcs.filter(n => dist(n, player) < GAME.PROACTIVE_GREET_DIST && !convoMgr.isSessionActive(n.id) && n.talkCooldown <= 0 && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
-      if (close.length && Math.random() < GAME.PROACTIVE_GREET_CHANCE) {
-        const npc = close[Math.floor(Math.random() * close.length)];
-        npcProactiveGreetPending = true;
-        npc.pose = "waving";
-        // 기억 기반 선제 인사 프롬프트
-        const mem = ensureMemoryFormat(npc);
-        const convCount = mem.conversationCount || 0;
-        const lastChat = mem.entries.filter(e => e.type === "chat").slice(-1)[0];
-        const memHint = lastChat
-          ? t("llm_proactive_last_chat", { summary: lastChat.summary.slice(0, 30) })
-          : t("llm_proactive_first_meet");
-
-        let greetPrompt;
-        if (convCount >= 5) {
-          greetPrompt = t("llm_proactive_many_chats", { hint: memHint, name: player.name });
-        } else if (convCount >= 1) {
-          greetPrompt = t("llm_proactive_few_chats", { hint: memHint, name: player.name });
-        } else {
-          greetPrompt = t("llm_proactive_stranger", { hint: memHint });
-        }
-        llmReplyOrEmpty(npc, greetPrompt)
-          .then((line) => {
-            if (line) {
-              // 라우팅을 먼저 설정한 후 채팅 추가 (순서 꼬임 방지)
-              convoMgr.startConversation(npc.id, GAME.LLM_TIMEOUT_MS, "proactive");
-              addChat(npc.name, line);
-              upsertSpeechBubble(npc.id, line, 4000);
-            }
-          })
-          .catch(e => console.warn("[proactive greet]", e.message))
-          .finally(() => {
-            npcProactiveGreetPending = false;
-            setTimeout(() => { npc.pose = "standing"; }, 3000);
-          });
-      }
-    }
-
-    maybeRunAutoConversation(now);
   }
 
   function nearestNpc(maxDist) {
@@ -1849,43 +1595,6 @@ import { createGameState } from './core/game-state.js';
     npc.roamTarget = randomPointNear(base, npc.roamRadius);
   }
 
-  // ─── NPC Pre-simulation (첫 프레임 전에 NPC를 흩어놓기) ───
-  function presimulateNpcs(seconds) {
-    const steps = seconds * 10;  // 0.1s per step
-    for (let i = 0; i < steps; i++) {
-      for (const npc of npcs) {
-        // 도슨트는 안내소에 고정
-        if (npc.id === "guide") continue;
-
-        // Pick a new roam target if needed
-        if (!npc.roamTarget || dist(npc, npc.roamTarget) < 0.5) {
-          const destinations = [npc.home, npc.work, npc.hobby].filter(Boolean);
-          const base = destinations[Math.floor(Math.random() * destinations.length)];
-          npc.roamTarget = {
-            x: clamp(base.x + (Math.random() - 0.5) * 4, 1, world.width - 1),
-            y: clamp(base.y + (Math.random() - 0.5) * 4, 1, world.height - 1),
-          };
-        }
-
-        // Move toward target
-        const dx = npc.roamTarget.x - npc.x;
-        const dy = npc.roamTarget.y - npc.y;
-        const d = Math.hypot(dx, dy);
-        if (d > 0.3) {
-          const speed = npc.speed * 0.1;  // 0.1s step
-          const nx = npc.x + (dx / d) * Math.min(speed, d);
-          const ny = npc.y + (dy / d) * Math.min(speed, d);
-          if (canStandInScene(nx, ny, "outdoor")) {
-            npc.x = nx;
-            npc.y = ny;
-          } else {
-            npc.roamTarget = null;  // blocked, pick new target next step
-          }
-        }
-      }
-    }
-  }
-
   // ─── Quest System (모듈: systems/quest.js) ───
   function questCtx() {
     return {
@@ -1903,72 +1612,6 @@ import { createGameState } from './core/game-state.js';
   let questBoardMenuActive = false;
   function showQuestBoardMenu() { _showQuestBoardMenu(questCtx()); questBoardMenuActive = true; }
   function handleQuestBoardChoice(choice) { questBoardMenuActive = false; return _handleQuestBoardChoice(choice, questCtx()); }
-
-  // ─── 도슨트 환영 업데이트 ───
-  function updateGuideGreeting(dt) {
-    if (guideGreetingPhase === 2) return;
-    const guideNpc = npcs.find(n => n.id === "guide");
-    if (!guideNpc) { guideGreetingPhase = 2; return; }
-
-    if (guideGreetingPhase === 0) {
-      guideGreetingTimer += dt;
-      if (guideGreetingTimer >= 3 && introPhase >= 2) {
-        guideGreetingPhase = 1;
-        guideGreetingTimer = 0; // phase 1 타이머 리셋
-        guideNpc.roamTarget = null;
-        guideNpc.roamWait = 0;
-      }
-      return;
-    }
-
-    if (guideGreetingPhase === 1) {
-      guideGreetingTimer += dt;
-      const gd = dist(guideNpc, player);
-
-      // 아직 멀면 이동 (거리 5 이상이면 뛰기)
-      if (gd > 1.2) {
-        const dx = player.x - guideNpc.x;
-        const dy = player.y - guideNpc.y;
-        const d = Math.hypot(dx, dy) || 1;
-        const speedMult = gd > 5 ? 2.5 : 1.2; // 멀면 뛰기
-        const spd = guideNpc.speed * speedMult * dt;
-        const nx = guideNpc.x + (dx / d) * Math.min(spd, d);
-        const ny = guideNpc.y + (dy / d) * Math.min(spd, d);
-        if (canStandInScene(nx, ny, guideNpc.currentScene || "outdoor")) {
-          guideNpc.x = nx;
-          guideNpc.y = ny;
-        }
-        guideNpc.state = "moving";
-        guideNpc.roamTarget = null;
-        guideNpc.roamWait = 0;
-        // 8초 이상 걸어도 도착 못하면 플레이어 근처로 텔레포트
-        if (guideGreetingTimer > 8) {
-          guideNpc.x = player.x + (Math.random() - 0.5) * 2;
-          guideNpc.y = player.y + (Math.random() - 0.5) * 2;
-        }
-        return; // 다음 프레임에 다시 체크
-      }
-
-      // 도착 → phase 2: 인사
-      guideGreetingPhase = 2;
-      guideNpc.pose = "waving";
-      guideNpc.state = "chatting";
-      const mem = ensureMemoryFormat(guideNpc);
-      const isReturn = mem.conversationCount > 0;
-      const greetPrompt = isReturn
-        ? t("llm_guide_return", { name: player.name })
-        : t("llm_guide_first", { name: player.name });
-      convoMgr.startConversation(guideNpc.id, 30_000, "guide");
-      llmReplyOrEmpty(guideNpc, greetPrompt).then((hi) => {
-        const line = hi || t("docent_hi");
-        addChat(guideNpc.name, line);
-        upsertSpeechBubble(guideNpc.id, line, 5000);
-        setTimeout(() => { guideNpc.pose = "standing"; }, 3000);
-      }).catch(e => console.warn("[guide greet]", e.message));
-      guideNpc.roamTarget = null;
-      guideNpc.roamWait = 8;
-    }
-  }
 
   // ─── 도슨트 안내소 시스템 ───
   let docentMenuActive = false;
@@ -2040,7 +1683,7 @@ import { createGameState } from './core/game-state.js';
 
     // Interior exit
     if (hs.id === "interiorExit") {
-      startSceneFade(() => exitBuilding());
+      sceneMgr.startFade(() => sceneMgr.exit());
       return true;
     }
 
@@ -2048,7 +1691,7 @@ import { createGameState } from './core/game-state.js';
     const buildingId = doorToBuildingMap[hs.id];
     if (buildingId) {
       if (interiorDefs && interiorDefs[buildingId]) {
-        startSceneFade(() => enterBuilding(buildingId));
+        sceneMgr.startFade(() => sceneMgr.enter(buildingId));
       } else {
         const bld = buildings.find(b => b.id === buildingId);
         addLog(t("log_checked_building", { label: t(bld?.label || buildingId) }));
@@ -2628,43 +2271,9 @@ import { createGameState } from './core/game-state.js';
       }
     }
 
-    processGossip();
-    updateNpcSocialInteractions();
+    ensureNpcSocial().processGossip();
+    ensureNpcSocial().updateSocialInteractions();
     checkSeasonChange();
-  }
-
-  let nextNpcSocialAt = performance.now() + 2000;
-  let socialGossipLlmPending = false;
-
-  function updateNpcSocialInteractions() {
-    const now = nowMs();
-    if (now < nextNpcSocialAt) return;
-    nextNpcSocialAt = now + 8_000 + Math.random() * 12_000;
-
-    for (const a of npcs) {
-      for (const b of npcs) {
-        if (a.id >= b.id) continue;
-        if (dist(a, b) > 3.0) continue;
-        const rel = getNpcRelation(a.id, b.id);
-        if (rel >= 60 && Math.random() < 0.3) {
-          adjustNpcRelation(a.id, b.id, 1);
-        } else if (rel < 40 && Math.random() < 0.2) {
-          adjustNpcRelation(a.id, b.id, -1);
-        }
-        if (Math.random() < 0.15 && dist(player, a) < 8 && !socialGossipLlmPending) {
-          const relLabel = npcRelationLabel(rel, t);
-          const sentiment = rel >= 60 ? "positive" : rel < 35 ? "negative" : "neutral";
-          socialGossipLlmPending = true;
-          const gossipPrompt = t("llm_gossip_prompt", { nameB: b.name, rel: relLabel });
-          llmReplyOrEmpty(a, gossipPrompt, { favorLevel: 2, isNpcChat: true }).then((line) => {
-            if (line) {
-              upsertSpeechBubble(a.id, line, 3500);
-            }
-          }).catch(e => console.warn("[gossip LLM]", e.message)).finally(() => { socialGossipLlmPending = false; });
-          spreadGossip(a.id, b.id, "relationship", sentiment);
-        }
-      }
-    }
   }
 
   function saveState() {
@@ -2825,7 +2434,7 @@ import { createGameState } from './core/game-state.js';
 
   function updatePlayer(dt) {
     // 인트로 시퀀스 중에는 플레이어 이동 비활성화
-    if (introPhase < 2) return;
+    if (!introSeq.isDone) return;
 
     if (isMobileViewport() && mobileChatOpen) {
       keys.clear();
@@ -3171,91 +2780,6 @@ import { createGameState } from './core/game-state.js';
     }
   }
 
-  function updateNpcSocialEvents() {
-    const now = nowMs();
-    if (now < nextSocialAt) return;
-    nextSocialAt = now + 10000 + Math.random() * 15000; // 10~25초마다 (혼잣말 8~20초와 비슷)
-
-    const moving = npcs.filter((n) => !convoMgr.isSessionActive(n.id) && n.id !== "guide");
-    if (moving.length < 2) return;
-
-    // 가까운 NPC 쌍을 찾기
-    let bestPair = null;
-    let bestDist = Infinity;
-    for (let i = 0; i < moving.length; i++) {
-      for (let j = i + 1; j < moving.length; j++) {
-        if ((moving[i].currentScene || "outdoor") !== (moving[j].currentScene || "outdoor")) continue;
-        const d = dist(moving[i], moving[j]);
-        if (d < bestDist) {
-          bestDist = d;
-          bestPair = [moving[i], moving[j]];
-        }
-      }
-    }
-    if (!bestPair || bestDist > 6) return; // 6타일 이내면 대화 시도
-
-    const [a, b] = bestPair;
-
-    // 서로 가까이 걸어가게
-    if (bestDist > 2.5) {
-      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      a.roamTarget = mid;
-      b.roamTarget = mid;
-      a.roamWait = 0;
-      b.roamWait = 0;
-    }
-
-    a.roamWait = Math.max(a.roamWait, 4 + Math.random() * 2);
-    b.roamWait = Math.max(b.roamWait, 4 + Math.random() * 2);
-    a.state = "chatting";
-    b.state = "chatting";
-
-    // 플레이어 근처면 LLM으로 멀티턴 대화, 멀면 "..." 말풍선
-    const playerNearby = dist(player, a) < 12 || dist(player, b) < 12;
-    if (playerNearby && !npcChatLlmPending) {
-      npcChatLlmPending = true;
-      const rel = npcRelationLabel(getNpcRelation(a.id, b.id), t);
-      upsertSpeechBubble(a.id, ambientEmoji(a, true), 8000);
-      upsertSpeechBubble(b.id, ambientEmoji(b, true), 8000);
-      const delay = (ms) => new Promise(r => setTimeout(r, ms));
-      const npcChatOverrides = { favorLevel: 2, isNpcChat: true };
-      llmReplyOrEmpty(a, t("llm_social_start", { nameB: b.name, rel: rel, time: formatTime() }), npcChatOverrides)
-        .then((lineA) => {
-          if (lineA) {
-            upsertSpeechBubble(a.id, lineA, 4500);
-            if (!convoMgr.focusNpcId) addChat(a.name, lineA, "npc-chat");
-          }
-          return delay(2500).then(() =>
-            llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || '...' }), npcChatOverrides)
-          );
-        })
-        .then((lineB) => {
-          if (lineB) {
-            upsertSpeechBubble(b.id, lineB, 4500);
-            if (!convoMgr.focusNpcId) addChat(b.name, lineB, "npc-chat");
-          }
-          // 50% 확률로 A가 한 번 더 반응 (3턴)
-          if (Math.random() < GAME.MULTI_TURN_CHANCE && lineB) {
-            return delay(2500).then(() =>
-              llmReplyOrEmpty(a, t("llm_social_react", { nameB: b.name, line: lineB }), npcChatOverrides)
-            );
-          }
-        })
-        .then((lineA2) => {
-          if (lineA2) {
-            upsertSpeechBubble(a.id, lineA2, 3000);
-            if (!convoMgr.focusNpcId) addChat(a.name, lineA2, "npc-chat");
-          }
-        })
-        .catch(e => console.warn("[NPC social chat]", e.message))
-        .finally(() => { npcChatLlmPending = false; });
-      addLog(t("log_npc_chat", { a: a.name, b: b.name }));
-    } else {
-      upsertSpeechBubble(a.id, ambientEmoji(a, true), 2800);
-      upsertSpeechBubble(b.id, ambientEmoji(b, true), 2800);
-    }
-  }
-
   function updateConversationCamera() {
     const npc = activeConversationNpc();
     if (npc) {
@@ -3462,125 +2986,13 @@ import { createGameState } from './core/game-state.js';
     mctx.restore();
   }
 
-  // ─── 인트로 카메라 시퀀스: NPC 혼잣말/대화를 보여줌 ───
-  const introTargets = [];  // [{npc, x, y}]
-  let introTargetIdx = 0;
-  let introTriggeredSpeech = new Set();
-  const introCamPos = { x: 20, y: 25 };  // 카메라 가상 위치 (플레이어는 안 움직임)
-  const INTRO_PHASE0_EACH = 2.5;  // 각 타겟당 시간 (혼잣말 볼 여유)
-
-  function initIntroTargets() {
-    const outdoor = npcs.filter(n => n.id !== "guide" && (n.currentScene || "outdoor") === "outdoor");
-    // 가까운 NPC 쌍 1개 (대화용)
-    let closestPair = null;
-    let closestDist = Infinity;
-    for (let i = 0; i < outdoor.length; i++) {
-      for (let j = i + 1; j < outdoor.length; j++) {
-        const d = dist(outdoor[i], outdoor[j]);
-        if (d < closestDist) { closestDist = d; closestPair = [outdoor[i], outdoor[j]]; }
-      }
-    }
-    // 나머지에서 랜덤 2명 (혼잣말용)
-    const used = new Set(closestPair ? closestPair.map(n => n.id) : []);
-    const soloPool = outdoor.filter(n => !used.has(n.id)).sort(() => Math.random() - 0.5);
-
-    // 순서: 혼잣말1 → NPC 쌍 대화 → 혼잣말2
-    if (soloPool[0]) introTargets.push({ npc: soloPool[0], x: soloPool[0].x, y: soloPool[0].y, type: "solo" });
-    if (closestPair) {
-      const mid = { x: (closestPair[0].x + closestPair[1].x) / 2, y: (closestPair[0].y + closestPair[1].y) / 2 };
-      introTargets.push({ npc: closestPair[0], npc2: closestPair[1], x: mid.x, y: mid.y, type: "pair" });
-    }
-    if (soloPool[1]) introTargets.push({ npc: soloPool[1], x: soloPool[1].x, y: soloPool[1].y, type: "solo" });
-  }
-
-  function triggerIntroSpeech(target) {
-    const key = target.npc.id + (target.npc2 ? "_" + target.npc2.id : "");
-    if (introTriggeredSpeech.has(key)) return;
-    introTriggeredSpeech.add(key);
-
-    if (target.type === "pair" && target.npc2) {
-      // NPC 쌍 대화
-      const a = target.npc, b = target.npc2;
-      const rel = npcRelationLabel(getNpcRelation(a.id, b.id), t);
-      const introNpcOverrides = { favorLevel: 2, isNpcChat: true };
-      llmReplyOrEmpty(a, t("llm_social_start", { nameB: b.name, rel, time: formatTime() }), introNpcOverrides)
-        .then(lineA => {
-          if (lineA) upsertSpeechBubble(a.id, lineA, 4000);
-          return new Promise(r => setTimeout(r, 1500)).then(() =>
-            llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || "..." }), introNpcOverrides)
-          );
-        })
-        .then(lineB => { if (lineB) upsertSpeechBubble(b.id, lineB, 4000); })
-        .catch(e => console.warn("[intro pair]", e.message));
-    } else {
-      // 혼잣말
-      const npc = target.npc;
-      const n = npc.needs || {};
-      const needHint = n.hunger > 60 ? t("llm_need_hungry") : n.energy < 30 ? t("llm_need_tired") : "";
-      const _wMap = { clear: t("llm_weather_clear"), cloudy: t("llm_weather_cloudy"), rain: t("llm_weather_rain"), storm: t("llm_weather_storm"), snow: t("llm_weather_snow"), fog: t("llm_weather_fog") };
-      const _tw = t("llm_ambient_weather", { time: formatTime(), weather: _wMap[weather.current] || t("llm_weather_clear") });
-      llmReplyOrEmpty(npc, t("llm_ambient_prompt", { weather: _tw, need: needHint }))
-        .then(line => { if (line) upsertSpeechBubble(npc.id, line, 4000); })
-        .catch(e => console.warn("[intro solo]", e.message));
-    }
-  }
-
-  function updateIntro(dt) {
-    if (introPhase >= 2) return;
-    introTimer += dt;
-
-    if (introPhase === 0) {
-      if (introTargets.length === 0) {
-        initIntroTargets();
-        introCamPos.x = player.x;
-        introCamPos.y = player.y;
-      }
-
-      // NPC에 줌인
-      const targetZoom = DEFAULT_ZOOM * 1.6;
-      world.zoom += (targetZoom - world.zoom) * 0.12;
-
-      // 카메라 가상 위치를 NPC에게 이동 (플레이어는 안 움직임)
-      const target = introTargets[introTargetIdx];
-      if (target) {
-        triggerIntroSpeech(target);
-        const targetX = target.npc ? target.npc.x : target.x;
-        const targetY = target.npc ? target.npc.y : target.y;
-        introCamPos.x += (targetX - introCamPos.x) * 0.08;
-        introCamPos.y += (targetY - introCamPos.y) * 0.08;
-      }
-
-      // 렌더러에 카메라 오버라이드 설정
-      if (gameRenderer3D) gameRenderer3D._cameraFollowTarget = introCamPos;
-
-      // 일정 시간마다 다음 타겟
-      const elapsed = introTimer - introTargetIdx * INTRO_PHASE0_EACH;
-      if (elapsed >= INTRO_PHASE0_EACH) {
-        introTargetIdx++;
-        if (introTargetIdx >= introTargets.length) {
-          introPhase = 1;
-        }
-      }
-    }
-
-    if (introPhase === 1) {
-      // 카메라를 플레이어 위치로 복귀
-      introCamPos.x += (player.x - introCamPos.x) * 0.08;
-      introCamPos.y += (player.y - introCamPos.y) * 0.08;
-      world.zoom += (DEFAULT_ZOOM - world.zoom) * 0.08;
-
-      if (gameRenderer3D) gameRenderer3D._cameraFollowTarget = introCamPos;
-
-      const dx = Math.abs(introCamPos.x - player.x);
-      const dy = Math.abs(introCamPos.y - player.y);
-      if (dx < 0.2 && dy < 0.2) {
-        introPhase = 2;
-        world.zoom = DEFAULT_ZOOM;
-        // 카메라 오버라이드 해제 → 플레이어 따라가기로 복귀
-        if (gameRenderer3D) gameRenderer3D._cameraFollowTarget = null;
-      }
-    }
-  }
+  // ─── Intro Sequence (모듈: systems/intro-sequence.js) ───
+  const introSeq = createIntroSequence({
+    npcs, player, world, weather,
+    get gameRenderer3D() { return gameRenderer3D; },
+    DEFAULT_ZOOM, t, formatTime, getNpcRelation, npcRelationLabel,
+    llmReplyOrEmpty, upsertSpeechBubble, canStandInScene, clamp,
+  });
 
   function updateCamera() {
     const p = project(player.x, player.y, 0);
@@ -3775,15 +3187,15 @@ import { createGameState } from './core/game-state.js';
       updateAmbientEvents();
       updateFavorRequests();
       updateTagGame(dt);
-      updateSceneFade(dt);
+      sceneMgr.updateFade(dt);
       if (sceneState.current === "outdoor") {
         updateWeather(dt);
         updateDiscoveries();
       }
-      updateAmbientSpeech(nowMs());
+      ensureAmbientSpeech().update(nowMs());
       updateConversationCamera();
       updateContemplation(nowMs());
-      updateIntro(dt);
+      introSeq.update(dt);
       updateCamera();
       if (mp && mp.enabled) {
         mpBroadcast();
@@ -4328,7 +3740,7 @@ import { createGameState } from './core/game-state.js';
   }
 
   // NPC를 미리 흩어놓기 (첫 프레임 전 60초 시뮬레이션)
-  presimulateNpcs(60);
+  introSeq.presimulate(60);
 
   requestAnimationFrame(frame);
 })();
