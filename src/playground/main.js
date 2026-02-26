@@ -18,6 +18,8 @@ import { createNpcSocialSystem } from './systems/npc-social-events.js';
 import { createGuideGreetingSystem } from './systems/guide-greeting.js';
 import { createIntroSequence } from './systems/intro-sequence.js';
 import { createSceneManager } from './systems/scene-manager.js';
+import { createSaveLoadSystem } from './systems/save-load.js';
+import { createCameraSystem } from './systems/camera.js';
 
 (function () {
   const USE_3D = true;
@@ -170,9 +172,6 @@ import { createSceneManager } from './systems/scene-manager.js';
   let autoWalkBtn = null;
   let mobileAutoWalkBtn = null;
 
-  const cameraPan = { x: 0, y: 0 };
-  const convoPan = { x: 0, y: 0 };
-  let preConversationZoom = null;
   let dragging = false;
   let dragX = 0;
   let dragY = 0;
@@ -294,11 +293,6 @@ import { createSceneManager } from './systems/scene-manager.js';
 
   const questHistory = [];
   let questCount = 0;
-
-  // ─── 관조 모드 (V키) ───
-  let contemplationMode = false;
-  let contemplationTargetIdx = 0;
-  let contemplationNextAt = 0;
 
   // ─── 술래잡기 미니게임 (모듈: systems/tag-game.js) ───
   let tagGameModule = null;
@@ -1232,6 +1226,15 @@ import { createSceneManager } from './systems/scene-manager.js';
   };
 
   // ─── Scene Manager (모듈: systems/scene-manager.js) ───
+  // ─── Camera System (모듈: systems/camera.js) ───
+  const cameraSys = createCameraSystem({
+    world, player, npcs, canvas,
+    activeConversationNpc: () => activeConversationNpc(),
+    project: (wx, wy, wz) => project(wx, wy, wz),
+    addLog, t,
+  });
+  const cameraPan = cameraSys.cameraPan;
+
   const sceneMgr = createSceneManager({ sceneState, player, cameraPan, buildings, interiorDefs, addLog, t });
 
   function randomStandPoint() {
@@ -1566,7 +1569,7 @@ import { createSceneManager } from './systems/scene-manager.js';
     // 도슨트 NPC: 환영 접근 중이면 플레이어에게, 아니면 안내소 고정
     const persona = npcPersonas[npc.id];
     if (persona && persona.isDocent) {
-      if (guideGreetingPhase === 1) {
+      if (ensureGuideGreeting().phase === 1) {
         npc.roamTarget = { x: player.x, y: player.y };
       } else {
         npc.roamTarget = randomPointNear(places.infoCenter, 1.5);
@@ -2276,161 +2279,18 @@ import { createSceneManager } from './systems/scene-manager.js';
     checkSeasonChange();
   }
 
-  function saveState() {
-    const state = {
-      world: {
-        totalMinutes: world.totalMinutes,
-        paused: world.paused,
-        zoom: world.zoom,
-        cameraPan,
-      },
-      player: {
-        name: player.name,
-        x: player.x,
-        y: player.y,
-      },
-      sceneState: {
-        current: sceneState.current,
-        savedOutdoorPos: sceneState.savedOutdoorPos,
-        savedCameraPan: sceneState.savedCameraPan,
-      },
-      relations,
-      quest,
-      npcs: npcs
-        .filter((n) => !n.id.startsWith("shared_") && !n.id.startsWith("custom_"))
-        .map((n) => ({
-          id: n.id, x: n.x, y: n.y, talkCooldown: n.talkCooldown,
-          favorLevel: n.favorLevel, favorPoints: n.favorPoints,
-          memory: n.memory,
-          currentScene: n.currentScene || "outdoor",
-        })),
-      inventory: { ...inventory },
-      removedNpcIds: [...removedNpcIds],
-      discoveredIds: discoveries.filter(d => d.found).map(d => d.id),
-      questHistory: questHistory.slice(),
-      questCount,
-      npcSocialGraph: { ...npcSocialGraph },
-    };
-
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-    addLog(t("sys_save_ok"));
-  }
-
-  function loadState() {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) {
-      addLog(t("sys_no_save"));
-      return;
-    }
-
-    try {
-      const state = JSON.parse(raw);
-      if (state.world) {
-        world.totalMinutes = state.world.totalMinutes ?? world.totalMinutes;
-        world.paused = !!state.world.paused;
-        world.zoom = clamp(Math.max(state.world.zoom ?? DEFAULT_ZOOM, 2.0), ZOOM_MIN, ZOOM_MAX);
-        cameraPan.x = clamp((state.world.cameraPan && state.world.cameraPan.x) || 0, -320, 320);
-        cameraPan.y = clamp((state.world.cameraPan && state.world.cameraPan.y) || 0, -220, 220);
-      }
-      if (state.player) {
-        player.name = normalizePlayerName(state.player.name ?? player.name);
-        try {
-          localStorage.setItem(PLAYER_NAME_KEY, player.name);
-        } catch {
-          // ignore localStorage errors
-        }
-        player.x = clamp(state.player.x ?? player.x, 1, world.width - 1);
-        player.y = clamp(state.player.y ?? player.y, 1, world.height - 1);
-        if (!canStand(player.x, player.y)) {
-          player.x = places.plaza.x;
-          player.y = places.plaza.y;
-        }
-      }
-      if (state.sceneState) {
-        sceneState.current = state.sceneState.current || "outdoor";
-        sceneState.savedOutdoorPos = state.sceneState.savedOutdoorPos || null;
-        sceneState.savedCameraPan = state.sceneState.savedCameraPan || null;
-      }
-      if (state.relations) {
-        Object.assign(relations, state.relations);
-      }
-      if (state.quest) {
-        quest.stage = state.quest.stage ?? quest.stage;
-        quest.objective = state.quest.objective || quest.objective;
-        quest.title = state.quest.title || quest.title;
-        quest.done = !!state.quest.done;
-        quest.dynamic = !!state.quest.dynamic;
-        quest.dynamicStages = state.quest.dynamicStages || null;
-        quest.questType = state.quest.questType || null;
-        quest.primaryNpcId = state.quest.primaryNpcId || null;
-        quest.startedAt = state.quest.startedAt || 0;
-        quest._stageCount = state.quest._stageCount || (quest.dynamicStages ? quest.dynamicStages.length : 3);
-      }
-      if (Array.isArray(state.questHistory)) {
-        questHistory.length = 0;
-        for (const h of state.questHistory) questHistory.push(h);
-      }
-      if (state.questCount != null) questCount = state.questCount;
-      if (Array.isArray(state.npcs)) {
-        for (const savedNpc of state.npcs) {
-          const npc = npcs.find((n) => n.id === savedNpc.id);
-          if (!npc) continue;
-          if (savedNpc.currentScene) npc.currentScene = savedNpc.currentScene;
-          const npcLoadScene = npc.currentScene || "outdoor";
-          if (npcLoadScene === "outdoor") {
-            npc.x = clamp(savedNpc.x ?? npc.x, 1, world.width - 1);
-            npc.y = clamp(savedNpc.y ?? npc.y, 1, world.height - 1);
-            if (!canStandInScene(npc.x, npc.y, "outdoor")) {
-              npc.x = npc.home.x;
-              npc.y = npc.home.y;
-            }
-          } else {
-            npc.x = savedNpc.x ?? npc.x;
-            npc.y = savedNpc.y ?? npc.y;
-          }
-          npc.talkCooldown = Math.max(0, savedNpc.talkCooldown || 0);
-          if (savedNpc.favorLevel != null) npc.favorLevel = savedNpc.favorLevel;
-          if (savedNpc.favorPoints != null) npc.favorPoints = savedNpc.favorPoints;
-          if (savedNpc.memory) {
-            npc.memory = savedNpc.memory;
-            ensureMemoryFormat(npc);
-          }
-        }
-      }
-      if (state.inventory) {
-        for (const [k, v] of Object.entries(state.inventory)) {
-          if (k in inventory) inventory[k] = Math.max(0, v || 0);
-        }
-      }
-      if (Array.isArray(state.removedNpcIds)) {
-        for (const id of state.removedNpcIds) {
-          if (!removedNpcIds.has(id)) {
-            const idx = npcs.findIndex((n) => n.id === id);
-            if (idx !== -1) {
-              npcs.splice(idx, 1);
-              delete npcPersonas[id];
-            }
-            removedNpcIds.add(id);
-          }
-        }
-      }
-      if (Array.isArray(state.discoveredIds)) {
-        for (const id of state.discoveredIds) {
-          const d = discoveries.find(dd => dd.id === id);
-          if (d) d.found = true;
-        }
-      }
-      if (state.npcSocialGraph) {
-        for (const [k, v] of Object.entries(state.npcSocialGraph)) {
-          npcSocialGraph[k] = clamp(v, 0, 100);
-        }
-      }
-      refreshRemoveSelect();
-      addLog(t("sys_load_ok"));
-    } catch (err) {
-      addLog(t("log_load_fail"));
-    }
-  }
+  // ─── Save/Load System (모듈: systems/save-load.js) ───
+  const saveLoadSys = createSaveLoadSystem({
+    world, player, npcs, relations, npcSocialGraph, quest, inventory,
+    sceneState, discoveries, removedNpcIds, questHistory,
+    get questCount() { return questCount; }, set questCount(v) { questCount = v; },
+    getQuestCount: () => questCount,
+    setQuestCount: (v) => { questCount = v; },
+    npcPersonas, places, cameraPan,
+    canStand, canStandInScene, refreshRemoveSelect, addLog, t,
+  });
+  function saveState() { saveLoadSys.save(); }
+  function loadState() { saveLoadSys.load(); }
 
   function updatePlayer(dt) {
     // 인트로 시퀀스 중에는 플레이어 이동 비활성화
@@ -2661,8 +2521,8 @@ import { createSceneManager } from './systems/scene-manager.js';
         continue;
       }
 
-      // 도슨트 접근 중이면 updateGuideGreeting에서 직접 이동하므로 스킵
-      if (npc.id === "guide" && guideGreetingPhase === 1) continue;
+      // 도슨트 접근 중이면 guideGreetingSys에서 직접 이동하므로 스킵
+      if (npc.id === "guide" && ensureGuideGreeting().phase === 1) continue;
 
       // 술래잡기 중인 NPC는 updateTagGame에서 이동 처리
       if (tagGame.active && npc.id === tagGame.targetNpcId) continue;
@@ -2778,61 +2638,6 @@ import { createSceneManager } from './systems/scene-manager.js';
         } // end !isDocent
       }
     }
-  }
-
-  function updateConversationCamera() {
-    const npc = activeConversationNpc();
-    if (npc) {
-      if (preConversationZoom === null) preConversationZoom = world.zoom;
-      const desiredZoom = Math.max(preConversationZoom, CONVERSATION_MIN_ZOOM);
-      world.zoom += (desiredZoom - world.zoom) * 0.1;
-
-      const dx = npc.x - player.x;
-      const dy = npc.y - player.y;
-      const d = Math.hypot(dx, dy) || 1;
-      const nx = dx / d;
-      const ny = dy / d;
-      const px = -ny;
-      const py = nx;
-
-      const desiredPanX = clamp(-nx * 130 + px * 72, -220, 220);
-      const desiredPanY = clamp(-ny * 94 + py * 40 - 44, -180, 180);
-      convoPan.x += (desiredPanX - convoPan.x) * 0.16;
-      convoPan.y += (desiredPanY - convoPan.y) * 0.16;
-      return;
-    }
-
-    if (preConversationZoom !== null) {
-      world.zoom += (preConversationZoom - world.zoom) * 0.08;
-      if (Math.abs(preConversationZoom - world.zoom) < 0.02) {
-        world.zoom = preConversationZoom;
-        preConversationZoom = null;
-      }
-    }
-    convoPan.x *= 0.84;
-    convoPan.y *= 0.84;
-    if (Math.abs(convoPan.x) < 0.2) convoPan.x = 0;
-    if (Math.abs(convoPan.y) < 0.2) convoPan.y = 0;
-  }
-
-  function updateContemplation(now) {
-    if (!contemplationMode) return;
-    if (now < contemplationNextAt) return;
-    contemplationNextAt = now + GAME.CONTEMPLATION_MIN_MS + Math.random() * GAME.CONTEMPLATION_RANGE_MS; // 6~10초마다 전환
-    const outdoor = npcs.filter(n => (n.currentScene || "outdoor") === "outdoor");
-    if (!outdoor.length) return;
-    contemplationTargetIdx = (contemplationTargetIdx + 1) % outdoor.length;
-    const target = outdoor[contemplationTargetIdx];
-    // 카메라를 NPC에게 부드럽게 이동
-    cameraPan.x = clamp((target.x - player.x) * 20, -320, 320);
-    cameraPan.y = clamp((target.y - player.y) * 12, -220, 220);
-  }
-
-  function resetView() {
-    cameraPan.x = 0;
-    cameraPan.y = 0;
-    world.zoom = DEFAULT_ZOOM;
-    addLog(t("log_view_reset"));
   }
 
   function touchDistance(t1, t2) {
@@ -2993,14 +2798,6 @@ import { createSceneManager } from './systems/scene-manager.js';
     DEFAULT_ZOOM, t, formatTime, getNpcRelation, npcRelationLabel,
     llmReplyOrEmpty, upsertSpeechBubble, canStandInScene, clamp,
   });
-
-  function updateCamera() {
-    const p = project(player.x, player.y, 0);
-    const tx = canvas.width * 0.5 - (p.x - world.cameraX) + cameraPan.x + convoPan.x;
-    const ty = canvas.height * 0.58 - (p.y - world.cameraY) + cameraPan.y + convoPan.y;
-    world.cameraX += (tx - world.cameraX) * 0.08;
-    world.cameraY += (ty - world.cameraY) * 0.08;
-  }
 
   function updateUI() {
     if (chatMgr.systemToasts.length && chatMgr.systemToasts[0].until <= performance.now()) renderToasts();
@@ -3181,9 +2978,9 @@ import { createSceneManager } from './systems/scene-manager.js';
       // 실제 시간과 1:1 동기화 (dt는 초 단위, 1분 = 60초)
       world.totalMinutes += dt / 60;
       updatePlayer(dt);
-      updateGuideGreeting(dt);  // 유진 이동을 updateNpcs보다 먼저
+      ensureGuideGreeting().update(dt);  // 유진 이동을 updateNpcs보다 먼저
       updateNpcs(dt);
-      updateNpcSocialEvents();
+      ensureNpcSocial().updateSocialEvents();
       updateAmbientEvents();
       updateFavorRequests();
       updateTagGame(dt);
@@ -3193,10 +2990,10 @@ import { createSceneManager } from './systems/scene-manager.js';
         updateDiscoveries();
       }
       ensureAmbientSpeech().update(nowMs());
-      updateConversationCamera();
-      updateContemplation(nowMs());
+      cameraSys.updateConversation();
+      cameraSys.updateContemplation(nowMs());
       introSeq.update(dt);
-      updateCamera();
+      cameraSys.updateCamera();
       if (mp && mp.enabled) {
         mpBroadcast();
         mpInterpolate(dt);
@@ -3258,7 +3055,7 @@ import { createSceneManager } from './systems/scene-manager.js';
       ev.preventDefault();
     }
     if (code === "KeyE") interact();
-    if (code === "Space") resetView();
+    if (code === "Space") cameraSys.resetView();
     if (code === "KeyP") {
       world.paused = !world.paused;
       addLog(world.paused ? t("sys_sim_pause") : t("sys_sim_resume"));
@@ -3268,14 +3065,8 @@ import { createSceneManager } from './systems/scene-manager.js';
     }
     // V키: 관조 모드 (카메라가 NPC를 자동으로 따라감)
     if (code === "KeyV") {
-      contemplationMode = !contemplationMode;
-      if (contemplationMode) {
-        contemplationTargetIdx = 0;
-        contemplationNextAt = 0;
-        addLog(t("sys_contemplation_on"));
-      } else {
-        addLog(t("sys_contemplation_off"));
-      }
+      cameraSys.toggleContemplation();
+      addLog(cameraSys.contemplationMode ? t("sys_contemplation_on") : t("sys_contemplation_off"));
     }
     // G키: 날씨 순환 (디버그용)
     if (code === "KeyG") {
@@ -3356,8 +3147,7 @@ import { createSceneManager } from './systems/scene-manager.js';
     const dy = ev.clientY - dragY;
     dragX = ev.clientX;
     dragY = ev.clientY;
-    cameraPan.x = clamp(cameraPan.x + dx, -320, 320);
-    cameraPan.y = clamp(cameraPan.y + dy, -220, 220);
+    cameraSys.addPan(dx, dy);
   });
 
   // 줌/터치 이벤트: 3D 캔버스에 걸기 (2D HUD는 pointer-events:none)
@@ -3408,8 +3198,7 @@ import { createSceneManager } from './systems/scene-manager.js';
         const dy = t.clientY - inputState.touchPanY;
         inputState.touchPanX = t.clientX;
         inputState.touchPanY = t.clientY;
-        cameraPan.x = clamp(cameraPan.x + dx, -320, 320);
-        cameraPan.y = clamp(cameraPan.y + dy, -220, 220);
+        cameraSys.addPan(dx, dy);
       } else if (ev.touches.length >= 2) {
         const distNow = touchDistance(ev.touches[0], ev.touches[1]);
         if (inputState.pinchDist > 0) {
@@ -3465,7 +3254,7 @@ import { createSceneManager } from './systems/scene-manager.js';
   if (mobileResetBtn) {
     mobileResetBtn.addEventListener("click", () => {
       if (isMobileViewport() && mobileChatOpen) return;
-      resetView();
+      cameraSys.resetView();
     });
   }
   if (mobileUtilityBtn) {
