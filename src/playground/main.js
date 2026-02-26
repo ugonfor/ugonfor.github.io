@@ -21,7 +21,7 @@ import { createAudioManager } from './systems/audio.js';
   function t(key, params = {}) {
     let text = (translations[currentLang] && translations[currentLang][key]) || (translations.ko && translations.ko[key]) || key;
     for (const [k, v] of Object.entries(params)) {
-      text = text.replace(`{${k}}`, v);
+      text = text.replaceAll(`{${k}}`, v);
     }
     return text;
   }
