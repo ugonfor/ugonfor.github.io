@@ -10,6 +10,7 @@ import { createMemorySync, applyServerMemory } from './systems/memory-sync.js';
 import { createTagGame } from './systems/tag-game.js';
 import { inferSentimentFromReply, applyConversationEffect as _applyConversationEffect, requestLlmNpcReply as _requestLlmNpcReply, requestLlmNpcReplyStream as _requestLlmNpcReplyStream, detectActionFromReply as _detectActionFromReply } from './systems/conversation.js';
 import { createAudioManager } from './systems/audio.js';
+import { createConversationManager } from './systems/conversation-manager.js';
 
 (function () {
   const USE_3D = true;
@@ -135,7 +136,9 @@ import { createAudioManager } from './systems/audio.js';
   let llmAvailable = true;
   let debugMode = localStorage.getItem('playground_debug') === 'true';
   let focusedNpcId = null;
-  let conversationFocusNpcId = null;
+  const convoMgr = createConversationManager({
+    onFocusChange: () => { if (typeof applyPanelState === 'function') applyPanelState(); },
+  });
   let lastLlmModel = "local";
   let lastLlmError = "";
   let nextSocialAt = performance.now() + 5000; // 첫 NPC 대화 5초 후
@@ -163,10 +166,6 @@ import { createAudioManager } from './systems/audio.js';
   };
   let autoWalkBtn = null;
   let mobileAutoWalkBtn = null;
-  const chatSession = {
-    npcId: null,
-    expiresAt: 0,
-  };
 
   const cameraPan = { x: 0, y: 0 };
   const convoPan = { x: 0, y: 0 };
@@ -703,8 +702,7 @@ import { createAudioManager } from './systems/audio.js';
       return;
     }
 
-    conversationFocusNpcId = target.npc.id;
-    setChatSession(target.npc.id, 18_000);
+    convoMgr.startConversation(target.npc.id, 18_000, "user");
     if (isMobileViewport()) {
       mobileChatOpen = true;
       mobileUtilityOpen = false;
@@ -715,11 +713,9 @@ import { createAudioManager } from './systems/audio.js';
   }
 
   function endConversation() {
-    const npc = conversationFocusNpcId ? npcById(conversationFocusNpcId) : null;
+    const npc = convoMgr.focusNpcId ? npcById(convoMgr.focusNpcId) : null;
     if (npc && npc.following) npc.following = false;
-    conversationFocusNpcId = null;
-    chatSession.npcId = null;
-    chatSession.expiresAt = 0;
+    convoMgr.endConversation();
     syncMemoryToServer();
     if (chatSuggestionsEl) chatSuggestionsEl.innerHTML = "";
     if (isMobileViewport()) {
@@ -825,9 +821,8 @@ import { createAudioManager } from './systems/audio.js';
     const npc = npcs[idx];
     npcs.splice(idx, 1);
     removedNpcIds.add(npc.id);
-    if (conversationFocusNpcId === npc.id) conversationFocusNpcId = null;
+    convoMgr.clearFocusIf(npc.id);
     if (focusedNpcId === npc.id) focusedNpcId = null;
-    if (chatSession.npcId === npc.id) { chatSession.npcId = null; chatSession.expiresAt = 0; }
     delete npcPersonas[npc.id];
     // Cancel favor requests targeting this NPC
     for (const other of npcs) {
@@ -927,7 +922,7 @@ import { createAudioManager } from './systems/audio.js';
       mobileSheetToggleBtn.setAttribute("aria-expanded", mobileSheetOpen ? "true" : "false");
     }
     if (chatCloseBtn) {
-      chatCloseBtn.hidden = !conversationFocusNpcId;
+      chatCloseBtn.hidden = !convoMgr.focusNpcId;
     }
     if (mobileUtilityBtn) {
       mobileUtilityBtn.classList.toggle("pg-pressed", mobile && mobileUtilityOpen);
@@ -1130,8 +1125,7 @@ import { createAudioManager } from './systems/audio.js';
   function addChat(speaker, text, source) {
     if (speaker === "System") { addSystemToast(text); return; }
     if (source === "remote" || source === "local-player") { addGlobalChat(speaker, text, source); return; }
-    const targetNpcId = conversationFocusNpcId
-      || (chatSession.npcId && performance.now() < chatSession.expiresAt ? chatSession.npcId : null);
+    const targetNpcId = convoMgr.chatTargetNpcId();
     if (targetNpcId) { addNpcChat(targetNpcId, speaker, text); }
     else { addGlobalChat(speaker, text, source); }
   }
@@ -1147,8 +1141,8 @@ import { createAudioManager } from './systems/audio.js';
       messages = globalChats;
     } else if (target && target.npc) {
       messages = getNpcChats(target.npc.id);
-    } else if (conversationFocusNpcId) {
-      messages = getNpcChats(conversationFocusNpcId);
+    } else if (convoMgr.focusNpcId) {
+      messages = getNpcChats(convoMgr.focusNpcId);
     } else {
       messages = [];
     }
@@ -1226,23 +1220,15 @@ import { createAudioManager } from './systems/audio.js';
     return !!chatInputEl && document.activeElement === chatInputEl && !chatInputEl.disabled;
   }
 
-  function setChatSession(npcId, holdMs = 12000) {
-    chatSession.npcId = npcId;
-    chatSession.expiresAt = nowMs() + holdMs;
-  }
-
-  function chatSessionActiveFor(npcId) {
-    return chatSession.npcId === npcId && nowMs() < chatSession.expiresAt;
-  }
 
   function activeConversationNpc() {
-    const pinned = npcById(conversationFocusNpcId);
+    const pinned = npcById(convoMgr.focusNpcId);
     if (pinned && dist(player, pinned) <= CHAT_NEARBY_DISTANCE * GAME.PIN_NPC_RANGE_MULT) return pinned;
 
     const target = chatTargetNpc();
     if (!target) return null;
     if (target.near && isChatTyping()) return target.npc;
-    if (target.near && chatSessionActiveFor(target.npc.id)) return target.npc;
+    if (target.near && convoMgr.isSessionActive(target.npc.id)) return target.npc;
     return null;
   }
 
@@ -1587,7 +1573,7 @@ import { createAudioManager } from './systems/audio.js';
 
     autoConversationBusy = true;
     npc.talkCooldown = Math.max(npc.talkCooldown, GAME.AUTO_WALK_COOLDOWN_SEC);
-    setChatSession(npc.id, 9000);
+    convoMgr.startConversation(npc.id, 9000, "auto");
     nextAutoConversationAt = now + 13000 + Math.random() * 12000;
 
     (async () => {
@@ -1622,7 +1608,7 @@ import { createAudioManager } from './systems/audio.js';
 
     if (now >= nextAmbientBubbleAt) {
       nextAmbientBubbleAt = now + 8000 + Math.random() * 12000;
-      const visible = npcs.filter((n) => dist(n, player) < GAME.AMBIENT_SPEECH_RANGE && !chatSessionActiveFor(n.id));
+      const visible = npcs.filter((n) => dist(n, player) < GAME.AMBIENT_SPEECH_RANGE && !convoMgr.isSessionActive(n.id));
       if (visible.length) {
         // 가장 가까운 NPC → LLM 혼잣말, 나머지 → "..."
         visible.sort((a, b) => dist(a, player) - dist(b, player));
@@ -1646,7 +1632,7 @@ import { createAudioManager } from './systems/audio.js';
             .then((line) => {
               if (line) {
                 upsertSpeechBubble(ambientNpc.id, line, 4000);
-                if (!conversationFocusNpcId) addChat(ambientNpc.name, line, "ambient");
+                if (!convoMgr.focusNpcId) addChat(ambientNpc.name, line, "ambient");
               }
             })
             .catch(e => console.warn("[ambient LLM]", e.message))
@@ -1670,9 +1656,9 @@ import { createAudioManager } from './systems/audio.js';
     }
 
     // NPC 선제적 말 걸기: 가까이 + 호감도 있으면 가끔 먼저 인사
-    if (!npcProactiveGreetPending && now > nextNpcProactiveAt && !conversationFocusNpcId) {
+    if (!npcProactiveGreetPending && now > nextNpcProactiveAt && !convoMgr.focusNpcId) {
       nextNpcProactiveAt = now + 20000 + Math.random() * 30000;
-      const close = npcs.filter(n => dist(n, player) < GAME.PROACTIVE_GREET_DIST && !chatSessionActiveFor(n.id) && n.talkCooldown <= 0 && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
+      const close = npcs.filter(n => dist(n, player) < GAME.PROACTIVE_GREET_DIST && !convoMgr.isSessionActive(n.id) && n.talkCooldown <= 0 && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
       if (close.length && Math.random() < GAME.PROACTIVE_GREET_CHANCE) {
         const npc = close[Math.floor(Math.random() * close.length)];
         npcProactiveGreetPending = true;
@@ -1697,9 +1683,7 @@ import { createAudioManager } from './systems/audio.js';
           .then((line) => {
             if (line) {
               // 라우팅을 먼저 설정한 후 채팅 추가 (순서 꼬임 방지)
-              conversationFocusNpcId = npc.id;
-              setChatSession(npc.id, GAME.LLM_TIMEOUT_MS);
-              applyPanelState();
+              convoMgr.startConversation(npc.id, GAME.LLM_TIMEOUT_MS, "proactive");
               addChat(npc.name, line);
               upsertSpeechBubble(npc.id, line, 4000);
             }
@@ -1730,12 +1714,12 @@ import { createAudioManager } from './systems/audio.js';
   }
 
   function chatTargetNpc() {
-    const pinned = npcById(conversationFocusNpcId);
+    const pinned = npcById(convoMgr.focusNpcId);
     if (pinned) {
       const pd = dist(player, pinned);
       if (pd <= CHAT_NEARBY_DISTANCE) return { npc: pinned, focused: true, near: true };
       if (pd <= CHAT_NEARBY_DISTANCE * GAME.PIN_NPC_RANGE_MULT) return { npc: pinned, focused: true, near: false };
-      conversationFocusNpcId = null;
+      convoMgr.clearFocusIf(pinned.id);
     }
 
     const focused = npcById(focusedNpcId);
@@ -2090,9 +2074,7 @@ import { createAudioManager } from './systems/audio.js';
       const greetPrompt = isReturn
         ? t("llm_guide_return", { name: player.name })
         : t("llm_guide_first", { name: player.name });
-      conversationFocusNpcId = guideNpc.id;
-      setChatSession(guideNpc.id, 30_000);
-      applyPanelState();
+      convoMgr.startConversation(guideNpc.id, 30_000, "guide");
       llmReplyOrEmpty(guideNpc, greetPrompt).then((hi) => {
         const line = hi || t("docent_hi");
         addChat(guideNpc.name, line);
@@ -2212,8 +2194,7 @@ import { createAudioManager } from './systems/audio.js';
       // 도슨트가 근처에 있으면 대화 시작, 없으면 로그만
       const guideNpc = npcs.find(n => n.id === "guide");
       if (guideNpc && dist(guideNpc, player) < CHAT_NEARBY_DISTANCE * 2) {
-        conversationFocusNpcId = guideNpc.id;
-        setChatSession(guideNpc.id, 18_000);
+        convoMgr.startConversation(guideNpc.id, 18_000, "user");
         if (isMobileViewport()) { mobileChatOpen = true; mobileUtilityOpen = false; }
         else if (!panelState.chat) { panelState.chat = true; }
         applyPanelState();
@@ -2258,8 +2239,7 @@ import { createAudioManager } from './systems/audio.js';
 
     const near = nearestNpc(CHAT_NEARBY_DISTANCE);
     if (near) {
-      conversationFocusNpcId = near.npc.id;
-      setChatSession(near.npc.id, 18_000);
+      convoMgr.startConversation(near.npc.id, 18_000, "user");
       if (isMobileViewport()) {
         mobileChatOpen = true;
         mobileUtilityOpen = false;
@@ -2401,7 +2381,7 @@ import { createAudioManager } from './systems/audio.js';
           const target = candidates[Math.floor(Math.random() * candidates.length)];
           addChat("You", t("sys_tag_chat_you"));
           addChat(target.name, t("sys_tag_chat_npc"));
-          conversationFocusNpcId = null;
+          convoMgr.endConversation();
           if (isMobileViewport()) mobileChatOpen = false;
           startTagGame(target);
         }
@@ -2439,7 +2419,7 @@ import { createAudioManager } from './systems/audio.js';
     }
 
     const npc = target.npc;
-    conversationFocusNpcId = npc.id;
+    convoMgr.startConversation(npc.id, 90_000, "chat");
     addNpcChat(npc.id, "You", msg);
     upsertSpeechBubble("player", msg, 3000);
     if (!target.near) {
@@ -2448,7 +2428,7 @@ import { createAudioManager } from './systems/audio.js';
       return;
     }
 
-    setChatSession(npc.id, 90000);
+    convoMgr.refreshSession(npc.id, 90000);
     if (chatSendEl) chatSendEl.disabled = true;
     if (chatInputEl) chatInputEl.disabled = true;
     let reply = "";
@@ -2486,7 +2466,7 @@ import { createAudioManager } from './systems/audio.js';
       if (chatInputEl) chatInputEl.disabled = false;
       if (chatInputEl) chatInputEl.focus();
     }
-    setChatSession(npc.id, 90000);
+    convoMgr.refreshSession(npc.id, 90000);
 
     let cleanReply = reply;
 
@@ -2647,11 +2627,7 @@ import { createAudioManager } from './systems/audio.js';
         if (npc.following) npc.following = false;
         syncMemoryToServer(); // 대화 종료 시 기억 서버 동기화
         setTimeout(() => {
-          if (conversationFocusNpcId === npc.id) {
-            conversationFocusNpcId = null;
-            chatSession.npcId = null;
-            chatSession.expiresAt = 0;
-          }
+          convoMgr.clearFocusIf(npc.id);
         }, 2500);
       }
     }
@@ -3082,7 +3058,7 @@ import { createAudioManager } from './systems/audio.js';
   function updateNpcs(dt) {
     const typingTarget = isChatTyping() ? chatTargetNpc() : null;
     const typingNpcId = typingTarget ? typingTarget.npc.id : null;
-    const pinnedNpcId = conversationFocusNpcId;
+    const pinnedNpcId = convoMgr.focusNpcId;
 
     for (const npc of npcs) {
       if (npc.talkCooldown > 0) npc.talkCooldown -= dt;
@@ -3216,7 +3192,7 @@ import { createAudioManager } from './systems/audio.js';
         continue;
       }
 
-      if (chatSessionActiveFor(npc.id)) {
+      if (convoMgr.isSessionActive(npc.id)) {
         npc.state = "chatting";
         // 대화 중 플레이어가 멀어지면 따라감 (멀수록 빠르게)
         const chatDist = dist(npc, player);
@@ -3316,7 +3292,7 @@ import { createAudioManager } from './systems/audio.js';
     if (now < nextSocialAt) return;
     nextSocialAt = now + 10000 + Math.random() * 15000; // 10~25초마다 (혼잣말 8~20초와 비슷)
 
-    const moving = npcs.filter((n) => !chatSessionActiveFor(n.id) && n.id !== "guide");
+    const moving = npcs.filter((n) => !convoMgr.isSessionActive(n.id) && n.id !== "guide");
     if (moving.length < 2) return;
 
     // 가까운 NPC 쌍을 찾기
@@ -3363,7 +3339,7 @@ import { createAudioManager } from './systems/audio.js';
         .then((lineA) => {
           if (lineA) {
             upsertSpeechBubble(a.id, lineA, 4500);
-            if (!conversationFocusNpcId) addChat(a.name, lineA, "npc-chat");
+            if (!convoMgr.focusNpcId) addChat(a.name, lineA, "npc-chat");
           }
           return delay(2500).then(() =>
             llmReplyOrEmpty(b, t("llm_social_reply", { nameA: a.name, line: lineA || '...' }), npcChatOverrides)
@@ -3372,7 +3348,7 @@ import { createAudioManager } from './systems/audio.js';
         .then((lineB) => {
           if (lineB) {
             upsertSpeechBubble(b.id, lineB, 4500);
-            if (!conversationFocusNpcId) addChat(b.name, lineB, "npc-chat");
+            if (!convoMgr.focusNpcId) addChat(b.name, lineB, "npc-chat");
           }
           // 50% 확률로 A가 한 번 더 반응 (3턴)
           if (Math.random() < GAME.MULTI_TURN_CHANCE && lineB) {
@@ -3384,7 +3360,7 @@ import { createAudioManager } from './systems/audio.js';
         .then((lineA2) => {
           if (lineA2) {
             upsertSpeechBubble(a.id, lineA2, 3000);
-            if (!conversationFocusNpcId) addChat(a.name, lineA2, "npc-chat");
+            if (!convoMgr.focusNpcId) addChat(a.name, lineA2, "npc-chat");
           }
         })
         .catch(e => console.warn("[NPC social chat]", e.message))
@@ -3807,8 +3783,8 @@ import { createAudioManager } from './systems/audio.js';
       if (mpChat) chatActiveStateEl.textContent = t("chat_state_global");
       else if (!target) chatActiveStateEl.textContent = t("chat_state_unavailable");
       else if (!target.near) chatActiveStateEl.textContent = t("chat_state_moving");
-      else if (conversationFocusNpcId && target.npc.id === conversationFocusNpcId) chatActiveStateEl.textContent = t("chat_state_locked");
-      else if (chatSessionActiveFor(target.npc.id)) chatActiveStateEl.textContent = t("chat_state_chatting");
+      else if (convoMgr.focusNpcId && target.npc.id === convoMgr.focusNpcId) chatActiveStateEl.textContent = t("chat_state_locked");
+      else if (convoMgr.isSessionActive(target.npc.id)) chatActiveStateEl.textContent = t("chat_state_chatting");
       else if (target.focused) chatActiveStateEl.textContent = t("chat_state_selected");
       else chatActiveStateEl.textContent = t("chat_state_nearby");
     }
@@ -4043,7 +4019,7 @@ import { createAudioManager } from './systems/audio.js';
       const clickedNpc = npcAtCanvasPoint(pt.x, pt.y);
       if (clickedNpc) {
         focusedNpcId = clickedNpc.id;
-        conversationFocusNpcId = clickedNpc.id;
+        convoMgr.startConversation(clickedNpc.id, 18_000, "click");
         const moved = moveNearNpcTarget(clickedNpc);
         if (moved) {
           addChat("System", t("sys_moving_to_npc", { name: clickedNpc.name }));
@@ -4059,7 +4035,7 @@ import { createAudioManager } from './systems/audio.js';
           }
         }
         focusedNpcId = null;
-        conversationFocusNpcId = null;
+        convoMgr.endConversation();
       }
     }
     mouseDown = false;
