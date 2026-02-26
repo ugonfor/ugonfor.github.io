@@ -787,7 +787,7 @@ function buildAuditBase(req, endpoint, requestId, payload, prompt, startedAtMs) 
       npcName: truncateText(payload?.npcName || "", 120),
       userMessage: truncateText(payload?.userMessage || ""),
       payload,
-      prompt: truncateText(typeof prompt === "object" ? prompt.system || "" : prompt || ""),
+      prompt: truncateText(typeof prompt === "string" ? prompt : prompt.isAmbient ? prompt.prompt || "" : prompt.system || ""),
     },
   };
 }
@@ -1351,8 +1351,10 @@ const server = createServer(async (req, res) => {
     // debug=1 헤더 → full prompt 포함
     if (req.headers["x-debug"] === "1") {
       responseBody._debug = {
-        prompt: typeof prompt === "object" ? prompt.system : prompt,
-        turns: typeof prompt === "object" ? prompt.turns : undefined,
+        prompt: typeof prompt === "string" ? prompt
+          : prompt.isAmbient ? prompt.prompt
+          : prompt.system || "",
+        turns: prompt.turns || undefined,
       };
     }
     return writeJson(res, 200, responseBody, origin);
