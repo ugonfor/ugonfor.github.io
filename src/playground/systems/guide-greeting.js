@@ -1,5 +1,4 @@
 import { dist } from "../utils/helpers.js";
-import { npcPersonas } from "../core/constants.js";
 import { ensureMemoryFormat } from "./npc-data.js";
 
 /**
