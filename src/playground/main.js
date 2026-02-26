@@ -11,6 +11,8 @@ import { createTagGame } from './systems/tag-game.js';
 import { inferSentimentFromReply, applyConversationEffect as _applyConversationEffect, requestLlmNpcReply as _requestLlmNpcReply, requestLlmNpcReplyStream as _requestLlmNpcReplyStream, detectActionFromReply as _detectActionFromReply } from './systems/conversation.js';
 import { createAudioManager } from './systems/audio.js';
 import { createConversationManager } from './systems/conversation-manager.js';
+import { createChatManager } from './systems/chat-manager.js';
+import { createGameState } from './core/game-state.js';
 
 (function () {
   const USE_3D = true;
@@ -129,15 +131,23 @@ import { createConversationManager } from './systems/conversation-manager.js';
   let turnstileWidgetId = null;
 
   const keys = new Set();
-  const logs = [];
-  const npcChatHistories = {};
-  const globalChats = [];
-  const systemToasts = [];
   let llmAvailable = true;
   let debugMode = localStorage.getItem('playground_debug') === 'true';
   let focusedNpcId = null;
   const convoMgr = createConversationManager({
     onFocusChange: () => { if (typeof applyPanelState === 'function') applyPanelState(); },
+  });
+  const chatMgr = createChatManager({
+    convoMgr,
+    t,
+    formatTime,
+    chatTargetNpc,
+    getMp: () => mp,
+    domRefs: {
+      chatLogEl,
+      uiLog,
+      toastContainer: document.getElementById("pg-toast-container"),
+    },
   });
   let lastLlmModel = "local";
   let lastLlmError = "";
@@ -148,7 +158,6 @@ import { createConversationManager } from './systems/conversation-manager.js';
   let mobileUtilityOpen = false;
   let mobileStatusCollapsed = false;
   let mobileLogCollapsed = false;
-  const speechBubbles = [];
   let nextAmbientBubbleAt = performance.now() + 3000;
   let nextPlayerBubbleAt = 0;
   let nextAutoConversationAt = 0;
@@ -1058,19 +1067,17 @@ import { createConversationManager } from './systems/conversation-manager.js';
 
 
 
-  function upsertSpeechBubble(id, text, ttlMs = 3600) {
-    const now = nowMs();
-    const value = bubbleText(text);
-    for (let i = 0; i < speechBubbles.length; i += 1) {
-      if (speechBubbles[i].id === id) {
-        speechBubbles[i].text = value;
-        speechBubbles[i].until = now + ttlMs;
-        return;
-      }
-    }
-    speechBubbles.push({ id, text: value, until: now + ttlMs });
-    if (speechBubbles.length > 14) speechBubbles.splice(0, speechBubbles.length - 14);
-  }
+  // ─── Delegated chat functions (shorthand for chatMgr.*) ───
+  const addChat = chatMgr.addChat;
+  const addLog = chatMgr.addLog;
+  const addSystemToast = chatMgr.addSystemToast;
+  const addNpcChat = chatMgr.addNpcChat;
+  const addGlobalChat = chatMgr.addGlobalChat;
+  const getNpcChats = chatMgr.getNpcChats;
+  const upsertSpeechBubble = chatMgr.upsertSpeechBubble;
+  const renderCurrentChat = chatMgr.renderCurrentChat;
+  const renderToasts = chatMgr.renderToasts;
+  const startStreamingChat = chatMgr.startStreamingChat;
 
   function resolveSpeakerById(id) {
     if (id === "player") return player;
@@ -1079,130 +1086,6 @@ import { createConversationManager } from './systems/conversation-manager.js';
       return mp.remotePlayers[key] || null;
     }
     return npcs.find((n) => n.id === id) || null;
-  }
-
-  function addLog(text) {
-    logs.unshift({ text, stamp: formatTime() });
-    if (logs.length > 16) logs.length = 16;
-    if (!uiLog) return;
-    const frag = document.createDocumentFragment();
-    for (const entry of logs) {
-      const row = document.createElement("div");
-      const stamp = document.createElement("strong");
-      stamp.textContent = entry.stamp;
-      row.appendChild(stamp);
-      row.appendChild(document.createTextNode(` ${entry.text}`));
-      frag.appendChild(row);
-    }
-    uiLog.replaceChildren(frag);
-  }
-
-  function getNpcChats(npcId) {
-    if (!npcChatHistories[npcId]) npcChatHistories[npcId] = [];
-    return npcChatHistories[npcId];
-  }
-
-  function addNpcChat(npcId, speaker, text) {
-    const history = getNpcChats(npcId);
-    history.unshift({ speaker, text, source: "", stamp: formatTime() });
-    if (history.length > 30) history.length = 30;
-    renderCurrentChat();
-  }
-
-  function addGlobalChat(speaker, text, source) {
-    globalChats.unshift({ speaker, text, source: source || "", stamp: formatTime() });
-    if (globalChats.length > 24) globalChats.length = 24;
-    renderCurrentChat();
-  }
-
-  const TOAST_DURATION_MS = 4000;
-  function addSystemToast(text) {
-    systemToasts.push({ text, stamp: formatTime(), until: performance.now() + TOAST_DURATION_MS });
-    if (systemToasts.length > 5) systemToasts.shift();
-    renderToasts();
-  }
-
-  function addChat(speaker, text, source) {
-    if (speaker === "System") { addSystemToast(text); return; }
-    if (source === "remote" || source === "local-player") { addGlobalChat(speaker, text, source); return; }
-    const targetNpcId = convoMgr.chatTargetNpcId();
-    if (targetNpcId) { addNpcChat(targetNpcId, speaker, text); }
-    else { addGlobalChat(speaker, text, source); }
-  }
-
-  function renderCurrentChat() {
-    if (!chatLogEl) return;
-    const target = chatTargetNpc();
-    const npcNear = target && target.near;
-    const mpChat = mp && mp.enabled && !npcNear;
-
-    let messages;
-    if (mpChat) {
-      messages = globalChats;
-    } else if (target && target.npc) {
-      messages = getNpcChats(target.npc.id);
-    } else if (convoMgr.focusNpcId) {
-      messages = getNpcChats(convoMgr.focusNpcId);
-    } else {
-      messages = [];
-    }
-
-    const frag = document.createDocumentFragment();
-    for (const c of messages) {
-      const row = document.createElement("div");
-      if (c.source === "remote") row.classList.add("pg-chat-remote");
-      else if (c.source === "local-player") row.classList.add("pg-chat-local-player");
-      const sp = document.createElement("strong");
-      sp.textContent = c.speaker;
-      row.appendChild(sp);
-      row.appendChild(document.createTextNode(`: ${c.text}`));
-      frag.appendChild(row);
-    }
-    chatLogEl.replaceChildren(frag);
-  }
-
-  const toastContainer = document.getElementById("pg-toast-container");
-  function renderToasts() {
-    if (!toastContainer) return;
-    const now = performance.now();
-    while (systemToasts.length && systemToasts[0].until <= now) systemToasts.shift();
-    const frag = document.createDocumentFragment();
-    for (const n of systemToasts) {
-      const el = document.createElement("div");
-      el.className = "pg-toast";
-      el.textContent = n.text;
-      frag.appendChild(el);
-    }
-    toastContainer.replaceChildren(frag);
-  }
-
-  function startStreamingChat(npcId, speaker) {
-    const history = getNpcChats(npcId);
-    const entry = { speaker, text: "", stamp: formatTime(), streaming: true };
-    history.unshift(entry);
-    if (history.length > 30) history.length = 30;
-    renderCurrentChat();
-    return {
-      append(chunk) {
-        entry.text += chunk;
-        renderCurrentChat();
-      },
-      done() {
-        entry.streaming = false;
-        renderCurrentChat();
-      },
-      empty() {
-        return !entry.text.trim();
-      },
-      remove() {
-        const idx = history.indexOf(entry);
-        if (idx >= 0) history.splice(idx, 1);
-        renderCurrentChat();
-      },
-      text() {
-        return entry.text;
-      },
-    };
   }
 
 
@@ -1602,6 +1485,7 @@ import { createConversationManager } from './systems/conversation-manager.js';
   }
 
   function updateAmbientSpeech(now) {
+    const speechBubbles = chatMgr.speechBubbles;
     for (let i = speechBubbles.length - 1; i >= 0; i -= 1) {
       if (speechBubbles[i].until <= now) speechBubbles.splice(i, 1);
     }
@@ -3707,7 +3591,7 @@ import { createConversationManager } from './systems/conversation-manager.js';
   }
 
   function updateUI() {
-    if (systemToasts.length && systemToasts[0].until <= performance.now()) renderToasts();
+    if (chatMgr.systemToasts.length && chatMgr.systemToasts[0].until <= performance.now()) renderToasts();
     const weatherKo = { clear: "☀️", cloudy: "☁️", rain: "🌧️", storm: "⛈️", snow: "❄️", fog: "🌫️" };
     const weatherIcon = weatherKo[weather.current] || "☀️";
     uiTime.textContent = `${formatTime()} ${weatherIcon}${world.paused ? " " + t("hud_paused") : ""}`;
@@ -3924,7 +3808,7 @@ import { createConversationManager } from './systems/conversation-manager.js';
       // Clear 2D HUD overlay canvas (transparent)
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       gameRenderer3D.render(
-        { player, npcs, world, weather, sceneState, speechBubbles, weatherParticles },
+        { player, npcs, world, weather, sceneState, speechBubbles: chatMgr.speechBubbles, weatherParticles },
         dt,
         elapsedTime
       );
