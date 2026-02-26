@@ -747,6 +747,7 @@ export const translations = {
     npc_memory_other: "[기타]",
     npc_memory_stats: "대화 {chat}회, 선물 {gift}회, 퀘스트 {quest}회",
     npc_memory_summary: "관계: {level} (호감도 {stage}단계)\n통계: {stats}\n최근 기억:\n{lines}",
+    npc_memory_visitors: "이 마을을 방문한 사람들: {names} (총 {count}명)",
     // ─── NPC tone (npc-data.js) ───
     npc_tone_0: "정중한 존댓말로 대화하세요. 아직 서먹한 사이입니다.",
     npc_tone_1: "정중하지만 약간 친근한 존댓말로 대화하세요.",
@@ -1596,6 +1597,7 @@ export const translations = {
     npc_memory_other: "[Other]",
     npc_memory_stats: "Chats: {chat}, Gifts: {gift}, Quests: {quest}",
     npc_memory_summary: "Relationship: {level} (Favor level {stage})\nStats: {stats}\nRecent memories:\n{lines}",
+    npc_memory_visitors: "Visitors to this village: {names} ({count} total)",
     // ─── NPC tone (npc-data.js) ───
     npc_tone_0: "Speak politely and formally. You're still acquaintances.",
     npc_tone_1: "Speak politely but with a hint of friendliness.",

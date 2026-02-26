@@ -464,6 +464,7 @@ function buildPromptKo(payload) {
         memoryText,
         `- ${visitHint}`,
         "- 과거 기억 중 가장 최근 1개를 반드시 대화에 녹여주세요. 예: '저번에 커피 고마웠어요', '지난번에 얘기했던 그거...'",
+        "- [이름] 으로 표시된 기억은 다른 방문자와의 기억입니다. 자연스럽게 언급할 수 있습니다. 예: '전에 누군가가 커피 좋아한다고 했었는데...'",
         "- 기억이 없으면 새로운 대화를 자연스럽게 시작하세요.",
       ]
     : [
@@ -645,6 +646,7 @@ function buildPromptEn(payload) {
         memoryTextEn,
         `- ${visitHintEn}`,
         "- You must weave at least one recent memory into the conversation. E.g., 'Thanks for the coffee last time', 'About what we talked about before...'",
+        "- Memories marked with [Name] are from other visitors. You can mention them naturally. E.g., 'Someone told me they like coffee...'",
         "- If there are no memories, start a new conversation naturally.",
       ]
     : [

@@ -224,8 +224,8 @@ import { createAsyncGuard } from './systems/async-guard.js';
   };
 
   // NPC factory & memory functions: systems/npc-data.js
-  function addNpcMemory(npc, type, summary, metadata) { _addNpcMemory(npc, type, summary, metadata, world.totalMinutes); }
-  function getNpcMemorySummary(npc) { return _getNpcMemorySummary(npc, t); }
+  function addNpcMemory(npc, type, summary, metadata) { _addNpcMemory(npc, type, summary, metadata, world.totalMinutes, player.name); }
+  function getNpcMemorySummary(npc) { return _getNpcMemorySummary(npc, t, player.name); }
   function getNpcSocialContext(npc) { return _getNpcSocialContext(npc, npcs, getNpcRelation, t); }
 
   const npcs = [
@@ -2809,7 +2809,10 @@ import { createAsyncGuard } from './systems/async-guard.js';
 
       // ── Phase C: NPC Movement (guide before general) ──
       ensureGuideGreeting().update(dt);
-      updateNpcs(dt);
+      // Host or single-player: run NPC simulation. Non-host: skip (Firebase sync).
+      if (!mp || !mp.enabled || mp.isHost) {
+        updateNpcs(dt);
+      }
 
       // ── Phase D: NPC Social ──
       ensureNpcSocial().updateSocialEvents();
@@ -2835,6 +2838,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       if (mp && mp.enabled) {
         mpBroadcast();
         mpInterpolate(dt);
+        if (mp.isHost) mp.broadcastNpcs(npcs);
         if (frameCount % 300 === 0) { mpCleanStale(); mpCleanMessages(); }
         const _now = nowMs();
         if (memorySync && _now > nextMemorySyncAt) {
@@ -2853,7 +2857,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       elapsedTime += dt;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       gameRenderer3D.render(
-        { player, npcs, world, weather, sceneState, speechBubbles: chatMgr.speechBubbles, weatherParticles },
+        { player, npcs, world, weather, sceneState, speechBubbles: chatMgr.speechBubbles, weatherParticles, remotePlayers: mpRemotePlayerList() },
         dt,
         elapsedTime
       );
@@ -3305,7 +3309,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
   let nextMemorySyncAt = 0;
 
   function initMultiplayer() {
-    mp = createMultiplayer({ player, world, addChat, addLog, t, upsertSpeechBubble, normalizePlayerFlag, uiOnlineEl });
+    mp = createMultiplayer({ player, world, npcs, addChat, addLog, t, upsertSpeechBubble, normalizePlayerFlag, uiOnlineEl });
     mp.init();
     // Firebase 기억 동기화 초기화
     const cfg = window.PG_FIREBASE_CONFIG;
@@ -3318,8 +3322,8 @@ import { createAsyncGuard } from './systems/async-guard.js';
       try {
         memorySync = createMemorySync(firebase.database(), playerId);
         // 서버에서 기억 로드 (비동기)
-        memorySync.load().then((serverData) => {
-          if (serverData && applyServerMemory(npcs, serverData, null)) {
+        memorySync.load(player.name).then((result) => {
+          if (result && applyServerMemory(npcs, result, null)) {
             addLog(t("mem_restored"));
           }
         }).catch(e => console.warn("[memorySync load]", e.message));

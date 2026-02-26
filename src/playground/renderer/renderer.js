@@ -74,6 +74,8 @@ export class GameRenderer {
 
     // Entity mesh maps: npcId -> THREE.Group
     this.entityMeshes = new Map();
+    // Remote player mesh map: sessionId -> THREE.Group
+    this.remotePlayerMeshes = new Map();
     this.playerMesh = null;
 
     // Lamp lights for night toggle
@@ -274,7 +276,7 @@ export class GameRenderer {
    * @param {number} time - Total elapsed time in seconds
    */
   render(gameState, dt, time) {
-    const { player, npcs, world, weather, sceneState, speechBubbles } = gameState;
+    const { player, npcs, world, weather, sceneState, speechBubbles, remotePlayers } = gameState;
 
     // --- Scene state transitions ---
     if (sceneState) {
@@ -364,6 +366,51 @@ export class GameRenderer {
           }
         }
       }
+    }
+
+    // --- Remote players ---
+    if (remotePlayers && remotePlayers.length > 0) {
+      const activeRemoteIds = new Set();
+      const isOutdoor = this._currentScene === 'outdoor';
+      for (const rp of remotePlayers) {
+        activeRemoteIds.add(rp.id);
+        let mesh = this.remotePlayerMeshes.get(rp.id);
+        if (!mesh) {
+          mesh = this.characterFactory.createCharacter(rp.species || 'human_a', rp.color, false);
+          mesh.position.set(rp.x, 0, rp.y);
+          this.scene.add(mesh);
+          this.remotePlayerMeshes.set(rp.id, mesh);
+        }
+        const prevRX = mesh.position.x;
+        const prevRZ = mesh.position.z;
+        mesh.position.set(rp.x, 0, rp.y);
+        mesh.visible = isOutdoor;
+
+        if (isOutdoor) {
+          const rdx = rp.x - prevRX;
+          const rdy = rp.y - prevRZ;
+          const rpMoving = Math.abs(rdx) > 0.005 || Math.abs(rdy) > 0.005;
+          if (rpMoving) {
+            mesh.rotation.y = Math.atan2(rdx, rdy);
+            this.characterFactory.animateByState(mesh, 'moving', 'neutral', time, true, 'standing');
+          } else {
+            this.characterFactory.animateByState(mesh, 'idle', 'neutral', time, false, 'standing');
+          }
+        }
+      }
+      // Remove meshes for disconnected remote players
+      for (const [id, mesh] of this.remotePlayerMeshes) {
+        if (!activeRemoteIds.has(id)) {
+          this.scene.remove(mesh);
+          this.remotePlayerMeshes.delete(id);
+        }
+      }
+    } else if (this.remotePlayerMeshes.size > 0) {
+      // All remote players gone — cleanup
+      for (const [, mesh] of this.remotePlayerMeshes) {
+        this.scene.remove(mesh);
+      }
+      this.remotePlayerMeshes.clear();
     }
 
     // --- Animal AI ---
@@ -558,6 +605,11 @@ export class GameRenderer {
         if (bx == null || by == null) {
           if (b.id === "player" || b.id === player.name) {
             bx = player.x; by = player.y;
+          } else if (typeof b.id === 'string' && b.id.startsWith('remote_')) {
+            // Remote player speech bubble
+            const rpMesh = this.remotePlayerMeshes.get(b.id.slice(7));
+            if (!rpMesh || !rpMesh.visible) continue;
+            bx = rpMesh.position.x; by = rpMesh.position.z;
           } else {
             const npc = npcs && npcs.find(n => n.id === b.id);
             if (!npc) continue;
@@ -581,6 +633,12 @@ export class GameRenderer {
         .map(n => ({ id: n.id, name: n.name, x: n.x, y: n.y, visible: true, isDocent: !!(this._npcPersonas && this._npcPersonas[n.id] && this._npcPersonas[n.id].isDocent) }));
       // Player label
       npcLabelData.push({ id: '_player_', name: player.name, x: player.x, y: player.y, visible: true });
+      // Remote player labels
+      if (remotePlayers && curScene === 'outdoor') {
+        for (const rp of remotePlayers) {
+          npcLabelData.push({ id: 'rp_' + rp.id, name: (rp.flag ? rp.flag + ' ' : '') + rp.name, x: rp.x, y: rp.y, visible: true, isRemotePlayer: true });
+        }
+      }
       this.labelOverlay.updateNpcLabels(npcLabelData, cam, this._translateFn);
     }
     this.labelOverlay.updateBuildingLabels(buildings, cam, curScene, this._translateFn);
@@ -721,5 +779,6 @@ export class GameRenderer {
     });
     this.webglRenderer.dispose();
     this.entityMeshes.clear();
+    this.remotePlayerMeshes.clear();
   }
 }
