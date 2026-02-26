@@ -1699,6 +1699,7 @@ import { createAudioManager } from './systems/audio.js';
               // 라우팅을 먼저 설정한 후 채팅 추가 (순서 꼬임 방지)
               conversationFocusNpcId = npc.id;
               setChatSession(npc.id, GAME.LLM_TIMEOUT_MS);
+              applyPanelState();
               addChat(npc.name, line);
               upsertSpeechBubble(npc.id, line, 4000);
             }
@@ -2091,6 +2092,7 @@ import { createAudioManager } from './systems/audio.js';
         : t("llm_guide_first", { name: player.name });
       conversationFocusNpcId = guideNpc.id;
       setChatSession(guideNpc.id, 30_000);
+      applyPanelState();
       llmReplyOrEmpty(guideNpc, greetPrompt).then((hi) => {
         const line = hi || t("docent_hi");
         addChat(guideNpc.name, line);
