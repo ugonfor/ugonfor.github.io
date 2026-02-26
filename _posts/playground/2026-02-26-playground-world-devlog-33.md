@@ -119,6 +119,17 @@ function particle(name, consonantForm, vowelForm) {
 원래는 텅 빈 웹페이지였지만, 어느 날 AI 주민들이 하나둘 생겨나면서...
 ```
 
+## 5. 유저 대화 종료 기능
+
+기존에는 NPC가 farewell을 보내거나 멀리 걸어가야만 대화가 끝났습니다. 유저가 직접 끝낼 수 없었음.
+
+### 종료 방법 3가지
+1. **종료 버튼** — 대화 중이면 채팅 패널 상단에 "채팅 종료" 버튼 표시 (PC/모바일 공통)
+2. **ESC 키** — 채팅 입력란에서 ESC
+3. **NPC farewell** — NPC가 작별 인사하면 자동 종료 (기존)
+
+`endConversation()` 함수가 모든 종료를 통합 처리: 대화 포커스 해제, 세션 초기화, following 중지, 메모리 서버 동기화, 추천 선택지 클리어.
+
 ## 이번 커밋들
 
 | 커밋 | 내용 |
@@ -128,3 +139,4 @@ function particle(name, consonantForm, vowelForm) {
 | Humanize world context | 수치 → 자연어, 메타 용어 제거 |
 | Multi-turn systemInstruction | Gemini API 구조적 턴 전환 |
 | Fix 8 prompt issues | 자기참조, NPC-NPC, lore, 조사, ambient |
+| Chat end button | 유저 대화 종료 (버튼 + ESC) |
