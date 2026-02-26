@@ -400,7 +400,6 @@ html.playground-page section {
 }
 
 #pg-chat-close {
-  display: none;
   border: 1px solid rgba(168, 188, 206, 0.92);
   border-radius: 10px;
   background: rgba(248, 252, 255, 0.96);
@@ -408,6 +407,10 @@ html.playground-page section {
   font-size: 12px;
   font-weight: 700;
   padding: 6px 10px;
+  cursor: pointer;
+}
+#pg-chat-close:hover {
+  background: rgba(230, 240, 250, 0.96);
 }
 
 .pg-chat-target-line {
@@ -753,7 +756,7 @@ button.pg-pressed,
     display: none !important;
   }
 
-  #pg-chat-close {
+  #pg-chat-close:not([hidden]) {
     display: inline-flex;
     align-items: center;
     justify-content: center;

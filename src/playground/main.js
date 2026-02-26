@@ -714,19 +714,27 @@ import { createAudioManager } from './systems/audio.js';
     applyPanelState();
   }
 
-  function closeMobileChat() {
-    if (!isMobileViewport()) return;
-    mobileChatOpen = false;
-    inputState.runHold = false;
-    keys.clear();
-    resetJoystick();
-    player.moveTarget = null;
+  function endConversation() {
+    const npc = conversationFocusNpcId ? npcById(conversationFocusNpcId) : null;
+    if (npc && npc.following) npc.following = false;
     conversationFocusNpcId = null;
     chatSession.npcId = null;
     chatSession.expiresAt = 0;
+    syncMemoryToServer();
+    if (chatSuggestionsEl) chatSuggestionsEl.innerHTML = "";
+    if (isMobileViewport()) {
+      mobileChatOpen = false;
+      inputState.runHold = false;
+      keys.clear();
+      resetJoystick();
+      player.moveTarget = null;
+    }
     if (chatInputEl) chatInputEl.blur();
     applyPanelState();
   }
+
+  // Keep legacy name for mobile-specific callers
+  function closeMobileChat() { endConversation(); }
 
   function ensureTurnstileWidget() {
     if (!TURNSTILE_SITE_KEY) return null;
@@ -919,7 +927,7 @@ import { createAudioManager } from './systems/audio.js';
       mobileSheetToggleBtn.setAttribute("aria-expanded", mobileSheetOpen ? "true" : "false");
     }
     if (chatCloseBtn) {
-      chatCloseBtn.hidden = !(mobile && mobileChatOpen);
+      chatCloseBtn.hidden = !conversationFocusNpcId;
     }
     if (mobileUtilityBtn) {
       mobileUtilityBtn.classList.toggle("pg-pressed", mobile && mobileUtilityOpen);
@@ -4249,7 +4257,7 @@ import { createAudioManager } from './systems/audio.js';
 
   if (chatSendEl) chatSendEl.addEventListener("click", sendCardChat);
   if (chatCloseBtn) {
-    chatCloseBtn.addEventListener("click", () => closeMobileChat());
+    chatCloseBtn.addEventListener("click", () => endConversation());
   }
   if (chatInputEl) {
     chatInputEl.addEventListener("keydown", (ev) => {
@@ -4258,7 +4266,7 @@ import { createAudioManager } from './systems/audio.js';
         sendCardChat();
       } else if (ev.key === "Escape") {
         ev.preventDefault();
-        closeMobileChat();
+        endConversation();
       }
     });
   }
