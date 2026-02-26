@@ -20,6 +20,8 @@ import { createIntroSequence } from './systems/intro-sequence.js';
 import { createSceneManager } from './systems/scene-manager.js';
 import { createSaveLoadSystem } from './systems/save-load.js';
 import { createCameraSystem } from './systems/camera.js';
+import { createPlayerController } from './systems/player-controller.js';
+import { createAsyncGuard } from './systems/async-guard.js';
 
 (function () {
   const USE_3D = true;
@@ -164,11 +166,6 @@ import { createCameraSystem } from './systems/camera.js';
   let mobileUtilityOpen = false;
   let mobileStatusCollapsed = false;
   let mobileLogCollapsed = false;
-  const autoWalk = {
-    enabled: false,
-    nextPickAt: 0,
-    target: null,
-  };
   let autoWalkBtn = null;
   let mobileAutoWalkBtn = null;
 
@@ -315,7 +312,8 @@ import { createCameraSystem } from './systems/camera.js';
   function ensureAmbientSpeech() {
     if (!ambientSpeechModule) {
       ambientSpeechModule = createAmbientSpeechSystem({
-        convoMgr, chatMgr, npcs, player, weather, t, autoWalk,
+        convoMgr, chatMgr, npcs, player, weather, t,
+        autoWalk: playerCtrl.autoWalkRef,
         addChat, upsertSpeechBubble, llmReplyOrEmpty,
         nearestNpc, isTypingInInput, formatTime,
       });
@@ -1237,80 +1235,24 @@ import { createCameraSystem } from './systems/camera.js';
 
   const sceneMgr = createSceneManager({ sceneState, player, cameraPan, buildings, interiorDefs, addLog, t });
 
-  function randomStandPoint() {
-    for (let i = 0; i < 60; i += 1) {
-      const x = 1.5 + Math.random() * (world.width - 3);
-      const y = 1.5 + Math.random() * (world.height - 3);
-      if (canStand(x, y)) return { x, y };
-    }
-    return { x: player.x, y: player.y };
-  }
-
-  function pickAutoWalkTarget() {
-    const r = Math.random();
-    if (r < 0.42 && npcs.length) {
-      const npc = npcs[Math.floor(Math.random() * npcs.length)];
-      const a = Math.random() * Math.PI * 2;
-      const d = 1.1 + Math.random() * 1.1;
-      const x = npc.x + Math.cos(a) * d;
-      const y = npc.y + Math.sin(a) * d;
-      if (canStand(x, y)) return { x, y, reason: "npc", npcId: npc.id };
-    }
-    if (r < 0.74) {
-      const placeArr = Object.values(places);
-      const base = placeArr[Math.floor(Math.random() * placeArr.length)];
-      const x = base.x + (Math.random() * 2 - 1) * 1.8;
-      const y = base.y + (Math.random() * 2 - 1) * 1.8;
-      if (canStand(x, y)) return { x, y, reason: "place" };
-    }
-    const p = randomStandPoint();
-    return { x: p.x, y: p.y, reason: "wander" };
-  }
-
-  function refreshAutoWalkButton() {
-    if (autoWalkBtn) {
-      autoWalkBtn.textContent = autoWalk.enabled ? t("autowalk_off") : t("autowalk_on");
-      autoWalkBtn.setAttribute("aria-pressed", autoWalk.enabled ? "true" : "false");
-    }
-    if (mobileAutoWalkBtn) {
-      mobileAutoWalkBtn.textContent = autoWalk.enabled ? t("autowalk_off_short") : t("autowalk_on_short");
-      mobileAutoWalkBtn.setAttribute("aria-pressed", autoWalk.enabled ? "true" : "false");
-      mobileAutoWalkBtn.classList.toggle("pg-pressed", autoWalk.enabled);
-    }
-  }
-
-  function setAutoWalkEnabled(next, silent = false) {
-    autoWalk.enabled = !!next;
-    autoWalk.target = null;
-    autoWalk.nextPickAt = 0;
-    ensureAmbientSpeech().resetAutoConversation();
-    if (!autoWalk.enabled) player.moveTarget = null;
-    refreshAutoWalkButton();
-    try {
-      localStorage.setItem(AUTO_WALK_KEY, autoWalk.enabled ? "1" : "0");
-    } catch {
-      // ignore localStorage errors
-    }
-    if (!silent) addLog(autoWalk.enabled ? t("log_autowalk_on") : t("log_autowalk_off"));
-  }
-
-  function updateAutoWalk(now) {
-    if (!autoWalk.enabled) return;
-    if (sceneState.current !== "outdoor") return;
-    if (player.moveTarget && !player.moveTarget.autoWalk) return;
-    if (now < autoWalk.nextPickAt && player.moveTarget && player.moveTarget.autoWalk) return;
-
-    if (!autoWalk.target || now >= autoWalk.nextPickAt) {
-      autoWalk.target = pickAutoWalkTarget();
-      autoWalk.nextPickAt = now + 1200 + Math.random() * 2200;
-      player.moveTarget = {
-        x: autoWalk.target.x,
-        y: autoWalk.target.y,
-        autoWalk: true,
-        npcId: autoWalk.target.npcId || null,
-      };
-    }
-  }
+  // ─── Player Controller (모듈: systems/player-controller.js) ───
+  // Created after sceneMgr/cameraSys but before llmReplyOrEmpty.
+  // Lazy references (introSeq, ensureAmbientSpeech) resolved at call time.
+  const playerCtrl = createPlayerController({
+    player, world, keys, inputState, sceneState, weather,
+    npcs: () => npcs,
+    convoMgr, canStand, canStandInScene,
+    isIntroDone: () => introSeq.isDone,
+    isMobileViewport: () => isMobileViewport(),
+    mobileChatOpen: () => mobileChatOpen,
+    isTypingInInput: () => isTypingInInput(),
+    resetJoystick: () => resetJoystick(),
+    npcById, addChat, addLog, t,
+    ensureAmbientSpeech: () => ensureAmbientSpeech(),
+    chatInputEl: () => chatInputEl,
+    autoWalkBtn: () => autoWalkBtn,
+    mobileAutoWalkBtn: () => mobileAutoWalkBtn,
+  });
 
   async function llmReplyOrEmpty(npc, prompt, overrides = {}) {
     if (!LLM_API_URL) return "";
@@ -2292,122 +2234,6 @@ import { createCameraSystem } from './systems/camera.js';
   function saveState() { saveLoadSys.save(); }
   function loadState() { saveLoadSys.load(); }
 
-  function updatePlayer(dt) {
-    // 인트로 시퀀스 중에는 플레이어 이동 비활성화
-    if (!introSeq.isDone) return;
-
-    if (isMobileViewport() && mobileChatOpen) {
-      keys.clear();
-      player.moveTarget = null;
-      inputState.runHold = false;
-      resetJoystick();
-      return;
-    }
-
-    if (isTypingInInput()) {
-      keys.clear();
-      player.moveTarget = null;
-      return;
-    }
-
-    let keyDx = 0;
-    let keyDy = 0;
-    if (keys.has("KeyA") || keys.has("ArrowLeft")) keyDx -= 1;
-    if (keys.has("KeyD") || keys.has("ArrowRight")) keyDx += 1;
-    if (keys.has("KeyW") || keys.has("ArrowUp")) keyDy -= 1;
-    if (keys.has("KeyS") || keys.has("ArrowDown")) keyDy += 1;
-
-    const manualDx = keyDx + inputState.joyX;
-    const manualDy = keyDy + inputState.joyY;
-    let dx = manualDx;
-    let dy = manualDy;
-
-    if ((manualDx || manualDy) && autoWalk.enabled) {
-      setAutoWalkEnabled(false);
-    }
-
-    if (!manualDx && !manualDy) {
-      updateAutoWalk(nowMs());
-    }
-
-    if (manualDx || manualDy) {
-      player.moveTarget = null;
-    } else if (player.moveTarget) {
-      const tx = player.moveTarget.x - player.x;
-      const ty = player.moveTarget.y - player.y;
-      const td = Math.hypot(tx, ty);
-      if (td <= 0.08) {
-        player.moveTarget = null;
-      } else {
-        dx = tx / td;
-        dy = ty / td;
-      }
-    }
-
-    const mag = Math.hypot(dx, dy);
-    if (!mag) {
-      // 가만히 있으면 idle 시간 누적 → 자동 앉기
-      player.idleTime += dt;
-      if (player.idleTime > 5 && player.pose === "standing") {
-        const sittable = ["bench", "chair", "stool", "armchair", "bean_bag", "floor_cushion", "gaming_chair"];
-        // 실외: props에서 찾기, 실내: furniture에서 찾기
-        let seat = props.find(p => sittable.includes(p.type) && dist(player, p) < GAME.SEAT_CHECK_DIST);
-        if (!seat && sceneState.current !== "outdoor") {
-          const interior = interiorDefs && interiorDefs[sceneState.current];
-          if (interior && interior.furniture) {
-            seat = interior.furniture.find(f => sittable.includes(f.type) && Math.hypot(f.x - player.x, f.y - player.y) < GAME.SEAT_CHECK_DIST);
-          }
-        }
-        if (seat) {
-          player.x = seat.x;
-          player.y = seat.y;
-          player.pose = "sitting";
-        }
-      }
-      return;
-    }
-    // 이동하면 서기로 복귀
-    player.idleTime = 0;
-    if (player.pose !== "standing") player.pose = "standing";
-
-    const runMul = keys.has("ShiftLeft") || keys.has("ShiftRight") || inputState.runHold ? 1.75 : 1;
-    const walkMul = (player.moveTarget && player.moveTarget.autoWalk) ? 0.5 : 1;
-    const weatherSlow = weather.current === "storm" ? 0.8 : weather.current === "snow" ? 0.88 : 1;
-    const spd = player.speed * runMul * walkMul * 1 * weatherSlow;
-    const tx = player.x + (dx / mag) * spd * dt;
-    const ty = player.y + (dy / mag) * spd * dt;
-
-    if (canStand(tx, player.y)) player.x = tx;
-    if (canStand(player.x, ty)) player.y = ty;
-
-    if (sceneState.current !== "outdoor") {
-      const interior = interiorDefs && interiorDefs[sceneState.current];
-      if (interior) {
-        player.x = clamp(player.x, 0.3, interior.width - 0.3);
-        player.y = clamp(player.y, 0.3, interior.height - 0.3);
-      }
-    } else {
-      player.x = clamp(player.x, 1, world.width - 1);
-      player.y = clamp(player.y, 1, world.height - 1);
-    }
-
-    if (player.moveTarget) {
-      const td = Math.hypot(player.moveTarget.x - player.x, player.moveTarget.y - player.y);
-      if (td <= 0.12) {
-        const targetNpc = npcById(player.moveTarget.npcId);
-        if (targetNpc) {
-          addChat("System", t("sys_npc_arrived", { name: targetNpc.name }));
-          if (chatInputEl) chatInputEl.focus();
-        }
-        if (player.moveTarget.autoWalk) {
-          autoWalk.target = null;
-          autoWalk.nextPickAt = nowMs() + 700 + Math.random() * 1500;
-        }
-        player.moveTarget = null;
-      }
-    }
-  }
-
   function updateNpcs(dt) {
     const typingTarget = isChatTyping() ? chatTargetNpc() : null;
     const typingNpcId = typingTarget ? typingTarget.npc.id : null;
@@ -2941,7 +2767,7 @@ import { createCameraSystem } from './systems/camera.js';
     controlActionsEl.appendChild(btn);
     autoWalkBtn = btn;
     autoWalkBtn.addEventListener("click", () => {
-      setAutoWalkEnabled(!autoWalk.enabled);
+      playerCtrl.setAutoWalkEnabled(!playerCtrl.autoWalkEnabled);
     });
   }
 
@@ -2956,16 +2782,16 @@ import { createCameraSystem } from './systems/camera.js';
     mobileAutoWalkBtn = btn;
     mobileAutoWalkBtn.addEventListener("click", () => {
       if (isMobileViewport() && mobileChatOpen) return;
-      setAutoWalkEnabled(!autoWalk.enabled);
+      playerCtrl.setAutoWalkEnabled(!playerCtrl.autoWalkEnabled);
     });
   }
 
   ensureAutoWalkControl();
   ensureMobileAutoWalkControl();
   try {
-    setAutoWalkEnabled(localStorage.getItem(AUTO_WALK_KEY) === "1", true);
+    playerCtrl.setAutoWalkEnabled(localStorage.getItem(AUTO_WALK_KEY) === "1", true);
   } catch {
-    setAutoWalkEnabled(false, true);
+    playerCtrl.setAutoWalkEnabled(false, true);
   }
 
   function frame(now) {
@@ -2975,30 +2801,41 @@ import { createCameraSystem } from './systems/camera.js';
     frameCount += 1;
 
     if (!world.paused) {
-      // 실제 시간과 1:1 동기화 (dt는 초 단위, 1분 = 60초)
+      // ── Phase A: Time ──
       world.totalMinutes += dt / 60;
-      updatePlayer(dt);
-      ensureGuideGreeting().update(dt);  // 유진 이동을 updateNpcs보다 먼저
+
+      // ── Phase B: Player (before NPCs) ──
+      playerCtrl.update(dt);
+
+      // ── Phase C: NPC Movement (guide before general) ──
+      ensureGuideGreeting().update(dt);
       updateNpcs(dt);
+
+      // ── Phase D: NPC Social ──
       ensureNpcSocial().updateSocialEvents();
       updateAmbientEvents();
       updateFavorRequests();
       updateTagGame(dt);
       sceneMgr.updateFade(dt);
+
+      // ── Phase E: Environment ──
       if (sceneState.current === "outdoor") {
         updateWeather(dt);
         updateDiscoveries();
       }
       ensureAmbientSpeech().update(nowMs());
+      introSeq.update(dt);
+
+      // ── Phase F: Camera ──
       cameraSys.updateConversation();
       cameraSys.updateContemplation(nowMs());
-      introSeq.update(dt);
       cameraSys.updateCamera();
+
+      // ── Phase G: Network ──
       if (mp && mp.enabled) {
         mpBroadcast();
         mpInterpolate(dt);
         if (frameCount % 300 === 0) { mpCleanStale(); mpCleanMessages(); }
-        // 5분마다 기억 서버 동기화
         const _now = nowMs();
         if (memorySync && _now > nextMemorySyncAt) {
           nextMemorySyncAt = _now + GAME.MEMORY_SYNC_MS;
@@ -3014,14 +2851,12 @@ import { createCameraSystem } from './systems/camera.js';
     updateUI();
     if (gameRenderer3D) {
       elapsedTime += dt;
-      // Clear 2D HUD overlay canvas (transparent)
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       gameRenderer3D.render(
         { player, npcs, world, weather, sceneState, speechBubbles: chatMgr.speechBubbles, weatherParticles },
         dt,
         elapsedTime
       );
-      // Draw minimap and HUD on 2D overlay
       if (!mobileMode || frameCount % 3 === 0) drawMinimap();
     }
     requestAnimationFrame(frame);
@@ -3061,7 +2896,7 @@ import { createCameraSystem } from './systems/camera.js';
       addLog(world.paused ? t("sys_sim_pause") : t("sys_sim_resume"));
     }
     if (code === "KeyT") {
-      setAutoWalkEnabled(!autoWalk.enabled);
+      playerCtrl.setAutoWalkEnabled(!playerCtrl.autoWalkEnabled);
     }
     // V키: 관조 모드 (카메라가 NPC를 자동으로 따라감)
     if (code === "KeyV") {
