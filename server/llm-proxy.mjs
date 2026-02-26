@@ -420,6 +420,7 @@ function buildPromptKo(payload) {
       prompt: [
         `당신은 ${npcName}입니다. 성격: ${persona.personality || "평범"}.`,
         ...(persona.quirk ? [`[말버릇] ${persona.quirk}`] : []),
+        ...(persona.backstory ? [`[배경] ${persona.backstory}`] : []),
         `시각: ${worldContext.time || ""}`,
         ...describeNeedsKo(payload.npcNeeds),
         "",
@@ -600,6 +601,7 @@ function buildPromptEn(payload) {
       prompt: [
         `You are ${npcName}. Personality: ${persona.personality || "balanced"}.`,
         ...(persona.quirk ? [`[Speech quirk] ${persona.quirk}`] : []),
+        ...(persona.backstory ? [`[Background] ${persona.backstory}`] : []),
         `Time: ${worldContext.time || ""}`,
         ...describeNeedsEn(payload.npcNeeds),
         "",
