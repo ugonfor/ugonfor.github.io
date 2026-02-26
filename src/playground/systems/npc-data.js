@@ -52,9 +52,11 @@ export function ensureMemoryFormat(npc) {
   return npc.memory;
 }
 
-export function addNpcMemory(npc, type, summary, metadata, totalMinutes) {
+export function addNpcMemory(npc, type, summary, metadata, totalMinutes, playerName) {
   const mem = ensureMemoryFormat(npc);
-  mem.entries.push({ type, summary, metadata: metadata || {}, time: totalMinutes });
+  const entry = { type, summary, metadata: metadata || {}, time: totalMinutes };
+  if (playerName) entry.playerName = playerName;
+  mem.entries.push(entry);
   // 15개 초과 시 오래된 5개를 1줄 요약으로 압축
   if (mem.entries.length > 15) {
     compressOldMemories(npc);
@@ -74,20 +76,28 @@ export function compressOldMemories(npc) {
   });
 }
 
-export function getNpcMemorySummary(npc, t) {
+export function getNpcMemorySummary(npc, t, currentPlayerName) {
   const mem = ensureMemoryFormat(npc);
   if (mem.entries.length === 0) return "";
   const levelName = t(favorLevelNames[npc.favorLevel]) || t("relation_stranger");
   const recent = mem.entries.slice(-8);
   const lines = recent.map((e) => {
-    if (e.type === "chat") return `${t("npc_memory_chat")} ${e.summary}`;
-    if (e.type === "gift") return `${t("npc_memory_gift")} ${e.summary}`;
-    if (e.type === "quest") return `${t("npc_memory_quest")} ${e.summary}`;
-    if (e.type === "favor") return `${t("npc_memory_favor")} ${e.summary}`;
-    return `${t("npc_memory_other")} ${e.summary}`;
+    const prefix = e.playerName && e.playerName !== currentPlayerName
+      ? `[${e.playerName}] ` : "";
+    if (e.type === "chat") return `${prefix}${t("npc_memory_chat")} ${e.summary}`;
+    if (e.type === "gift") return `${prefix}${t("npc_memory_gift")} ${e.summary}`;
+    if (e.type === "quest") return `${prefix}${t("npc_memory_quest")} ${e.summary}`;
+    if (e.type === "favor") return `${prefix}${t("npc_memory_favor")} ${e.summary}`;
+    return `${prefix}${t("npc_memory_other")} ${e.summary}`;
   });
+  // Count unique visitors
+  const visitors = new Set(mem.entries.filter(e => e.playerName).map(e => e.playerName));
+  const visitorHint = visitors.size > 1
+    ? t("npc_memory_visitors", { count: visitors.size, names: [...visitors].slice(0, 5).join(", ") })
+    : "";
   const stats = t("npc_memory_stats", { chat: mem.conversationCount, gift: mem.giftsReceived, quest: mem.questsShared });
-  return t("npc_memory_summary", { level: levelName, stage: npc.favorLevel, stats, lines: lines.join("\n") });
+  return t("npc_memory_summary", { level: levelName, stage: npc.favorLevel, stats, lines: lines.join("\n") })
+    + (visitorHint ? "\n" + visitorHint : "");
 }
 
 export function getNpcSocialContext(npc, npcs, getNpcRelation, t) {

@@ -27,7 +27,7 @@ export class LabelOverlay {
       let el = this._labels.get(key);
       if (!el) {
         el = document.createElement('div');
-        el.className = 'pg-label pg-label-npc' + (e.isDocent ? ' pg-label-docent' : '');
+        el.className = 'pg-label' + (e.isRemotePlayer ? ' pg-label-remote' : ' pg-label-npc') + (e.isDocent ? ' pg-label-docent' : '');
         this._container.appendChild(el);
         this._labels.set(key, el);
       }

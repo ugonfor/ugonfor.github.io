@@ -11,12 +11,20 @@ export function createMultiplayer(ctx) {
     sessionId: null,
     playersRef: null,
     messagesRef: null,
+    npcsRef: null,
+    hostsRef: null,
     remotePlayers: {},
     lastBroadcastAt: 0,
+    lastNpcBroadcastAt: 0,
     lastMessageSendAt: 0,
     MESSAGE_COOLDOWN: 1500,
     BROADCAST_INTERVAL: 100,
+    NPC_BROADCAST_INTERVAL: 200,
     STALE_TIMEOUT: 12_000,
+    NPC_STALE_TIMEOUT: 30_000,
+    isHost: false,
+    hostId: null,
+    _npcListener: null,
   };
 
   function remotePlayerList() {
@@ -104,6 +112,66 @@ export function createMultiplayer(ctx) {
         }
       });
 
+      // --- Host election for NPC sync ---
+      mp.hostsRef = mp.db.ref("playground/hosts");
+      mp.npcsRef = mp.db.ref("playground/npcs");
+      const hostCandidateRef = mp.hostsRef.child(mp.sessionId);
+      hostCandidateRef.set({ ts: firebase.database.ServerValue.TIMESTAMP });
+      hostCandidateRef.onDisconnect().remove();
+
+      mp.hostsRef.orderByChild("ts").limitToFirst(1).on("value", (snap) => {
+        let newHostId = null;
+        snap.forEach((child) => { newHostId = child.key; });
+        if (newHostId !== mp.hostId) {
+          const wasHost = mp.isHost;
+          mp.hostId = newHostId;
+          mp.isHost = newHostId === mp.sessionId;
+          if (mp.isHost && !wasHost) {
+            // Became host: load last NPC state from Firebase to avoid position jump
+            mp.npcsRef.once("value", (npcSnap) => {
+              const data = npcSnap.val();
+              if (data && ctx.npcs) {
+                const anyTs = Object.values(data)[0]?.ts || 0;
+                if (Date.now() - anyTs < mp.NPC_STALE_TIMEOUT) {
+                  for (const npc of ctx.npcs) {
+                    const remote = data[npc.id];
+                    if (!remote) continue;
+                    if (typeof remote.x === "number" && isFinite(remote.x)) npc.x = remote.x;
+                    if (typeof remote.y === "number" && isFinite(remote.y)) npc.y = remote.y;
+                    if (remote.state) npc.state = remote.state;
+                    if (remote.pose) npc.pose = remote.pose;
+                    if (remote.mood) npc.mood = remote.mood;
+                    if (remote.currentScene) npc.currentScene = remote.currentScene;
+                  }
+                }
+              }
+            }).catch(() => {});
+            // Stop listening for NPC updates (host simulates)
+            if (mp._npcListener) { mp.npcsRef.off("value", mp._npcListener); mp._npcListener = null; }
+            ctx.addLog("Hosting NPC world");
+          } else if (!mp.isHost) {
+            // Non-host: listen for NPC state from host
+            if (!mp._npcListener) {
+              mp._npcListener = mp.npcsRef.on("value", (npcSnap) => {
+                if (mp.isHost) return;
+                const data = npcSnap.val();
+                if (!data || !ctx.npcs) return;
+                for (const npc of ctx.npcs) {
+                  const remote = data[npc.id];
+                  if (!remote) continue;
+                  if (typeof remote.x === "number" && isFinite(remote.x)) npc.x = remote.x;
+                  if (typeof remote.y === "number" && isFinite(remote.y)) npc.y = remote.y;
+                  if (remote.state) npc.state = remote.state;
+                  if (remote.pose) npc.pose = remote.pose;
+                  if (remote.mood) npc.mood = remote.mood;
+                  if (remote.currentScene) npc.currentScene = remote.currentScene;
+                }
+              });
+            }
+          }
+        }
+      });
+
       if (ctx.uiOnlineEl) ctx.uiOnlineEl.hidden = false;
       ctx.addLog(ctx.t("log_mp_connected"));
       ctx.addChat("System", ctx.t("sys_mp_connected"));
@@ -170,13 +238,34 @@ export function createMultiplayer(ctx) {
     });
   }
 
+  function broadcastNpcs(npcs) {
+    if (!mp.enabled || !mp.isHost || !mp.npcsRef) return;
+    const now = nowMs();
+    if (now - mp.lastNpcBroadcastAt < mp.NPC_BROADCAST_INTERVAL) return;
+    mp.lastNpcBroadcastAt = now;
+    const updates = {};
+    for (const npc of npcs) {
+      updates[npc.id] = {
+        x: Math.round(npc.x * 100) / 100,
+        y: Math.round(npc.y * 100) / 100,
+        state: npc.state || "idle",
+        pose: npc.pose || "standing",
+        mood: npc.mood || "neutral",
+        currentScene: npc.currentScene || "outdoor",
+        ts: firebase.database.ServerValue.TIMESTAMP,
+      };
+    }
+    mp.npcsRef.update(updates).catch(() => {});
+  }
+
   function onlineCount() {
     return Object.keys(mp.remotePlayers).length + 1;
   }
 
   return {
     get enabled() { return mp.enabled; },
+    get isHost() { return mp.isHost; },
     init, broadcast, interpolate, cleanStale, sendMessage, cleanMessages,
-    onlineCount, remotePlayerList,
+    onlineCount, remotePlayerList, broadcastNpcs,
   };
 }
