@@ -643,12 +643,16 @@ import { createAsyncGuard } from './systems/async-guard.js';
     });
   }
 
+  let isReturningVisitor = false;
+
   async function initPlayerName() {
     let storedName = "";
     let storedFlag = "";
+    let hasSaveData = false;
     try {
       storedName = localStorage.getItem(PLAYER_NAME_KEY) || "";
       storedFlag = localStorage.getItem(PLAYER_FLAG_KEY) || "";
+      hasSaveData = !!localStorage.getItem(SAVE_KEY);
     } catch { /* ignore */ }
 
     if (!storedFlag) {
@@ -660,14 +664,21 @@ import { createAsyncGuard } from './systems/async-guard.js';
     }
     player.flag = normalizePlayerFlag(storedFlag);
 
-    // 매번 시작 시 이름/언어 설정 모달 표시
-    const result = await showNameModal(storedName || "");
-    player.name = result.name;
-    currentLang = result.lang;
-    try {
-      localStorage.setItem(PLAYER_NAME_KEY, player.name);
-      localStorage.setItem("playground_lang", currentLang);
-    } catch { /* ignore */ }
+    // 재방문자: 이름이 있고 세이브가 있으면 모달 건너뛰기
+    if (storedName && hasSaveData) {
+      isReturningVisitor = true;
+      player.name = storedName;
+      currentLang = localStorage.getItem("playground_lang") || currentLang;
+    } else {
+      // 첫 방문자: 이름/언어 설정 모달 표시
+      const result = await showNameModal(storedName || "");
+      player.name = result.name;
+      currentLang = result.lang;
+      try {
+        localStorage.setItem(PLAYER_NAME_KEY, player.name);
+        localStorage.setItem("playground_lang", currentLang);
+      } catch { /* ignore */ }
+    }
   }
 
   async function changePlayerName() {
@@ -1742,9 +1753,15 @@ import { createAsyncGuard } from './systems/async-guard.js';
           (async () => {
             try {
               const reply = await llmReplyOrEmpty(greetNpc, t("llm_e_greet"));
-              addChat(greetNpc.name, reply || t("sys_llm_lost"));
+              if (reply) {
+                addChat(greetNpc.name, reply);
+              } else {
+                const pool = [t("fallback_shy"), t("fallback_thinking"), t("fallback_distracted")];
+                addChat(greetNpc.name, pool[Math.floor(Math.random() * pool.length)]);
+              }
             } catch {
-              addChat(greetNpc.name, t("sys_llm_lost"));
+              const pool = [t("fallback_shy"), t("fallback_thinking"), t("fallback_distracted")];
+              addChat(greetNpc.name, pool[Math.floor(Math.random() * pool.length)]);
             }
           })();
           if (greetNpc.id === "heo") adjustRelation("playerToHeo", 1);
@@ -1932,7 +1949,15 @@ import { createAsyncGuard } from './systems/async-guard.js';
       llmAvailable = false;
       lastLlmModel = "local";
       lastLlmError = err && err.message ? String(err.message) : "unknown";
-      reply = t("sys_llm_lost");
+      // 성격 기반 폴백: 단순한 에러 메시지 대신 NPC다운 반응
+      const persona = npcPersonas[npc.id];
+      const isDocent = persona && persona.isDocent;
+      if (isDocent) {
+        reply = t("fallback_docent");
+      } else {
+        const pool = [t("fallback_shy"), t("fallback_thinking"), t("fallback_distracted")];
+        reply = pool[Math.floor(Math.random() * pool.length)];
+      }
     } finally {
       if (chatSendEl) chatSendEl.disabled = false;
       if (chatInputEl) chatInputEl.disabled = false;
@@ -2642,6 +2667,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     if (mobileInteractBtn) {
       const hs = nearestHotspot(1.6);
       const nearNpc = nearestNpc(CHAT_NEARBY_DISTANCE);
+      mobileInteractBtn.disabled = false;
       if (hs) {
         const hsLabels = {
           exitGate: t("hs_exit"),
@@ -2659,6 +2685,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
         mobileInteractBtn.textContent = t("mobile_talk");
       } else {
         mobileInteractBtn.textContent = t("mobile_talk");
+        mobileInteractBtn.disabled = true;
       }
     }
 
@@ -2748,6 +2775,15 @@ import { createAsyncGuard } from './systems/async-guard.js';
   let mouseDownY = 0;
   initPlayerName().then(() => {
     translateStaticDOM();
+    // 재방문자: 저장된 상태 자동 복원 + 인트로 건너뛰기
+    if (isReturningVisitor) {
+      loadState();
+      // 시간은 현실과 1:1 — 저장된 시간이 아닌 현재 서울 시간 사용
+      const seoulNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+      world.totalMinutes = seoulNow.getHours() * 60 + seoulNow.getMinutes();
+      introSeq.skip();
+      addChat("System", t("sys_welcome_back", { name: player.name }));
+    }
     initMultiplayer();
     // Init audio after user interaction (name modal confirm) to satisfy autoplay policy
     audioManager.init();
@@ -2794,6 +2830,29 @@ import { createAsyncGuard } from './systems/async-guard.js';
     playerCtrl.setAutoWalkEnabled(false, true);
   }
 
+  // ─── Onboarding Hints (first-time visitors only) ───
+  const onboardingHints = { moveShown: false, talkShown: false, npcNearShown: false, elapsed: 0 };
+  function updateOnboardingHints(dt) {
+    if (isReturningVisitor) return;
+    if (!introSeq.isDone) return;
+    onboardingHints.elapsed += dt;
+    // 인트로 끝난 후 2초: 이동 힌트
+    if (!onboardingHints.moveShown && onboardingHints.elapsed > 2) {
+      onboardingHints.moveShown = true;
+      const hint = mobileMode ? t("hint_move_mobile") : t("hint_move_desktop");
+      addChat("System", hint);
+    }
+    // NPC가 가까이 있을 때: 대화 힌트
+    if (!onboardingHints.npcNearShown && onboardingHints.elapsed > 5) {
+      const near = nearestNpc(CHAT_NEARBY_DISTANCE + 1);
+      if (near) {
+        onboardingHints.npcNearShown = true;
+        const hint = mobileMode ? t("hint_talk_mobile", { name: near.npc.name }) : t("hint_talk_desktop", { name: near.npc.name });
+        addChat("System", hint);
+      }
+    }
+  }
+
   function frame(now) {
     resizeCanvasToDisplaySize();
     const dt = Math.min((now - last) / 1000, 0.05);
@@ -2828,6 +2887,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       }
       ensureAmbientSpeech().update(nowMs());
       introSeq.update(dt);
+      updateOnboardingHints(dt);
 
       // ── Phase F: Camera ──
       cameraSys.updateConversation();
@@ -2867,6 +2927,10 @@ import { createAsyncGuard } from './systems/async-guard.js';
   }
 
   window.addEventListener("keydown", (ev) => {
+    // 인트로 중 아무 키 → 건너뛰기
+    if (!introSeq.isDone && !isTypingInInput()) {
+      introSeq.skip();
+    }
     // Ctrl+Shift+D: toggle debug mode (works even when typing)
     if (ev.ctrlKey && ev.shiftKey && ev.code === "KeyD") {
       ev.preventDefault();
@@ -3353,8 +3417,9 @@ import { createAsyncGuard } from './systems/async-guard.js';
       });
       console.log("[Playground] Three.js 3D renderer initialized");
 
-      // 3D 캔버스 클릭 → 이동
+      // 3D 캔버스 클릭 → 인트로 건너뛰기 또는 이동
       canvas3D.addEventListener("click", (ev) => {
+        if (!introSeq.isDone) { introSeq.skip(); return; }
         if (dragging || isMobileViewport()) return;
         const pos = gameRenderer3D.screenToWorld(ev.clientX, ev.clientY);
         if (pos && canStand(pos.x, pos.z)) {
@@ -3369,6 +3434,18 @@ import { createAsyncGuard } from './systems/async-guard.js';
 
   // NPC를 미리 흩어놓기 (첫 프레임 전 60초 시뮬레이션)
   introSeq.presimulate(60);
+
+  // ─── Auto-save: 페이지 닫힐 때 + 주기적 저장 ───
+  window.addEventListener("beforeunload", () => {
+    try { saveLoadSys.save(); } catch { /* ignore */ }
+    if (memorySync) {
+      try { memorySync.save(npcs, player.name); } catch { /* ignore */ }
+    }
+  });
+  // 3분마다 자동 저장
+  setInterval(() => {
+    try { saveLoadSys.save(); } catch { /* ignore */ }
+  }, 180_000);
 
   requestAnimationFrame(frame);
 })();

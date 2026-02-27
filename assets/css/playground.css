@@ -573,6 +573,11 @@ html.playground-page section {
   width: 100%;
 }
 
+#pg-mobile-interact:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 button.pg-pressed,
 .pg-mobile-actions button:active {
   background: rgba(213, 231, 251, 0.95);
@@ -904,6 +909,11 @@ button.pg-pressed,
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
+  animation: pgModalFadeIn 0.4s ease;
+}
+@keyframes pgModalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .pg-name-modal[hidden] { display: none; }
 .pg-name-modal-box {
@@ -913,6 +923,11 @@ button.pg-pressed,
   padding: 20px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.3);
   text-align: center;
+  animation: pgModalSlideUp 0.4s ease;
+}
+@keyframes pgModalSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .pg-name-modal-box h3 {
   margin: 0 0 14px;
