@@ -164,10 +164,16 @@ export function createIntroSequence(ctx) {
     }
   }
 
+  function skip() {
+    introPhase = 2;
+    if (ctx.gameRenderer3D) ctx.gameRenderer3D._cameraFollowTarget = null;
+  }
+
   return {
     initTargets,
     update,
     presimulate: presimulateNpcs,
+    skip,
     get phase() { return introPhase; },
     get isDone() { return introPhase >= 2; },
     get camPos() { return introCamPos; },

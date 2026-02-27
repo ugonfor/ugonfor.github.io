@@ -19,6 +19,10 @@ export const translations = {
     sys_companion_end: "{name}이(가) 동행을 멈춥니다.",
     sys_guide_arrive: "여기 {name}이(가) 있어요!",
     sys_llm_lost: "나 말하는 법을 까먹은 거 같아...",
+    fallback_docent: "어머, 잠깐 정신이 없었어요. 다시 한번 말해줄래요?",
+    fallback_shy: "음... 뭐라고 해야 할지 모르겠어.",
+    fallback_thinking: "잠깐, 생각 좀 해볼게...",
+    fallback_distracted: "아, 미안. 딴 생각하고 있었어.",
     sys_sim_pause: "시뮬레이션 일시정지",
     sys_sim_resume: "시뮬레이션 재개",
     sys_no_gift_item: "선물할 아이템이 없습니다. 바닥에서 아이템을 주워보세요.",
@@ -26,8 +30,9 @@ export const translations = {
     sys_no_gift_target: "선물할 대상이 근처에 없습니다.",
     sys_tag_zone_only: "놀이터 근처에서만 술래잡기를 할 수 있습니다! 🏃",
     sys_stream_partial: "스트리밍이 중단되어 응답 일부만 도착했습니다.",
-    sys_llm_chat_on: "근처 NPC와 한국어 LLM 채팅이 활성화되었습니다.",
-    sys_llm_chat_off: "LLM 엔드포인트가 없어 로컬 대화 모드로 동작합니다.",
+    sys_welcome_back: "다시 오셨군요, {name}님. 마을이 기다리고 있었어요.",
+    sys_llm_chat_on: "주민들과 대화할 수 있습니다.",
+    sys_llm_chat_off: "주민들이 잠시 말을 아끼고 있어요. 마을을 둘러보세요.",
     sys_discovery: "✨ 새로운 발견: {title}!",
     sys_favor_cancel: "대상 NPC가 더 이상 존재하지 않아 요청이 취소됩니다.",
     sys_item_pickup: "{emoji} {label}을(를) 주웠습니다!{extra} (보유: {count})",
@@ -342,6 +347,12 @@ export const translations = {
     board_no_quest: "진행 중인 퀘스트가 없습니다.",
     board_completed_title: "━━ 완료한 퀘스트 ({count}개) ━━",
     board_no_history: "아직 완료한 퀘스트가 없습니다.",
+
+    // Onboarding hints
+    hint_move_desktop: "WASD 또는 화살표 키로 이동할 수 있어요. 마우스 드래그로 시점을 돌려보세요.",
+    hint_move_mobile: "조이스틱으로 이동할 수 있어요. 화면을 드래그해서 시점을 돌려보세요.",
+    hint_talk_desktop: "{name}이(가) 가까이 있어요! E키를 누르거나 클릭해서 말을 걸어보세요.",
+    hint_talk_mobile: "{name}이(가) 가까이 있어요! '대화' 버튼을 눌러보세요.",
 
     // Docent welcome
     docent_hi: "안녕하세요! 이 마을에 오신 걸 환영해요.",
@@ -869,6 +880,10 @@ export const translations = {
     sys_companion_end: "{name} stopped following you.",
     sys_guide_arrive: "Here's {name}!",
     sys_llm_lost: "I think I forgot how to speak...",
+    fallback_docent: "Oh, I spaced out for a second. Could you say that again?",
+    fallback_shy: "Hmm... I'm not sure what to say.",
+    fallback_thinking: "Hold on, let me think about that...",
+    fallback_distracted: "Oh, sorry. I was lost in thought.",
     sys_sim_pause: "Simulation paused",
     sys_sim_resume: "Simulation resumed",
     sys_no_gift_item: "No items to gift. Try picking up items from the ground.",
@@ -876,8 +891,9 @@ export const translations = {
     sys_no_gift_target: "No one nearby to give a gift to.",
     sys_tag_zone_only: "You can only play tag near the playground! 🏃",
     sys_stream_partial: "Streaming was interrupted. Only a partial response was received.",
-    sys_llm_chat_on: "LLM chat with nearby NPCs is active.",
-    sys_llm_chat_off: "No LLM endpoint. Running in local dialogue mode.",
+    sys_welcome_back: "Welcome back, {name}. The village has been waiting for you.",
+    sys_llm_chat_on: "You can talk with the villagers.",
+    sys_llm_chat_off: "The villagers are being quiet right now. Take a look around.",
     sys_discovery: "✨ New discovery: {title}!",
     sys_favor_cancel: "Target NPC no longer exists. Request cancelled.",
     sys_item_pickup: "{emoji} Picked up {label}!{extra} (Have: {count})",
@@ -1192,6 +1208,12 @@ export const translations = {
     board_no_quest: "No active quests.",
     board_completed_title: "━━ Completed Quests ({count}) ━━",
     board_no_history: "No completed quests yet.",
+
+    // Onboarding hints
+    hint_move_desktop: "Use WASD or arrow keys to move. Drag the mouse to look around.",
+    hint_move_mobile: "Use the joystick to move. Drag the screen to look around.",
+    hint_talk_desktop: "{name} is nearby! Press E or click to start a conversation.",
+    hint_talk_mobile: "{name} is nearby! Tap the 'Talk' button to chat.",
 
     // Docent welcome
     docent_hi: "Hello! Welcome to our village.",

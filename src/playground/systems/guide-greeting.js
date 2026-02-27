@@ -55,7 +55,7 @@ export function createGuideGreetingSystem(ctx) {
         return;
       }
 
-      // Arrived -> phase 2: greet
+      // Arrived -> phase 2: greet with follow-up
       guideGreetingPhase = 2;
       guideNpc.pose = "waving";
       guideNpc.state = "chatting";
@@ -64,15 +64,34 @@ export function createGuideGreetingSystem(ctx) {
       const greetPrompt = isReturn
         ? ctx.t("llm_guide_return", { name: ctx.player.name })
         : ctx.t("llm_guide_first", { name: ctx.player.name });
+      const followUpPrompt = isReturn
+        ? ctx.t("llm_guide_return2", { name: ctx.player.name })
+        : ctx.t("llm_guide_first2", { name: ctx.player.name });
       ctx.convoMgr.startConversation(guideNpc.id, 30_000, "guide");
       ctx.llmReplyOrEmpty(guideNpc, greetPrompt).then((hi) => {
         const line = hi || ctx.t("docent_hi");
         ctx.addChat(guideNpc.name, line);
         ctx.upsertSpeechBubble(guideNpc.id, line, 5000);
+        // 후속 대사: 탐험 유도 or 마을 근황
+        return new Promise(r => setTimeout(r, 3500)).then(() =>
+          ctx.llmReplyOrEmpty(guideNpc, followUpPrompt)
+        );
+      }).then((line2) => {
+        if (line2) {
+          ctx.addChat(guideNpc.name, line2);
+          ctx.upsertSpeechBubble(guideNpc.id, line2, 5000);
+        } else {
+          const fallback = ctx.t("docent_hi2");
+          ctx.addChat(guideNpc.name, fallback);
+          ctx.upsertSpeechBubble(guideNpc.id, fallback, 5000);
+        }
         setTimeout(() => { guideNpc.pose = "standing"; }, 3000);
-      }).catch(e => console.warn("[guide greet]", e.message));
+      }).catch(e => {
+        console.warn("[guide greet]", e.message);
+        guideNpc.pose = "standing";
+      });
       guideNpc.roamTarget = null;
-      guideNpc.roamWait = 8;
+      guideNpc.roamWait = 12;
     }
   }
 
