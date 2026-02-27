@@ -131,7 +131,7 @@ extra_head: |
     <div class="pg-chat-dock">
       <div class="pg-chat-title-row">
         <h3 class="pg-chat-title" data-i18n="dom_chat_title">NPC 대화</h3>
-        <button id="pg-chat-close" type="button" hidden data-i18n="dom_chat_close">채팅 종료</button>
+        <button id="pg-chat-close" type="button" data-i18n="dom_chat_close">채팅 종료</button>
       </div>
       <p id="pg-chat-target" class="pg-chat-target-line" data-i18n="dom_chat_target">대상: 없음</p>
       <div class="pg-chat-meta">

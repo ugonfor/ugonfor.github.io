@@ -78,6 +78,20 @@ html.playground-page section {
   background: rgba(100, 120, 140, 0.5);
 }
 
+/* ─── Visitor-facing UI cleanup ─── */
+/* Hide developer-facing panels */
+#pg-card-info { display: none; }
+/* Hide controls help text (keyboard hints) — keep action buttons */
+.pg-controls-help { display: none; }
+/* Hide debug metadata in chat panel */
+.pg-chat-meta { display: none; }
+/* Hide the redundant target line above meta */
+.pg-chat-target-line { display: none; }
+/* Hide relation line (never populated meaningfully) */
+#pg-rel { display: none; }
+/* Compact controls card title */
+#pg-card-controls > h3 { display: none; }
+
 .pg-world-stage {
   position: relative;
   width: 100vw;

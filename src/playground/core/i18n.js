@@ -490,7 +490,8 @@ export const translations = {
     dom_log_toggle: "접기",
 
     // Static DOM — chat dock
-    dom_chat_title: "NPC 대화",
+    dom_chat_title: "대화",
+    chat_title_mp: "마을 채팅",
     dom_chat_close: "채팅 종료",
     dom_chat_target: "대상: 없음",
     dom_chat_active_target: "대상: 없음",
@@ -1351,7 +1352,8 @@ export const translations = {
     dom_log_toggle: "Collapse",
 
     // Static DOM — chat dock
-    dom_chat_title: "NPC Chat",
+    dom_chat_title: "Chat",
+    chat_title_mp: "Village Chat",
     dom_chat_close: "End Chat",
     dom_chat_target: "Target: None",
     dom_chat_active_target: "Target: None",

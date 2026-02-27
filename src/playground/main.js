@@ -2661,8 +2661,12 @@ import { createAsyncGuard } from './systems/async-guard.js';
     const stateLabels = { idle: t("npc_state_idle"), moving: t("npc_state_moving"), chatting: t("npc_state_chatting") };
     uiNearby.textContent = near ? t("ui_nearby", { name: near.npc.name, state: stateLabels[near.npc.state] || near.npc.state }) : t("ui_nearby_none");
 
-    if (quest.done && !quest.dynamic) uiQuest.textContent = t("ui_quest_done", { title: quest.title });
-    else uiQuest.textContent = t("ui_quest_active", { title: quest.title, objective: quest.objective });
+    if (quest.title && !quest.done) {
+      uiQuest.textContent = t("ui_quest_active", { title: quest.title, objective: quest.objective });
+      uiQuest.hidden = false;
+    } else {
+      uiQuest.hidden = true;
+    }
 
     if (mobileInteractBtn) {
       const hs = nearestHotspot(1.6);
@@ -2709,6 +2713,11 @@ import { createAsyncGuard } from './systems/async-guard.js';
       const prevLabel = chatTargetEl.textContent;
       const newLabel = npcNear ? t("chat_target_npc", { name: target.npc.name }) : (mpChat ? t("chat_target_mp") : t("chat_target_none"));
       if (prevLabel !== newLabel) { chatTargetEl.textContent = newLabel; renderCurrentChat(); }
+    }
+    // 채팅 타이틀에 NPC 이름 표시
+    const chatTitleEl = document.querySelector('.pg-chat-title');
+    if (chatTitleEl) {
+      chatTitleEl.textContent = npcNear ? target.npc.name : (mpChat ? t("chat_title_mp") : t("dom_chat_title"));
     }
     if (chatSendEl) chatSendEl.disabled = mpChat ? false : !npcNear;
     if (chatInputEl) {
@@ -2909,7 +2918,13 @@ import { createAsyncGuard } from './systems/async-guard.js';
     }
 
     if (mp && mp.enabled && uiOnlineEl) {
-      uiOnlineEl.textContent = t("ui_online", { count: mpOnlineCount() });
+      const onlineN = mpOnlineCount();
+      if (onlineN > 1) {
+        uiOnlineEl.textContent = t("ui_online", { count: onlineN });
+        uiOnlineEl.hidden = false;
+      } else {
+        uiOnlineEl.hidden = true;
+      }
     }
 
     updateUI();
