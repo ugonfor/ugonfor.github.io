@@ -2957,6 +2957,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(code)) {
       ev.preventDefault();
     }
+    if (code === "Escape" && convoMgr.focusNpcId) { endConversation(); return; }
     if (code === "KeyE") interact();
     if (code === "Space") cameraSys.resetView();
     if (code === "KeyP") {
