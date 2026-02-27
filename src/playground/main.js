@@ -3242,6 +3242,12 @@ import { createAsyncGuard } from './systems/async-guard.js';
   if (loadBtn) loadBtn.addEventListener("click", loadState);
   if (renameBtn) renameBtn.addEventListener("click", changePlayerName);
 
+  // Settings button (name/language change)
+  const settingsBtn = document.getElementById('pg-settings-btn');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => changePlayerName());
+  }
+
   // Audio toggle button
   const audioToggleEl = document.getElementById('pg-audio-toggle');
   if (audioToggleEl) {
