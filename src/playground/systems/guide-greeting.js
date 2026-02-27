@@ -85,10 +85,16 @@ export function createGuideGreetingSystem(ctx) {
           ctx.addChat(guideNpc.name, fallback);
           ctx.upsertSpeechBubble(guideNpc.id, fallback, 5000);
         }
-        setTimeout(() => { guideNpc.pose = "standing"; }, 3000);
+        setTimeout(() => {
+          guideNpc.pose = "standing";
+          // 인사 끝 → 대화 세션 해제, 안내소로 복귀
+          ctx.convoMgr.clearFocusIf(guideNpc.id);
+          guideNpc.state = "idle";
+        }, 3000);
       }).catch(e => {
         console.warn("[guide greet]", e.message);
         guideNpc.pose = "standing";
+        ctx.convoMgr.clearFocusIf(guideNpc.id);
       });
       guideNpc.roamTarget = null;
       guideNpc.roamWait = 12;
