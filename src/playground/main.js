@@ -29,9 +29,9 @@ import { createAsyncGuard } from './systems/async-guard.js';
   if (!canvas) return;
 
   // ─── i18n ───
-  let currentLang = localStorage.getItem('playground_lang') || 'ko';
+  let currentLang = localStorage.getItem('playground_lang') || 'en';
   function t(key, params = {}) {
-    let text = (translations[currentLang] && translations[currentLang][key]) || (translations.ko && translations.ko[key]) || key;
+    let text = (translations[currentLang] && translations[currentLang][key]) || (translations.en && translations.en[key]) || key;
     for (const [k, v] of Object.entries(params)) {
       text = text.replaceAll(`{${k}}`, v);
     }
@@ -65,7 +65,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     canvas.style.left = "0";
     canvas.style.zIndex = "1";
     canvas.style.backgroundColor = "transparent";
-    canvas.style.pointerEvents = "none";  // 3D 캔버스와 UI 요소가 클릭 받도록
+    canvas.style.pointerEvents = "none";  // Let UI elements receive clicks over 3D canvas
     // Mouse/touch events still use game coord system, not Three.js raycasting yet
   }
 
@@ -121,7 +121,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
   }
   const mobileInteractBtn = document.getElementById("pg-mobile-interact");
   const mobileRunBtn = document.getElementById("pg-mobile-run");
-  // pg-mobile-chat removed: interaction and chat merged into single "대화" button
+  // pg-mobile-chat removed: interaction and chat merged into single "Chat" button
   const mobilePauseBtn = document.getElementById("pg-mobile-pause");
   const mobileResetBtn = document.getElementById("pg-mobile-reset");
   const mobileUtilityBtn = document.getElementById("pg-mobile-utility");
@@ -229,34 +229,34 @@ import { createAsyncGuard } from './systems/async-guard.js';
   function getNpcSocialContext(npc) { return _getNpcSocialContext(npc, npcs, getNpcRelation, t); }
 
   const npcs = [
-    // KSA 학생들 (기숙사→본관→각자 취미)
-    makeNpc("heo", "도깨비", "#e56f6f", places.ksa_dorm, places.ksa_main, places.park, "", "human_a"),
-    makeNpc("kim", "하루", "#6fa1e5", places.ksa_dorm, places.ksa_main, places.cafe, "", "human_b"),
-    makeNpc("choi", "별이", "#79c88b", places.ksa_dorm, places.ksa_main, places.plaza, "", "human_c"),
-    makeNpc("jung", "구름", "#b88be6", places.ksa_dorm, places.ksa_main, places.market, "", "human_d"),
-    makeNpc("seo", "바람", "#e6a76f", places.ksa_dorm, places.ksa_main, places.park, "", "human_e"),
-    makeNpc("lee", "솔이", "#6fc7ba", places.ksa_dorm, places.ksa_main, places.cafe, "", "human_f"),
-    makeNpc("park", "다온", "#d88972", places.ksa_dorm, places.ksa_main, places.plaza, "", "human_g"),
-    makeNpc("jang", "새벽", "#8e9be3", places.ksa_dorm, places.ksa_main, places.market, "", "human_h"),
-    makeNpc("guide", "유진", "#f0a0c0", places.infoCenter, places.infoCenter, places.infoCenter, "", "human_a"),
-    makeNpc("yoo", "유효곤", "#5e88dd", places.ksa_dorm, places.ksa_main, places.park, "", "human_i"),
-    // 마을 주민들
-    makeNpc("baker", "밀순이", "#e6a76f", places.bakery, places.bakery, places.market, "npc_personality_baker", "human_d"),
-    makeNpc("floristNpc", "꽃잎", "#ff8fa3", places.florist, places.florist, places.park, "npc_personality_florist", "human_c"),
-    makeNpc("librarian", "글타래", "#7a9ec7", places.library, places.library, places.cafe, "npc_personality_librarian", "human_b"),
-    makeNpc("residentA", "마루", "#8bc77a", places.homeA, places.market, places.plaza, "npc_personality_residentA", "human_g"),
-    makeNpc("residentB", "나비", "#c9a0d4", places.homeB, places.office, places.library, "npc_personality_residentB", "human_f"),
-    makeNpc("residentC", "돌담", "#d4a070", places.homeC, places.bakery, places.park, "npc_personality_residentC", "human_h"),
-    // 추가 주민들
-    makeNpc("barista", "모카", "#e8a0a0", places.cafe, places.cafe, places.park, "", "human_b"),
-    makeNpc("florist_owner", "봄이", "#f0c0d0", places.florist, places.florist, places.plaza, "", "human_d"),
-    makeNpc("chef", "불꽃", "#d0a060", places.restaurant, places.restaurant, places.market, "", "human_e"),
-    makeNpc("officer", "철벽", "#6080b0", places.police, places.police, places.plaza, "", "human_f"),
-    makeNpc("athlete", "번개", "#80c080", places.gym, places.gym, places.park, "", "human_g"),
-    makeNpc("doctor", "온기", "#f0f0f0", places.hospital, places.hospital, places.cafe, "", "human_h"),
-    makeNpc("student_a", "호기심", "#e0c080", places.ksa_dorm, places.ksa_main, places.park, "", "human_a"),
-    makeNpc("student_b", "고요", "#c0a0e0", places.ksa_dorm, places.ksa_main, places.library, "", "human_i"),
-    makeNpc("grandpa", "느티", "#c0b090", places.homeA, places.plaza, places.park, "", "human_h"),
+    // KSA students (dorm → main building → hobbies)
+    makeNpc("heo", "Dokkaebi", "#e56f6f", places.ksa_dorm, places.ksa_main, places.park, "", "human_a"),
+    makeNpc("kim", "Haru", "#6fa1e5", places.ksa_dorm, places.ksa_main, places.cafe, "", "human_b"),
+    makeNpc("choi", "Byeoli", "#79c88b", places.ksa_dorm, places.ksa_main, places.plaza, "", "human_c"),
+    makeNpc("jung", "Gureum", "#b88be6", places.ksa_dorm, places.ksa_main, places.market, "", "human_d"),
+    makeNpc("seo", "Baram", "#e6a76f", places.ksa_dorm, places.ksa_main, places.park, "", "human_e"),
+    makeNpc("lee", "Soli", "#6fc7ba", places.ksa_dorm, places.ksa_main, places.cafe, "", "human_f"),
+    makeNpc("park", "Daon", "#d88972", places.ksa_dorm, places.ksa_main, places.plaza, "", "human_g"),
+    makeNpc("jang", "Saebyeok", "#8e9be3", places.ksa_dorm, places.ksa_main, places.market, "", "human_h"),
+    makeNpc("guide", "Yujin", "#f0a0c0", places.infoCenter, places.infoCenter, places.infoCenter, "", "human_a"),
+    makeNpc("yoo", "Hyogon", "#5e88dd", places.ksa_dorm, places.ksa_main, places.park, "", "human_i"),
+    // Town residents
+    makeNpc("baker", "Milsuni", "#e6a76f", places.bakery, places.bakery, places.market, "npc_personality_baker", "human_d"),
+    makeNpc("floristNpc", "Kkotip", "#ff8fa3", places.florist, places.florist, places.park, "npc_personality_florist", "human_c"),
+    makeNpc("librarian", "Geultarae", "#7a9ec7", places.library, places.library, places.cafe, "npc_personality_librarian", "human_b"),
+    makeNpc("residentA", "Maru", "#8bc77a", places.homeA, places.market, places.plaza, "npc_personality_residentA", "human_g"),
+    makeNpc("residentB", "Nabi", "#c9a0d4", places.homeB, places.office, places.library, "npc_personality_residentB", "human_f"),
+    makeNpc("residentC", "Doldam", "#d4a070", places.homeC, places.bakery, places.park, "npc_personality_residentC", "human_h"),
+    // Additional residents
+    makeNpc("barista", "Mocha", "#e8a0a0", places.cafe, places.cafe, places.park, "", "human_b"),
+    makeNpc("florist_owner", "Bomi", "#f0c0d0", places.florist, places.florist, places.plaza, "", "human_d"),
+    makeNpc("chef", "Bulkkot", "#d0a060", places.restaurant, places.restaurant, places.market, "", "human_e"),
+    makeNpc("officer", "Cheolbyeok", "#6080b0", places.police, places.police, places.plaza, "", "human_f"),
+    makeNpc("athlete", "Beongae", "#80c080", places.gym, places.gym, places.park, "", "human_g"),
+    makeNpc("doctor", "Ongi", "#f0f0f0", places.hospital, places.hospital, places.cafe, "", "human_h"),
+    makeNpc("student_a", "Hogisim", "#e0c080", places.ksa_dorm, places.ksa_main, places.park, "", "human_a"),
+    makeNpc("student_b", "Goyo", "#c0a0e0", places.ksa_dorm, places.ksa_main, places.library, "", "human_i"),
+    makeNpc("grandpa", "Neuti", "#c0b090", places.homeA, places.plaza, places.park, "", "human_h"),
   ];
 
   const relations = {
@@ -291,7 +291,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
   const questHistory = [];
   let questCount = 0;
 
-  // ─── 술래잡기 미니게임 (모듈: systems/tag-game.js) ───
+  // ─── Tag minigame (module: systems/tag-game.js) ───
   let tagGameModule = null;
   function tagCtx() {
     return { player, npcs, addChat, addLog, t, upsertSpeechBubble, canStand };
@@ -360,7 +360,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
   let discoveryNotifyUntil = 0;
   let discoveryNotifyTitle = "";
 
-  // ─── Weather Update (모듈: systems/weather.js) ───
+  // ─── Weather Update (module: systems/weather.js) ───
   const WEATHER_API_URL = LLM_API_URL ? LLM_API_URL.replace(/\/api\/npc-chat$/, "/api/weather") : "";
 
   function updateWeather(dt) {
@@ -402,7 +402,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     }
   }
 
-  // 부탁은 LLM 대화에서만 자연스럽게 발생 — 여기서는 만료 처리만
+  // Requests arise naturally from LLM conversation — only handle expiry here
   function updateFavorRequests() {
     const now = nowMs();
     for (const npc of npcs) {
@@ -615,17 +615,12 @@ import { createAsyncGuard } from './systems/async-guard.js';
         return;
       }
       nameInput.value = defaultName || "";
-      // 언어 버튼 초기 상태
-      let selectedLang = currentLang;
-      if (langKoBtn && langEnBtn) {
-        langKoBtn.classList.toggle("active", selectedLang === "ko");
-        langEnBtn.classList.toggle("active", selectedLang === "en");
-        const switchLang = (lang) => { selectedLang = lang; currentLang = lang; langKoBtn.classList.toggle("active", lang === "ko"); langEnBtn.classList.toggle("active", lang === "en"); translateStaticDOM(); };
-        langKoBtn.onclick = () => switchLang("ko");
-        langEnBtn.onclick = () => switchLang("en");
-      }
+      // Language is now English-only; hide language buttons if present
+      let selectedLang = "en";
+      if (langKoBtn) langKoBtn.hidden = true;
+      if (langEnBtn) langEnBtn.hidden = true;
       modal.hidden = false;
-      // 모바일에서는 프로그래밍적 focus로 키보드가 안 뜸 — 데스크톱만 auto-focus
+      // Mobile: programmatic focus doesn't open keyboard — auto-focus desktop only
       const isMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
       if (!isMobile) {
         nameInput.focus();
@@ -664,13 +659,13 @@ import { createAsyncGuard } from './systems/async-guard.js';
     }
     player.flag = normalizePlayerFlag(storedFlag);
 
-    // 재방문자: 이름이 있고 세이브가 있으면 모달 건너뛰기
+    // Returning visitor: skip modal if name and save data exist
     if (storedName && hasSaveData) {
       isReturningVisitor = true;
       player.name = storedName;
       currentLang = localStorage.getItem("playground_lang") || currentLang;
     } else {
-      // 첫 방문자: 이름/언어 설정 모달 표시
+      // First-time visitor: show name setup modal
       const result = await showNameModal(storedName || "");
       player.name = result.name;
       currentLang = result.lang;
@@ -1234,8 +1229,8 @@ import { createAsyncGuard } from './systems/async-guard.js';
     grandpa: { home: "houseA", work: null },
   };
 
-  // ─── Scene Manager (모듈: systems/scene-manager.js) ───
-  // ─── Camera System (모듈: systems/camera.js) ───
+  // ─── Scene Manager (module: systems/scene-manager.js) ───
+  // ─── Camera System (module: systems/camera.js) ───
   const cameraSys = createCameraSystem({
     world, player, npcs, canvas,
     activeConversationNpc: () => activeConversationNpc(),
@@ -1246,7 +1241,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
 
   const sceneMgr = createSceneManager({ sceneState, player, cameraPan, buildings, interiorDefs, addLog, t });
 
-  // ─── Player Controller (모듈: systems/player-controller.js) ───
+  // ─── Player Controller (module: systems/player-controller.js) ───
   // Created after sceneMgr/cameraSys but before llmReplyOrEmpty.
   // Lazy references (introSeq, ensureAmbientSpeech) resolved at call time.
   const playerCtrl = createPlayerController({
@@ -1376,19 +1371,19 @@ import { createAsyncGuard } from './systems/async-guard.js';
   function targetFor(npc) {
     const h = hourOfDay();
     const n = npc.needs;
-    // 욕구 우선순위: 가장 급한 것부터
-    if (n.energy < 20) return npc.home;              // 피곤 → 집에서 쉬기
-    if (n.hunger > 70) {                              // 배고픔 → 음식점
+    // Need priority: most urgent first
+    if (n.energy < 20) return npc.home;              // tired → rest at home
+    if (n.hunger > 70) {                              // hungry → go eat
       const eatPlaces = [places.cafe, places.bakery];
       return eatPlaces[npc.id.charCodeAt(0) % eatPlaces.length];
     }
-    if (n.duty > 70) return npc.work;                 // 할 일 쌓임 → 출근
-    if (n.fun < 20) {                                 // 심심함 → 놀이/산책
+    if (n.duty > 70) return npc.work;                 // duty piling up → go to work
+    if (n.fun < 20) {                                 // bored → play/walk
       const funPlaces = [places.park, npc.hobby, places.florist];
       return funPlaces[npc.id.charCodeAt(0) % funPlaces.length];
     }
-    if (n.social < 30) return places.plaza;           // 외로움 → 광장에서 사교
-    // 기본 시간 기반 스케줄 (욕구가 다 적당할 때)
+    if (n.social < 30) return places.plaza;           // lonely → socialize at plaza
+    // Default time-based schedule (when all needs are moderate)
     if (h < 7) return npc.home;
     if (h < 17) return npc.work;
     if (h < 21) return npc.hobby;
@@ -1416,7 +1411,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     const interior = interiorDefs && interiorDefs[buildingId];
     if (!interior) return;
     npc.currentScene = buildingId;
-    // npcSpots 중 비어있는 자리에 배치 (겹침 방지)
+    // Place at empty npcSpots slot (prevent overlap)
     if (interior.npcSpots && interior.npcSpots.length) {
       const occupiedPositions = npcs
         .filter(n => n.id !== npc.id && n.currentScene === buildingId)
@@ -1519,7 +1514,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       }
     }
 
-    // 도슨트 NPC: 환영 접근 중이면 플레이어에게, 아니면 안내소 고정
+    // Docent NPC: approach player during welcome, otherwise stay at info center
     const persona = npcPersonas[npc.id];
     if (persona && persona.isDocent) {
       if (ensureGuideGreeting().phase === 1) {
@@ -1551,7 +1546,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     npc.roamTarget = randomPointNear(base, npc.roamRadius);
   }
 
-  // ─── Quest System (모듈: systems/quest.js) ───
+  // ─── Quest System (module: systems/quest.js) ───
   function questCtx() {
     return {
       quest, questHistory, get questCount() { return questCount; }, set questCount(v) { questCount = v; },
@@ -1569,7 +1564,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
   function showQuestBoardMenu() { _showQuestBoardMenu(questCtx()); questBoardMenuActive = true; }
   function handleQuestBoardChoice(choice) { questBoardMenuActive = false; return _handleQuestBoardChoice(choice, questCtx()); }
 
-  // ─── 도슨트 안내소 시스템 ───
+  // ─── Docent guide system ───
   let docentMenuActive = false;
 
   function showDocentMenu() {
@@ -1674,7 +1669,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     }
 
     if (hs.id === "infoCenter") {
-      // 도슨트가 근처에 있으면 대화 시작, 없으면 로그만
+      // If docent is nearby start conversation, otherwise just log
       const guideNpc = npcs.find(n => n.id === "guide");
       if (guideNpc && dist(guideNpc, player) < CHAT_NEARBY_DISTANCE * 2) {
         convoMgr.startConversation(guideNpc.id, 18_000, "user");
@@ -1701,7 +1696,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
         addLog(t("sys_tag_active"));
         return true;
       }
-      // 근처 NPC 중 랜덤 하나를 상대로 선택 (도슨트 제외)
+      // Pick a random nearby NPC as target (exclude docent)
       const candidates = npcs.filter(n => Math.hypot(n.x - player.x, n.y - player.y) < GAME.TAG_CANDIDATE_RANGE && !(npcPersonas[n.id] && npcPersonas[n.id].isDocent));
       if (candidates.length === 0) {
         addLog(t("sys_tag_no_npc"));
@@ -1731,7 +1726,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       }
       applyPanelState();
 
-      // 자고 있는 NPC 깨우기
+      // Wake up sleeping NPC
       if (near.npc.pose === "lying") {
         near.npc.pose = "standing";
         near.npc.roamWait = 0;
@@ -1744,11 +1739,11 @@ import { createAsyncGuard } from './systems/async-guard.js';
 
       if (near.npc.talkCooldown <= 0) {
         near.npc.talkCooldown = GAME.TALK_COOLDOWN_SEC;
-        // 도슨트도 일반 NPC와 동일하게 LLM 대화 (메뉴 대신 자연스러운 안내)
+        // Docent uses same LLM conversation as regular NPCs (natural guide, no menu)
         if (near.npc.activeRequest && checkFavorCompletion(near.npc)) {
           // favor quest handled
         } else if (!handleQuestNpcTalk(near.npc)) {
-          // AI NPC: LLM으로 인사 생성
+          // AI NPC: generate greeting via LLM
           const greetNpc = near.npc;
           (async () => {
             try {
@@ -1827,14 +1822,14 @@ import { createAsyncGuard } from './systems/async-guard.js';
     return _requestLlmNpcReplyStream(npc, userMessage, onChunk, convoCtx(), overrides);
   }
 
-  // 키워드 기반 액션 감지 (스트리밍 폴백)
+  // Keyword-based action detection (streaming fallback)
   function detectActionFromReply(npc, replyText) {
     return _detectActionFromReply(npc, replyText, convoCtx());
   }
 
   async function sendChatMessage(msg) {
     audioManager.playSfx('/assets/audio/sfx-chat.mp3');
-    // 퀘스트 게시판 메뉴 처리
+    // Quest board menu handling
     if (questBoardMenuActive && /^[1-3]$/.test(msg.trim())) {
       addChat("You", msg.trim());
       if (!handleQuestBoardChoice(msg.trim())) {
@@ -1842,7 +1837,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       }
       return;
     }
-    if (/^(선물|gift|줘|give)$/i.test(msg.trim())) {
+    if (/^(gift|give)$/i.test(msg.trim())) {
       const target = chatTargetNpc();
       if (target && target.near) {
         addChat("You", msg);
@@ -1853,7 +1848,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       }
       return;
     }
-    if (/^(술래잡기|tag)$/i.test(msg.trim())) {
+    if (/^(tag)$/i.test(msg.trim())) {
       const zoneHs = hotspots.find(h => h.id === "minigameZone");
       const nearZone = zoneHs && Math.hypot(player.x - zoneHs.x, player.y - zoneHs.y) < 5;
       if (!nearZone) {
@@ -1877,11 +1872,11 @@ import { createAsyncGuard } from './systems/async-guard.js';
       }
       return;
     }
-    if (/^(인벤|인벤토리|inventory|가방)$/i.test(msg.trim())) {
+    if (/^(inventory|inv|bag)$/i.test(msg.trim())) {
       addChat("System", t("sys_inventory", { summary: inventorySummary() }));
       return;
     }
-    const removeMatch = msg.trim().match(/^(제거|삭제|remove)\s+(.+)$/i);
+    const removeMatch = msg.trim().match(/^(remove|delete)\s+(.+)$/i);
     if (removeMatch) {
       const result = removeNpc(removeMatch[2].trim());
       if (result.ok) {
@@ -1927,7 +1922,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     let serverAction = { type: "none", target: "" };
     let serverMention = { npc: null, place: null };
 
-    // 응답 대기 중 . . . 표시
+    // Show ". . ." while waiting for response
     upsertSpeechBubble(npc.id, ". . .", GAME.LLM_TIMEOUT_MS);
     addNpcChat(npc.id, npc.name, ". . .");
     const waitingChatIdx = getNpcChats(npc.id).findIndex(c => c.text === ". . .");
@@ -1949,7 +1944,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       llmAvailable = false;
       lastLlmModel = "local";
       lastLlmError = err && err.message ? String(err.message) : "unknown";
-      // 성격 기반 폴백: 단순한 에러 메시지 대신 NPC다운 반응
+      // Personality-based fallback: NPC-like reaction instead of plain error
       const persona = npcPersonas[npc.id];
       const isDocent = persona && persona.isDocent;
       if (isDocent) {
@@ -1967,11 +1962,11 @@ import { createAsyncGuard } from './systems/async-guard.js';
 
     let cleanReply = reply;
 
-    // ── 태그 파싱 (reply 텍스트에서 태그 제거 + serverAction 보강) ──
-    // 스트리밍/비스트리밍 모두 태그가 있을 수 있으므로 항상 파싱
-    const favorTagMatch = cleanReply.match(/\[부탁:(\w+):(\w+)\]/);
+    // ── Tag parsing (strip tags from reply text + augment serverAction) ──
+    // Both streaming and non-streaming may contain tags, so always parse
+    const favorTagMatch = cleanReply.match(/\[request:(\w+):(\w+)\]/);
     if (favorTagMatch) {
-      cleanReply = cleanReply.replace(/\s*\[부탁:\w+:\w+\]\s*/, "").trim();
+      cleanReply = cleanReply.replace(/\s*\[request:\w+:\w+\]\s*/, "").trim();
       const reqType = favorTagMatch[1];
       const reqTarget = favorTagMatch[2];
       if (!npc.activeRequest) {
@@ -1999,32 +1994,32 @@ import { createAsyncGuard } from './systems/async-guard.js';
         }
       }
     }
-    // [동행] / [동행해제] 태그 → serverAction 보강
-    if (/\[동행\]/.test(cleanReply)) {
-      cleanReply = cleanReply.replace(/\s*\[동행\]\s*/, "").trim();
+    // [follow] / [unfollow] tags → augment serverAction
+    if (/\[follow\]/.test(cleanReply)) {
+      cleanReply = cleanReply.replace(/\s*\[follow\]\s*/, "").trim();
       if (serverAction.type === "none") serverAction = { type: "follow", target: "" };
     }
-    if (/\[동행해제\]/.test(cleanReply)) {
-      cleanReply = cleanReply.replace(/\s*\[동행해제\]\s*/, "").trim();
+    if (/\[unfollow\]/.test(cleanReply)) {
+      cleanReply = cleanReply.replace(/\s*\[unfollow\]\s*/, "").trim();
       if (serverAction.type === "none") serverAction = { type: "unfollow", target: "" };
     }
-    // [안내:npc:id] / [안내:장소] 태그 → serverAction 보강
-    const guideNpcMatch = cleanReply.match(/\[안내:npc:(\w+)\]/);
-    const guidePlaceMatch = cleanReply.match(/\[안내:(\w+)\]/);
+    // [guide:npc:id] / [guide:place] tags → augment serverAction
+    const guideNpcMatch = cleanReply.match(/\[guide:npc:(\w+)\]/);
+    const guidePlaceMatch = cleanReply.match(/\[guide:(\w+)\]/);
     if (guideNpcMatch) {
-      cleanReply = cleanReply.replace(/\s*\[안내:npc:\w+\]\s*/, "").trim();
+      cleanReply = cleanReply.replace(/\s*\[guide:npc:\w+\]\s*/, "").trim();
       if (serverAction.type === "none") serverAction = { type: "guide_npc", target: guideNpcMatch[1] };
     } else if (guidePlaceMatch && !guideNpcMatch) {
-      cleanReply = cleanReply.replace(/\s*\[안내:\w+\]\s*/, "").trim();
+      cleanReply = cleanReply.replace(/\s*\[guide:\w+\]\s*/, "").trim();
       if (serverAction.type === "none") serverAction = { type: "guide_place", target: guidePlaceMatch[1] };
     }
 
-    // ── 키워드 기반 폴백: 서버 액션도 태그도 없으면 reply 텍스트에서 감지 ──
+    // ── Keyword fallback: detect from reply text when no server action or tag ──
     if (serverAction.type === "none") {
       serverAction = detectActionFromReply(npc, cleanReply);
     }
 
-    // ── 통합 액션 실행 (스트리밍/비스트리밍 모두 동일 경로) ──
+    // ── Unified action execution (same path for streaming and non-streaming) ──
     {
       const act = serverAction;
       if (act.type === "follow") {
@@ -2090,10 +2085,10 @@ import { createAsyncGuard } from './systems/async-guard.js';
       }
     }
 
-    // 선택지: structured output > 태그 파싱 > 키워드 폴백
+    // Suggestions: structured output > tag parsing > keyword fallback
     let llmSuggestions = serverSuggestions.length ? serverSuggestions : null;
 
-    // ". . ." 대기 채팅을 실제 응답으로 교체
+    // Replace ". . ." waiting chat with actual response
     if (cleanReply) {
       const history = getNpcChats(npc.id);
       const waitIdx = history.findIndex(c => c.text === ". . .");
@@ -2106,7 +2101,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       }
       upsertSpeechBubble(npc.id, cleanReply, 4000);
     }
-    // 대화 후 추천 선택지 갱신 (structured output > 태그 > 키워드 폴백)
+    // Refresh suggestions after conversation (structured output > tag > keyword fallback)
     if (cleanReply) renderSuggestions(npc, cleanReply, llmSuggestions);
 
     if (cleanReply) {
@@ -2118,11 +2113,11 @@ import { createAsyncGuard } from './systems/async-guard.js';
       mem.conversationCount += 1;
       mem.lastConversation = world.totalMinutes;
 
-      // 대화 종료 감지: structured farewell 또는 텍스트 패턴
-      const farewellPattern = /(안녕|잘\s?가|다음에|나중에|바이|bye|또\s?봐|가\s?볼게|이만|할\s?일|다시\s?보자|그럼\s?이만|갈게)/i;
+      // Detect conversation end: structured farewell or text pattern
+      const farewellPattern = /(bye|goodbye|see you|later|take care|gotta go|farewell|so long|have to go|catch you later|talk later)/i;
       if (serverFarewell || farewellPattern.test(cleanReply)) {
         if (npc.following) npc.following = false;
-        syncMemoryToServer(); // 대화 종료 시 기억 서버 동기화
+        syncMemoryToServer(); // Sync memory to server on conversation end
         setTimeout(() => {
           convoMgr.clearFocusIf(npc.id);
         }, 2500);
@@ -2130,7 +2125,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     }
   }
 
-  // 대화 추천 선택지 (맥락에 따라 동적 변경)
+  // Conversation suggestions (dynamically updated based on context)
   function renderSuggestions(npc, lastReply, llmSuggestions) {
     if (!chatSuggestionsEl) return;
     chatSuggestionsEl.dataset.npcId = npc.id;
@@ -2140,38 +2135,38 @@ import { createAsyncGuard } from './systems/async-guard.js';
     let suggestions;
 
     if (llmSuggestions && llmSuggestions.length >= 2) {
-      // LLM이 생성한 선택지 우선 사용
+      // Prefer LLM-generated suggestions
       suggestions = llmSuggestions.slice(0, 3);
     } else if (lastReply) {
-      // 폴백: NPC 응답에서 주제 감지 → 맞춤 선택지
+      // Fallback: detect topic from NPC reply → contextual suggestions
       const r = lastReply;
-      // NPC 이름 언급 감지
+      // Detect NPC name mention
       const mentionedNpc = npcs.find(n => n.id !== npc.id && r.includes(n.name));
-      // 장소 언급 감지
-      const mentionedPlace = /(카페|빵집|시장|공원|광장|도서관|꽃집|사무실|학교|기숙사|cafe|park|market|library|office)/.test(r);
+      // Detect place mention
+      const mentionedPlace = /(cafe|bakery|market|park|plaza|library|florist|office|school|dorm|restaurant|gym|hospital)/.test(r);
 
       if (mentionedNpc) {
         suggestions = [t("suggest_where_npc", { name: mentionedNpc.name }), t("suggest_take_me", { name: mentionedNpc.name }), t("suggest_bye")];
       } else if (mentionedPlace) {
         suggestions = [t("suggest_place_1"), t("suggest_place_2"), t("suggest_bye")];
-      } else if (/(먹|음식|빵|커피|카페|배고|맛|요리|크로아상|food|eat|cafe|hungry|cook|bread)/.test(r)) {
+      } else if (/(food|eat|cafe|hungry|cook|bread|coffee|bakery|croissant|delicious|meal)/.test(r)) {
         suggestions = [t("suggest_food_1"), t("suggest_food_2"), t("suggest_bye")];
-      } else if (/(힘들|슬프|걱정|미안|괜찮|외로|피곤|아프|worried|tired|sorry|sad|lonely)/.test(r)) {
+      } else if (/(worried|tired|sorry|sad|lonely|upset|hard|hurt|sick|depressed|miss)/.test(r)) {
         suggestions = [t("suggest_care_1"), t("suggest_care_2"), t("suggest_bye")];
-      } else if (/(재미|놀|게임|술래|fun|play|game)/.test(r)) {
+      } else if (/(fun|play|game|tag|enjoy|exciting)/.test(r)) {
         suggestions = [t("suggest_more"), t("suggest_play"), t("suggest_bye")];
-      } else if (/(비밀|전설|옛날|역사|이야기|secret|legend|story|history)/.test(r)) {
+      } else if (/(secret|legend|story|history|ancient|tale|mystery)/.test(r)) {
         suggestions = [t("suggest_more"), t("suggest_really"), t("suggest_bye")];
-      } else if (/(날씨|비|눈|해|바람|weather|rain|snow|sun)/.test(r)) {
+      } else if (/(weather|rain|snow|sun|wind|storm|cloudy|clear)/.test(r)) {
         suggestions = [t("suggest_walk"), t("suggest_more"), t("suggest_bye")];
-      } else if (r.endsWith("?") || /(뭐|어떻|왜|what|how|why)/.test(r)) {
+      } else if (r.endsWith("?") || /(what|how|why|where|when|who)/.test(r)) {
         // NPC asked a question
         suggestions = [t("suggest_yes"), t("suggest_no"), t("suggest_more")];
       } else {
         suggestions = [t("suggest_more"), t("suggest_thanks"), t("suggest_bye")];
       }
     } else {
-      // 첫 대화 — 관계/역할 기반
+      // First conversation — relationship/role based
       if (isDocent) {
         suggestions = [t("suggest_docent_1"), t("suggest_docent_2"), t("suggest_docent_3")];
       } else if (friendly) {
@@ -2234,7 +2229,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       if (stage && stage.visit) {
         handleDynamicQuestProgress({ id: "__visit__" });
       }
-      // 제거된 NPC 대상 스테이지 자동 스킵
+      // Auto-skip stages targeting removed NPCs
       if (stage && stage.npcId && !stage.visit && !stage.requireItem && !npcById(stage.npcId)) {
         addChat("System", t("sys_npc_left_skip"));
         advanceDynamicQuest();
@@ -2246,7 +2241,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     checkSeasonChange();
   }
 
-  // ─── Save/Load System (모듈: systems/save-load.js) ───
+  // ─── Save/Load System (module: systems/save-load.js) ───
   const saveLoadSys = createSaveLoadSystem({
     world, player, npcs, relations, npcSocialGraph, quest, inventory,
     sceneState, discoveries, removedNpcIds, questHistory,
@@ -2267,10 +2262,10 @@ import { createAsyncGuard } from './systems/async-guard.js';
     for (const npc of npcs) {
       if (npc.talkCooldown > 0) npc.talkCooldown -= dt;
 
-      // 자율 기분 변화 (시간/날씨/성격 기반)
+      // Autonomous mood change (time/weather/personality based)
       if (nowMs() > npc.moodUntil && Math.random() < GAME.MOOD_CHANGE_CHANCE) {
         const persona = npcPersonas[npc.id];
-        // 도슨트는 항상 밝게
+        // Docent is always cheerful
         if (persona && persona.isDocent) {
           npc.mood = "happy";
           npc.moodUntil = nowMs() + 60_000;
@@ -2281,8 +2276,8 @@ import { createAsyncGuard } from './systems/async-guard.js';
           const isRainy = weather.current === "rain" || weather.current === "storm";
           const isMorning = h >= 7 && h < 11;
           const isEvening = h >= 18 && h < 21;
-          const cheerful = /(밝|에너지|사교|친절|활발)/.test(personality);
-          const melancholy = /(신중|침착|조용)/.test(personality);
+          const cheerful = /(bright|energy|social|kind|active|cheerful|optimist|friendly|playful)/.test(personality);
+          const melancholy = /(careful|calm|quiet|thoughtful|reserved|steady)/.test(personality);
           if ((isSunny && isMorning) || cheerful) {
             npc.mood = Math.random() < 0.6 ? "happy" : "neutral";
           } else if (isRainy || (isEvening && melancholy)) {
@@ -2294,17 +2289,17 @@ import { createAsyncGuard } from './systems/async-guard.js';
         }
       }
 
-      // 욕구 변화 (dt는 초 단위, 실시간 1:1)
+      // Need changes (dt in seconds, real-time 1:1)
       if (npc.needs) {
         const n = npc.needs;
-        // 시간에 따른 자연 변화
-        n.hunger += dt * GAME.NEED_HUNGER_RATE;    // 배고픔 증가
-        n.energy -= dt * GAME.NEED_ENERGY_RATE;    // 에너지 감소
-        n.social -= dt * GAME.NEED_SOCIAL_RATE;    // 사교 감소
-        n.fun -= dt * GAME.NEED_FUN_RATE;       // 즐거움 감소
-        n.duty += dt * GAME.NEED_DUTY_RATE;      // 할 일 쌓임
+        // Natural change over time
+        n.hunger += dt * GAME.NEED_HUNGER_RATE;    // hunger increases
+        n.energy -= dt * GAME.NEED_ENERGY_RATE;    // energy decreases
+        n.social -= dt * GAME.NEED_SOCIAL_RATE;    // social decreases
+        n.fun -= dt * GAME.NEED_FUN_RATE;       // fun decreases
+        n.duty += dt * GAME.NEED_DUTY_RATE;      // duty piles up
 
-        // 장소에 따른 욕구 해소
+        // Need fulfillment by location
         const atCafe = dist(npc, places.cafe) < 2;
         const atBakery = dist(npc, places.bakery) < 2;
         const atHome = dist(npc, npc.home) < 2;
@@ -2319,7 +2314,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
         if (atPark || atFlorist) n.fun = Math.min(100, n.fun + dt * GAME.NEED_FUN_RECOVERY);
         if (atWork) n.duty = Math.max(0, n.duty - dt * GAME.NEED_DUTY_RECOVERY);
 
-        // 범위 제한
+        // Clamp values
         n.hunger = Math.min(100, Math.max(0, n.hunger));
         n.energy = Math.min(100, Math.max(0, n.energy));
         n.social = Math.min(100, Math.max(0, n.social));
@@ -2327,7 +2322,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
         n.duty = Math.min(100, Math.max(0, n.duty));
       }
 
-      // 동행 모드: 플레이어를 따라감
+      // Companion mode: follow the player
       if (npc.following) {
         const fd = dist(npc, player);
         if (fd > 1.8) {
@@ -2343,11 +2338,11 @@ import { createAsyncGuard } from './systems/async-guard.js';
         continue;
       }
 
-      // NPC 안내 모드: 대상 NPC를 추적하며 앞서 걸어감
+      // NPC guide mode: walk ahead toward target NPC
       if (npc.guideTargetNpcId) {
         const targetNpc = npcs.find(n => n.id === npc.guideTargetNpcId);
         if (!targetNpc || dist(npc, targetNpc) < GAME.GUIDE_ARRIVE_DIST) {
-          // 도착 또는 대상 없음 → 안내 종료
+          // Arrived or target gone → end guide
           npc.guideTargetNpcId = null;
           if (targetNpc) {
             upsertSpeechBubble(npc.id, t("sys_guide_arrive", { name: targetNpc.name }), 3000);
@@ -2355,9 +2350,9 @@ import { createAsyncGuard } from './systems/async-guard.js';
           }
           npc.state = "idle";
         } else {
-          // 대상 NPC를 향해 이동
+          // Move toward target NPC
           npc.roamTarget = { x: targetNpc.x, y: targetNpc.y };
-          // 플레이어도 따라오게
+          // Make player follow too
           if (dist(player, npc) > 4) {
             player.moveTarget = { x: npc.x, y: npc.y };
           }
@@ -2372,15 +2367,15 @@ import { createAsyncGuard } from './systems/async-guard.js';
         continue;
       }
 
-      // 도슨트 접근 중이면 guideGreetingSys에서 직접 이동하므로 스킵
+      // Skip if docent is approaching — guideGreetingSys handles movement
       if (npc.id === "guide" && ensureGuideGreeting().phase === 1) continue;
 
-      // 술래잡기 중인 NPC는 updateTagGame에서 이동 처리
+      // Tag game NPC movement handled by updateTagGame
       if (tagGame.active && npc.id === tagGame.targetNpcId) continue;
 
       if ((pinnedNpcId && npc.id === pinnedNpcId) || (typingNpcId && npc.id === typingNpcId)) {
         npc.state = "chatting";
-        // 대화 중 플레이어가 멀어지면 따라감 (멀수록 빠르게)
+        // Follow player if they move away during chat (faster when farther)
         const chatDist = dist(npc, player);
         if (chatDist > 1.5) {
           const dx = player.x - npc.x;
@@ -2398,7 +2393,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
 
       if (convoMgr.isSessionActive(npc.id)) {
         npc.state = "chatting";
-        // 대화 중 플레이어가 멀어지면 따라감 (멀수록 빠르게)
+        // Follow player if they move away during chat (faster when farther)
         const chatDist = dist(npc, player);
         if (chatDist > 1.5) {
           const dx = player.x - npc.x;
@@ -2463,7 +2458,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       } else {
         npc.roamWait = 0.6 + Math.random() * 2.2;
         npc.state = "idle";
-        // 자세 결정 (도슨트는 항상 서 있음)
+        // Determine pose (docent always stands)
         const isDocent = npcPersonas[npc.id] && npcPersonas[npc.id].isDocent;
         if (isDocent) { npc.pose = "standing"; }
         else {
@@ -2473,16 +2468,16 @@ import { createAsyncGuard } from './systems/async-guard.js';
           .filter(p => ["bench", "chair", "stool", "armchair", "bean_bag", "floor_cushion"].includes(p.type) && dist(npc, p) < GAME.SEAT_CHECK_DIST)
           .sort((a, b) => dist(npc, a) - dist(npc, b))[0];
         if (closestBench && Math.random() < 0.4) {
-          // 벤치에 정확히 앉기
+          // Sit exactly on bench
           npc.x = closestBench.x;
           npc.y = closestBench.y;
           npc.pose = "sitting";
           npc.seatFacing = Math.atan2(25 - npc.y, 25 - npc.x);
-          npc.roamWait = 8 + Math.random() * 15;  // 오래 앉아 있기
+          npc.roamWait = 8 + Math.random() * 15;  // sit for a while
         } else if (atHome && (h >= 23 || h < 6)) {
-          // 집 근처 + 늦은 밤에만 눕기
+          // Lie down only at home + late night
           npc.pose = "lying";
-          npc.roamWait = 30 + Math.random() * 30;  // 잠자기
+          npc.roamWait = 30 + Math.random() * 30;  // sleeping
         } else {
           npc.pose = "standing";
         }
@@ -2588,7 +2583,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     for (const b of buildings) {
       mctx.fillRect(pad + b.x * sx, pad + b.y * sy, b.w * sx, b.h * sy);
     }
-    // 놀이터 표시
+    // Show playground marker
     mctx.globalAlpha = 0.35;
     mctx.fillStyle = "#6bc76b";
     mctx.fillRect(pad + 27 * sx, pad + 17 * sy, 6 * sx, 6 * sy);
@@ -2642,7 +2637,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     mctx.restore();
   }
 
-  // ─── Intro Sequence (모듈: systems/intro-sequence.js) ───
+  // ─── Intro Sequence (module: systems/intro-sequence.js) ───
   const introSeq = createIntroSequence({
     npcs, player, world, weather,
     get gameRenderer3D() { return gameRenderer3D; },
@@ -2714,7 +2709,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       const newLabel = npcNear ? t("chat_target_npc", { name: target.npc.name }) : (mpChat ? t("chat_target_mp") : t("chat_target_none"));
       if (prevLabel !== newLabel) { chatTargetEl.textContent = newLabel; renderCurrentChat(); }
     }
-    // 채팅 타이틀에 NPC 이름 표시
+    // Show NPC name in chat title
     const chatTitleEl = document.querySelector('.pg-chat-title');
     if (chatTitleEl) {
       chatTitleEl.textContent = npcNear ? target.npc.name : (mpChat ? t("chat_title_mp") : t("dom_chat_title"));
@@ -2724,7 +2719,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       chatInputEl.disabled = mpChat ? false : !npcNear;
       chatInputEl.placeholder = mpChat ? t("chat_placeholder_mp") : t("chat_placeholder_npc");
     }
-    // 추천 응답 표시
+    // Show suggested responses
     if (chatSuggestionsEl) {
       if (npcNear && chatSuggestionsEl.dataset.npcId !== target.npc.id) {
         renderSuggestions(target.npc);
@@ -2784,10 +2779,10 @@ import { createAsyncGuard } from './systems/async-guard.js';
   let mouseDownY = 0;
   initPlayerName().then(() => {
     translateStaticDOM();
-    // 재방문자: 저장된 상태 자동 복원 + 인트로 건너뛰기
+    // Returning visitor: auto-restore saved state + skip intro
     if (isReturningVisitor) {
       loadState();
-      // 시간은 현실과 1:1 — 저장된 시간이 아닌 현재 서울 시간 사용
+      // Time is 1:1 with reality — use current Seoul time, not saved time
       const seoulNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
       world.totalMinutes = seoulNow.getHours() * 60 + seoulNow.getMinutes();
       introSeq.skip();
@@ -2845,13 +2840,13 @@ import { createAsyncGuard } from './systems/async-guard.js';
     if (isReturningVisitor) return;
     if (!introSeq.isDone) return;
     onboardingHints.elapsed += dt;
-    // 인트로 끝난 후 2초: 이동 힌트
+    // 2 seconds after intro ends: movement hint
     if (!onboardingHints.moveShown && onboardingHints.elapsed > 2) {
       onboardingHints.moveShown = true;
       const hint = mobileMode ? t("hint_move_mobile") : t("hint_move_desktop");
       addChat("System", hint);
     }
-    // NPC가 가까이 있을 때: 대화 힌트
+    // When NPC is nearby: conversation hint
     if (!onboardingHints.npcNearShown && onboardingHints.elapsed > 5) {
       const near = nearestNpc(CHAT_NEARBY_DISTANCE + 1);
       if (near) {
@@ -2942,7 +2937,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
   }
 
   window.addEventListener("keydown", (ev) => {
-    // 인트로 중 아무 키 → 건너뛰기
+    // Any key during intro → skip
     if (!introSeq.isDone && !isTypingInInput()) {
       introSeq.skip();
     }
@@ -2982,12 +2977,12 @@ import { createAsyncGuard } from './systems/async-guard.js';
     if (code === "KeyT") {
       playerCtrl.setAutoWalkEnabled(!playerCtrl.autoWalkEnabled);
     }
-    // V키: 관조 모드 (카메라가 NPC를 자동으로 따라감)
+    // V key: contemplation mode (camera auto-follows NPC)
     if (code === "KeyV") {
       cameraSys.toggleContemplation();
       addLog(cameraSys.contemplationMode ? t("sys_contemplation_on") : t("sys_contemplation_off"));
     }
-    // G키: 날씨 순환 (디버그용)
+    // G key: cycle weather (debug)
     if (code === "KeyG") {
       const cycle = ["clear", "cloudy", "rain", "storm", "snow", "fog"];
       const idx = cycle.indexOf(weather.current);
@@ -3033,7 +3028,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
           addChat("System", t("sys_cannot_move_to_npc", { name: clickedNpc.name }));
         }
       } else {
-        // 3D 모드: 클릭 위치로 이동
+        // 3D mode: move to click position
         if (gameRenderer3D) {
           const pos = gameRenderer3D.screenToWorld(ev.clientX, ev.clientY);
           if (pos && canStand(pos.x, pos.z)) {
@@ -3069,7 +3064,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     cameraSys.addPan(dx, dy);
   });
 
-  // 줌/터치 이벤트: 3D 캔버스에 걸기 (2D HUD는 pointer-events:none)
+  // Zoom/touch events: attach to 3D canvas (2D HUD is pointer-events:none)
   const zoomTarget = canvas3D || canvas;
 
   zoomTarget.addEventListener(
@@ -3382,7 +3377,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
     applyPanelState();
   });
 
-  // ===== MULTIPLAYER (모듈: systems/multiplayer.js) =====
+  // ===== MULTIPLAYER (module: systems/multiplayer.js) =====
   let mp;  // initialized after player setup in initPlayerName().then()
   function mpRemotePlayerList() { return mp ? mp.remotePlayerList() : []; }
   function mpBroadcast() { if (mp) mp.broadcast(); }
@@ -3397,7 +3392,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
   function initMultiplayer() {
     mp = createMultiplayer({ player, world, npcs, addChat, addLog, t, upsertSpeechBubble, normalizePlayerFlag, uiOnlineEl });
     mp.init();
-    // Firebase 기억 동기화 초기화
+    // Initialize Firebase memory sync
     const cfg = window.PG_FIREBASE_CONFIG;
     if (cfg && cfg.databaseURL && typeof firebase !== "undefined" && mp && mp.enabled) {
       let playerId = localStorage.getItem(PLAYER_ID_KEY);
@@ -3407,7 +3402,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       }
       try {
         memorySync = createMemorySync(firebase.database(), playerId);
-        // 서버에서 기억 로드 (비동기)
+        // Load memories from server (async)
         memorySync.load(player.name).then((result) => {
           if (result && applyServerMemory(npcs, result, null)) {
             addLog(t("mem_restored"));
@@ -3439,7 +3434,7 @@ import { createAsyncGuard } from './systems/async-guard.js';
       });
       console.log("[Playground] Three.js 3D renderer initialized");
 
-      // 3D 캔버스 클릭 → 인트로 건너뛰기 또는 이동
+      // 3D canvas click → skip intro or move
       canvas3D.addEventListener("click", (ev) => {
         if (!introSeq.isDone) { introSeq.skip(); return; }
         if (dragging || isMobileViewport()) return;
@@ -3454,17 +3449,17 @@ import { createAsyncGuard } from './systems/async-guard.js';
     }
   }
 
-  // NPC를 미리 흩어놓기 (첫 프레임 전 60초 시뮬레이션)
+  // Pre-scatter NPCs (simulate 60 seconds before first frame)
   introSeq.presimulate(60);
 
-  // ─── Auto-save: 페이지 닫힐 때 + 주기적 저장 ───
+  // ─── Auto-save: on page close + periodic save ───
   window.addEventListener("beforeunload", () => {
     try { saveLoadSys.save(); } catch { /* ignore */ }
     if (memorySync) {
       try { memorySync.save(npcs, player.name); } catch { /* ignore */ }
     }
   });
-  // 3분마다 자동 저장
+  // Auto-save every 3 minutes
   setInterval(() => {
     try { saveLoadSys.save(); } catch { /* ignore */ }
   }, 180_000);

@@ -35,7 +35,7 @@ export async function fetchSeoulWeather(weather, apiUrl) {
       weather.targetIntensity = data.weather === "clear" ? 0 : 0.5;
       weather.transitionProgress = 0;
     }
-  } catch { /* 실패 시 현재 날씨 유지 */ }
+  } catch { /* On failure, keep current weather */ }
 }
 
 export function updateWeather(weather, dt, apiUrl) {

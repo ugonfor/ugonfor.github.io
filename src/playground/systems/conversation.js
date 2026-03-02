@@ -21,23 +21,23 @@
 import { nowMs } from '../utils/helpers.js';
 import { places, favorLevelNames, PLACE_ALIASES, GAME } from '../core/constants.js';
 
-// NPC의 LLM 응답에서 감정 추론 (AI가 맥락을 이해하고 답했으므로 응답 분석이 더 정확)
+// Infer sentiment from NPC's LLM reply (reply analysis is more accurate since AI understood context)
 export function inferSentimentFromReply(replyText) {
   const text = replyText.toLowerCase();
-  if (/(고마워|반가|좋은|기뻐|재밌|행복|최고|사랑|감동|응원|좋아해|함께|친구|헤헤|ㅎㅎ|감사|축하|대단|멋져)/.test(text))
+  if (/(thank|glad|great|happy|fun|joy|best|love|moved|cheer|like you|together|friend|haha|hehe|grateful|congrats|amazing|awesome|wonderful)/.test(text))
     return { sentiment: "positive", intensity: 2 };
-  if (/(응|맞아|그래|좋아|괜찮|그럴게|알겠|오|와)/.test(text))
+  if (/(yeah|right|sure|okay|fine|alright|got it|oh|wow)/.test(text))
     return { sentiment: "positive", intensity: 1 };
-  if (/(싫|짜증|그만|화나|실망|별로|최악|됐어|하지\s?마|무례)/.test(text))
+  if (/(hate|annoyed|stop|angry|disappoint|meh|worst|enough|don'?t|rude)/.test(text))
     return { sentiment: "negative", intensity: 2 };
-  if (/(\?|뭐|어떻게|왜|정말|진짜|궁금)/.test(text))
+  if (/(\?|what|how|why|really|serious|curious)/.test(text))
     return { sentiment: "curious", intensity: 1 };
   return { sentiment: "neutral", intensity: 0 };
 }
 
 export function applyConversationEffect(npc, playerMsg, npcReplyText, emotion, ctx) {
   const { adjustRelation, relationKeyForNpc, addNpcMemory, t } = ctx;
-  // structured output의 emotion 사용, 없으면 텍스트에서 추론
+  // Use structured output emotion if available, otherwise infer from text
   let sentiment, intensity;
   if (emotion && emotion !== "neutral") {
     sentiment = emotion;
@@ -145,7 +145,7 @@ export async function requestLlmNpcReply(npc, userMessage, ctx, overrides = {}) 
     if (debugMode) {
       console.group(`%c[LLM DEBUG] Response ← ${npc.name} (${model})`, 'color:#4caf50;font-weight:bold');
       if (data._debug?.prompt) {
-        console.log('%c── Full Prompt (서버 조립) ──', 'color:#e91e63;font-weight:bold');
+        console.log('%c── Full Prompt (server-assembled) ──', 'color:#e91e63;font-weight:bold');
         console.log(data._debug.prompt);
       }
       console.log('Reply:', reply);
@@ -290,28 +290,27 @@ export async function requestLlmNpcReplyStream(npc, userMessage, onChunk, ctx, o
   }
 }
 
-// 키워드 기반 액션 감지 (스트리밍 폴백)
-// NPC 응답 텍스트에서 follow/guide 의도를 감지하여 action 객체를 반환
+// Keyword-based action detection (streaming fallback)
+// Detect follow/guide intent from NPC reply text and return action object
 export function detectActionFromReply(npc, replyText, ctx) {
   const { npcs } = ctx;
 
-  // 동행해제 감지 (follow 해제보다 먼저 체크)
-  if (/(그만\s*따라|동행.*끝|헤어지|각자|따로\s*가|이만\s*가|그럼\s*여기서|돌아가|다시\s*내\s*할\s*일|stop\s*follow|unfollow)/i.test(replyText)) {
+  // Unfollow detection (check before follow)
+  if (/(stop\s*follow|unfollow|leave\s*me|go\s*separate|part\s*ways|goodbye|see\s*you\s*later|i'?ll\s*head\s*back|go\s*back\s*now|my\s*own\s*way|that'?s\s*enough)/i.test(replyText)) {
     return { type: "unfollow", target: "" };
   }
 
-  // 동행 감지
-  if (/(따라갈|같이\s*가|함께\s*가|동행|따라올|따라가|같이\s*다니|같이\s*걸|데려다|나를\s*따|내가\s*따|follow|let'?s\s*go\s*together|come\s*with|i'?ll\s*follow)/i.test(replyText)) {
+  // Follow detection
+  if (/(follow\s*me|come\s*with|walk\s*together|join\s*me|tag\s*along|let'?s\s*go\s*together|i'?ll\s*follow|come\s*along|stick\s*with|walk\s*with)/i.test(replyText)) {
     return { type: "follow", target: "" };
   }
 
-  // NPC 안내 감지 — "~에게 가자" / "~를 만나러" / "~한테 데려다줄게"
+  // NPC guide detection — "let me take you to ~" / "let me introduce ~"
   const npcGuidePatterns = [
-    /(?:에게|한테|만나러|찾아|소개해|데려다|안내해)\s*(?:가자|갈게|줄게|주|가|보자)/,
-    /(?:take\s*you\s*to|show\s*you\s*where|let\s*me\s*introduce|bring\s*you\s*to)/i,
+    /(?:take\s*you\s*to|show\s*you\s*where|let\s*me\s*introduce|bring\s*you\s*to|meet|find|introduce\s*you)/i,
   ];
   if (npcGuidePatterns.some(p => p.test(replyText))) {
-    // NPC 이름으로 대상 감지
+    // Detect target by NPC name
     for (const otherNpc of npcs) {
       if (otherNpc.id === npc.id) continue;
       if (replyText.includes(otherNpc.name) || replyText.includes(otherNpc.id)) {
@@ -320,13 +319,12 @@ export function detectActionFromReply(npc, replyText, ctx) {
     }
   }
 
-  // 장소 안내 감지 — "~로 가자" / "~에 데려다줄게" / "보여줄게"
+  // Place guide detection — "let's go to ~" / "I'll take you to ~" / "let me show you"
   const placeGuidePatterns = [
-    /(안내|가자|데려다|보여줄|가\s*볼래|가\s*볼까|같이.*가|따라.*와|따라.*오|알려\s*줄)/,
-    /(take\s*you|show\s*you|let'?s\s*go\s*to|guide\s*you|head\s*to)/i,
+    /(take\s*you|show\s*you|let'?s\s*go\s*to|guide\s*you|head\s*to|lead\s*you|bring\s*you\s*to|come\s*see|check\s*out)/i,
   ];
   if (placeGuidePatterns.some(p => p.test(replyText))) {
-    // 장소 이름 매칭 (PLACE_ALIASES from constants.js)
+    // Match place names (PLACE_ALIASES from constants.js)
     for (const [alias, key] of Object.entries(PLACE_ALIASES)) {
       if (replyText.includes(alias) && places[key]) {
         return { type: "guide_place", target: key };

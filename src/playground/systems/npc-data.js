@@ -57,7 +57,7 @@ export function addNpcMemory(npc, type, summary, metadata, totalMinutes, playerN
   const entry = { type, summary, metadata: metadata || {}, time: totalMinutes };
   if (playerName) entry.playerName = playerName;
   mem.entries.push(entry);
-  // 15개 초과 시 오래된 5개를 1줄 요약으로 압축
+  // When over 15 entries, compress oldest 5 into a 1-line summary
   if (mem.entries.length > 15) {
     compressOldMemories(npc);
   }

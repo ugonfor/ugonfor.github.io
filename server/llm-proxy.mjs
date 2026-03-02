@@ -61,7 +61,7 @@ const sharedState = {
 
 // ─── Seoul Weather Cache ───
 let weatherCache = { weather: "clear", temp: 20, fetchedAt: 0 };
-const WEATHER_CACHE_TTL = 10 * 60 * 1000; // 10분
+const WEATHER_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 function mapOwmToGameWeather(owmId) {
   if (owmId >= 200 && owmId < 300) return "storm";     // Thunderstorm
@@ -356,30 +356,10 @@ async function writeAuditRecord(record) {
 }
 
 function buildPrompt(payload) {
-  const lang = payload.lang || "ko";
-  if (lang === "en") return buildPromptEn(payload);
-  return buildPromptKo(payload);
+  return buildPromptEn(payload);
 }
 
 /** Convert NPC needs (0-100) to natural language descriptions */
-function describeNeedsKo(needs) {
-  if (!needs) return [];
-  const lines = [];
-  const { hunger, energy, social, fun, duty } = needs;
-  const feelings = [];
-  if (hunger > 70) feelings.push("배가 많이 고프다");
-  else if (hunger > 40) feelings.push("슬슬 배가 고파진다");
-  if (energy < 30) feelings.push("많이 피곤하다");
-  else if (energy < 50) feelings.push("좀 피곤한 편이다");
-  if (social < 30) feelings.push("누군가와 대화하고 싶다");
-  if ((fun ?? 50) < 30) feelings.push("심심하다");
-  if ((duty ?? 0) > 70) feelings.push("할 일이 많아서 바쁘다");
-  if (feelings.length > 0) {
-    lines.push(`- 지금 기분: ${feelings.join(", ")}`);
-  }
-  return lines;
-}
-
 function describeNeedsEn(needs) {
   if (!needs) return [];
   const { hunger, energy, social, fun, duty } = needs;
@@ -397,198 +377,6 @@ function describeNeedsEn(needs) {
   return [];
 }
 
-/** Check Korean final consonant (받침) and return correct particle */
-function particle(name, consonantForm, vowelForm) {
-  if (!name) return consonantForm;
-  const last = name.charCodeAt(name.length - 1);
-  if (last >= 0xAC00 && last <= 0xD7A3) {
-    return (last - 0xAC00) % 28 === 0 ? vowelForm : consonantForm;
-  }
-  return consonantForm; // non-Korean default
-}
-
-function buildPromptKo(payload) {
-  const npcName = payload.npcName || "NPC";
-  const persona = payload.persona || {};
-  const worldContext = payload.worldContext || {};
-
-  // Ambient 독백 감지: 유저 메시지에 "독백" "중얼거" "혼잣말" 키워드가 있으면 경량 프롬프트
-  const userMsg = payload.userMessage || "";
-  const isAmbient = /독백|중얼거|혼잣말|monologue|mutter/i.test(userMsg);
-  if (isAmbient) {
-    return {
-      prompt: [
-        `당신은 ${npcName}입니다. 성격: ${persona.personality || "평범"}.`,
-        ...(persona.quirk ? [`[말버릇] ${persona.quirk}`] : []),
-        ...(persona.backstory ? [`[배경] ${persona.backstory}`] : []),
-        `시각: ${worldContext.time || ""}`,
-        ...describeNeedsKo(payload.npcNeeds),
-        "",
-        `→ ${userMsg}`,
-        `${npcName}:`,
-      ].join("\n"),
-      isAmbient: true,
-    };
-  }
-
-  const recent = Array.isArray(payload.recentMessages) ? payload.recentMessages.slice(-6) : [];
-  const historyText = recent
-    .map((m) => `${m.speaker || "Unknown"}: ${m.text || ""}`)
-    .join("\n");
-
-  // Gate memory detail by relationship level
-  let memoryText = payload.memory || "";
-  if (payload.favorLevel <= 0 && memoryText) {
-    const convCountRaw = parseInt(payload.conversationCount) || 0;
-    memoryText = convCountRaw > 0
-      ? `이전에 ${convCountRaw}번 대화한 적 있음. 구체적 내용은 기억나지 않음.`
-      : "";
-  }
-
-  // 재방문 인식: conversationCount 기반 지시
-  const convCount = memoryText ? (memoryText.match(/대화 (\d+)회/) || [])[1] : 0;
-  const convN = parseInt(convCount) || parseInt(payload.conversationCount) || 0;
-  const pName = payload.playerName || "이 사람";
-  const visitHint = convN === 0
-    ? `${pName}${particle(pName, "은", "는")} 처음 만나는 사람입니다. 호기심을 보이며 자기소개를 해주세요.`
-    : convN <= 2
-      ? `${pName}${particle(pName, "과", "와")} 한두 번 대화한 적 있습니다. '어, 아까 그분!' 같은 재인식을 해주세요.`
-      : convN <= 9
-        ? `${pName}${particle(pName, "과", "와")} 여러 번 대화했습니다. 이름을 부르며 편하게, 과거 대화를 자연스럽게 언급하세요.`
-        : `${pName}${particle(pName, "은", "는")} 오래된 친구입니다. 편하게 대하고, 과거 기억을 적극적으로 활용하세요.`;
-
-  const memorySection = memoryText
-    ? [
-        "",
-        "과거 기억:",
-        memoryText,
-        `- ${visitHint}`,
-        "- 과거 기억 중 가장 최근 1개를 반드시 대화에 녹여주세요. 예: '저번에 커피 고마웠어요', '지난번에 얘기했던 그거...'",
-        "- [이름] 으로 표시된 기억은 다른 방문자와의 기억입니다. 자연스럽게 언급할 수 있습니다. 예: '전에 누군가가 커피 좋아한다고 했었는데...'",
-        "- 기억이 없으면 새로운 대화를 자연스럽게 시작하세요.",
-      ]
-    : [
-        "",
-        `- ${visitHint}`,
-      ];
-
-  const socialSection = payload.socialContext
-    ? ["", "NPC 인간관계:", payload.socialContext, "- 다른 NPC에 대해 물어보면 관계에 맞게 자연스럽게 답하세요."]
-    : [];
-
-  let toneHint = payload.tone || "정중한 존댓말로 대화하세요.";
-  if (payload.npcNeeds) {
-    if (payload.npcNeeds.hunger > 80) toneHint += " 배가 고파서 약간 짜증 섞인 톤.";
-    else if (payload.npcNeeds.energy < 20) toneHint += " 피곤해서 느릿느릿한 톤.";
-    else if (payload.npcNeeds.social < 20) toneHint += " 외로워서 대화를 반기는 톤.";
-  }
-
-  const favorLevel = payload.favorLevel ?? 0;
-  const favorName = ["낯선 사이", "아는 사이", "친구", "절친", "소울메이트"][favorLevel] || "낯선 사이";
-
-  const generalLore = [
-    "",
-    "마을 역사와 전통:",
-    "- 이 마을의 이름은 '유곤포르(ugonfor) 마을'.",
-    "- 마을의 기원은 아무도 정확히 모른다. 어느 날 사람들이 하나둘 모여 자연스럽게 마을이 형성되었다.",
-    "- 마을 중앙의 대로(x=25)를 따라 카페, 빵집, 꽃집, 사무실, 시장이 늘어서 있다.",
-    "- 광장은 주민들이 저녁에 모여 이야기를 나누는 곳. 광장의 바닥에는 오래된 모자이크 무늬가 숨겨져 있다.",
-    "- 공원에는 분수가 있고, 자정에 은은하게 빛난다는 전설이 있다.",
-    "- KSA(한국과학영재학교) 캠퍼스가 동쪽에 있어, 학생 주민들이 거주한다.",
-    "- 남쪽 숲에는 고양이 마을이 있다는 소문이 있고, 비 오는 날에는 버섯이 자라난다.",
-    "- 마을은 실제 서울의 시간과 날씨를 따른다. 지금 서울이 비가 오면 마을에도 비가 온다.",
-    "- 마을의 모토: '느린 삶, 깊은 관계'. 서두르지 않아도 되는 곳.",
-  ];
-
-  const npcId = payload.npcId || "";
-  const isMetaAware = !!(persona.isDocent) || npcId === "yoo" || npcId === "grandpa";
-  const metaLore = isMetaAware ? [
-    "- 사실 이 마을은 개발자 Hyogon Ryu의 홈페이지 속에 자리잡은 작은 세계이다.",
-    "- 원래는 텅 빈 웹페이지였지만, 어느 날 주민들이 하나둘 생겨나면서 마을이 형성되었다.",
-  ] : [];
-  const loreSections = [...generalLore, ...metaLore];
-
-  const system = [
-    isMetaAware
-      ? "당신은 작은 마을에 사는 주민입니다. 이 마을은 어떤 개발자의 홈페이지 속에 있는 살아 숨쉬는 세계입니다."
-      : "당신은 작은 마을에 사는 주민입니다.",
-    `이름: ${npcName}`,
-    `프로필: ${persona.gender || "남성"}, ${persona.age || "20대"}, 성격: ${persona.personality || "균형 잡힘"}.`,
-    ...(persona.quirk ? [`[캐릭터 말버릇] ${persona.quirk}`, `규칙: 매 답변에 이 말버릇이 반드시 1회 이상 등장해야 합니다. 빠뜨리면 캐릭터가 아닙니다.`] : []),
-    ...(persona.backstory ? [`[캐릭터 배경] ${persona.backstory}`] : []),
-    `${pName}${particle(pName, "과", "와")}의 사이: ${favorName}`,
-    ...loreSections,
-    "",
-    "응답 규칙:",
-    "- 반드시 한국어로만 답변하세요.",
-    "- 캐릭터와 성격을 유지하세요.",
-    "- 답변은 1~3문장으로 간결하게.",
-    "- AI임을 언급하지 마세요.",
-    `- 말투: ${toneHint}`,
-    "- 관계 단계에 따라 태도와 행동을 바꾸세요:",
-    "  · 낯선 사이: 존댓말, 짧은 답, 개인적 질문 회피, 약간 경계",
-    "  · 아는 사이: 존댓말이지만 편안, 가벼운 농담, 마을 이야기를 꺼내보세요",
-    "  · 친구: 반말, 먼저 화제를 꺼냄, 개인적 이야기와 고민 상담, 먼저 부탁도 가능",
-    "  · 절친/소울메이트: 속마음과 비밀 공유, 별명 부르기, 진심 어린 조언",
-    "",
-    "응답 형식:",
-    "- JSON structured output으로 응답합니다. reply에 대사, suggestions에 후속 선택지 3개를 넣으세요.",
-    "- emotion: 이 대화에서 느낀 감정 (happy/sad/angry/neutral)",
-    "- farewell: 대화를 끝내려면 true",
-    "- action: 행동이 필요하면 설정. type과 target.",
-    "  · follow: 상대방을 따라가기 (target 불필요)",
-    "  · unfollow: 따라가기 중지",
-    "  · guide_place: 장소로 안내 (target: cafe, park, market, bakery, florist, library, office, ksa_main, ksa_dorm, plaza)",
-    "  · guide_npc: 주민에게 안내 (target: heo, kim, choi, jung, seo, lee, park, jang, yoo, baker, guide)",
-    "  · go_place: 대화 후 혼자 이동 (target: place id)",
-    "  · request_item: 아이템 부탁 (target: flower_red, flower_yellow, coffee, snack, letter, gem)",
-    "  · request_deliver: 전달 부탁 (target: npc id)",
-    "  · none: 행동 없음 (기본)",
-    "- mention: 대화에서 언급한 npc id나 place id (없으면 null)",
-    "",
-    "후속 선택지 규칙:",
-    "- suggestions는 반드시 3개 배열. 예: [\"선택지1\", \"선택지2\", \"선택지3\"]",
-    "- 이전 대화에서 나온 선택지와 겹치면 안 됩니다.",
-    "- 각 선택지는 3~8자 (한국어).",
-    "- 마지막 선택지는 대화를 끝내는 것 (예: \"다음에 봐\", \"고마워\").",
-    "- 방금 대화 내용과 직접 관련된 후속 질문/반응이어야 합니다.",
-    "",
-    "부탁 규칙:",
-    "- 관계가 '아는 사이' 이상이고 대화가 자연스럽게 흘러갈 때, 가끔 action으로 부탁할 수 있습니다.",
-    "- 부탁은 5번 대화에 1번 정도, 자연스러울 때만. 억지로 하지 마세요.",
-    "",
-    "대화 마무리:",
-    "- 대화가 4회 이상 오갔으면 farewell: true로 마무리하세요.",
-    "- 상대방이 '아니' '됐어' '그만' 같은 거부 톤이면 즉시 farewell: true.",
-    "- 같은 주제가 반복되면 farewell: true.",
-    "- farewell 시 \"또 놀러 와\" \"다음에 봐\" 같은 자연스러운 작별.",
-    ...memorySection,
-    ...socialSection,
-    "",
-    "지금 상황:",
-    `- 시각: ${worldContext.time || "알 수 없음"}`,
-    ...(worldContext.nearby && worldContext.nearby !== "none" ? [`- 근처에 ${worldContext.nearby}${particle(worldContext.nearby, "이", "가")} 있다.`] : []),
-    ...describeNeedsKo(payload.npcNeeds),
-  ].join("\n");
-
-  // Build multi-turn conversation history
-  const turns = [];
-  for (const m of recent) {
-    const speaker = m.speaker || "Unknown";
-    const text = m.text || "";
-    // Player messages → user turn, NPC messages → model turn
-    if (speaker === pName || speaker === payload.playerName) {
-      turns.push({ role: "user", text });
-    } else {
-      turns.push({ role: "model", text });
-    }
-  }
-  // Current user message as the final user turn
-  turns.push({ role: "user", text: payload.userMessage || "" });
-
-  return { system, turns };
-}
-
 function buildPromptEn(payload) {
   const npcName = payload.npcName || "NPC";
   const persona = payload.persona || {};
@@ -596,7 +384,7 @@ function buildPromptEn(payload) {
 
   // Ambient monologue detection
   const userMsg = payload.userMessage || "";
-  const isAmbient = /독백|중얼거|혼잣말|monologue|mutter/i.test(userMsg);
+  const isAmbient = /monologue|mutter|mumble|talking to self/i.test(userMsg);
   if (isAmbient) {
     return {
       prompt: [
@@ -628,7 +416,7 @@ function buildPromptEn(payload) {
   }
 
   // Return-visit recognition: conversationCount-based hints
-  const convCountEn = memoryTextEn ? (memoryTextEn.match(/conversations?: (\d+)/i) || memoryTextEn.match(/대화 (\d+)회/) || [])[1] : 0;
+  const convCountEn = memoryTextEn ? (memoryTextEn.match(/conversations?: (\d+)/i) || memoryTextEn.match(/chatted (\d+) times/i) || [])[1] : 0;
   const convNEn = parseInt(convCountEn) || parseInt(payload.conversationCount) || 0;
   const pNameEn = payload.playerName || "this person";
   const visitHintEn = convNEn === 0
@@ -811,7 +599,7 @@ function buildGeminiContents(turns) {
   }
   // Gemini requires contents to start with "user" role
   if (contents.length > 0 && contents[0].role !== "user") {
-    contents.unshift({ role: "user", parts: [{ text: "(대화 시작)" }] });
+    contents.unshift({ role: "user", parts: [{ text: "(conversation start)" }] });
   }
   return contents;
 }
@@ -919,17 +707,17 @@ async function callGemini(prompt, useStructured = false) {
     if (response.ok) {
       const rawText = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || "").join("").trim();
       if (rawText) {
-        // Structured output → JSON 파싱 시도
+        // Structured output → try JSON parsing
         if (useStructured) {
           let parsed = null;
-          // 1차: 전체 텍스트를 JSON으로 파싱
+          // 1st: parse entire text as JSON
           try { parsed = JSON.parse(rawText); } catch { /* */ }
-          // 2차: ```json ... ``` 블록 추출
+          // 2nd: extract ```json ... ``` block
           if (!parsed) {
             const jsonBlock = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
             if (jsonBlock) try { parsed = JSON.parse(jsonBlock[1].trim()); } catch { /* */ }
           }
-          // 3차: 텍스트 안의 첫 번째 {...} 추출
+          // 3rd: extract first {...} from text
           if (!parsed) {
             const braceMatch = rawText.match(/\{[\s\S]*\}/);
             if (braceMatch) try { parsed = JSON.parse(braceMatch[0]); } catch { /* */ }
@@ -1352,7 +1140,7 @@ const server = createServer(async (req, res) => {
       }
     }
     const responseBody = { reply, model, requestId, suggestions, emotion, farewell, action, mention };
-    // debug=1 헤더 → full prompt 포함
+    // debug=1 header → include full prompt
     if (req.headers["x-debug"] === "1") {
       responseBody._debug = {
         prompt: typeof prompt === "string" ? prompt
