@@ -25,6 +25,9 @@ export function createMultiplayer(ctx) {
     isHost: false,
     hostId: null,
     _npcListener: null,
+    hostResolved: false,       // true after first host election callback
+    lastNpcSyncAt: 0,          // timestamp of last NPC data received from host
+    NPC_SYNC_STALE_MS: 5_000,  // fall back to local sim if no host sync for 5s
   };
 
   function remotePlayerList() {
@@ -122,6 +125,7 @@ export function createMultiplayer(ctx) {
       mp.hostsRef.orderByChild("ts").limitToFirst(1).on("value", (snap) => {
         let newHostId = null;
         snap.forEach((child) => { newHostId = child.key; });
+        mp.hostResolved = true;
         if (newHostId !== mp.hostId) {
           const wasHost = mp.isHost;
           mp.hostId = newHostId;
@@ -156,6 +160,7 @@ export function createMultiplayer(ctx) {
                 if (mp.isHost) return;
                 const data = npcSnap.val();
                 if (!data || !ctx.npcs) return;
+                mp.lastNpcSyncAt = nowMs();
                 for (const npc of ctx.npcs) {
                   const remote = data[npc.id];
                   if (!remote) continue;
@@ -265,6 +270,16 @@ export function createMultiplayer(ctx) {
   return {
     get enabled() { return mp.enabled; },
     get isHost() { return mp.isHost; },
+    /** True when this client should run local NPC simulation.
+     *  Reasons: single-player, host, host election pending, or host stopped syncing. */
+    get shouldRunNpcSim() {
+      if (!mp.enabled) return true;           // no multiplayer → local sim
+      if (!mp.hostResolved) return true;       // host election pending → local sim
+      if (mp.isHost) return true;              // we are the host → local sim
+      // non-host: only skip local sim if we're actively receiving data from host
+      if (mp.lastNpcSyncAt === 0) return true; // never received sync → local sim
+      return (nowMs() - mp.lastNpcSyncAt) > mp.NPC_SYNC_STALE_MS;  // stale → local sim
+    },
     init, broadcast, interpolate, cleanStale, sendMessage, cleanMessages,
     onlineCount, remotePlayerList, broadcastNpcs,
   };

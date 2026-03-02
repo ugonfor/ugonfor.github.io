@@ -2877,8 +2877,8 @@ import { createAsyncGuard } from './systems/async-guard.js';
 
       // ── Phase C: NPC Movement (guide before general) ──
       ensureGuideGreeting().update(dt);
-      // Host or single-player: run NPC simulation. Non-host: skip (Firebase sync).
-      if (!mp || !mp.enabled || mp.isHost) {
+      // Run local NPC simulation unless a live host is syncing positions to us.
+      if (!mp || mp.shouldRunNpcSim) {
         updateNpcs(dt);
       }
 
