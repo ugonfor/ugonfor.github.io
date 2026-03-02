@@ -355,7 +355,7 @@ export class GameRenderer {
           if (!npcMoving) {
             // Reset lie rotation if was lying and now standing
             if (npcPose !== 'lying' && mesh.rotation.z !== 0) { mesh.rotation.z = 0; mesh.position.y = 0; }
-            // 앉을 때 벤치 방향으로 회전
+            // Rotate toward bench direction when sitting
             if (npcPose === 'sitting' && npc.seatFacing != null) {
               mesh.rotation.y = npc.seatFacing;
             }
@@ -546,7 +546,7 @@ export class GameRenderer {
 
     // --- Camera follow ---
     this.cameraRig.setZoom(world.zoom || 3.2);
-    // cameraFollowTarget: 인트로 등에서 카메라가 플레이어 대신 다른 위치를 따라가게
+    // cameraFollowTarget: allow camera to follow a different position (e.g. during intro)
     const camTarget = this._cameraFollowTarget || player;
     this.cameraRig.follow(camTarget.x, camTarget.y, dt);
 

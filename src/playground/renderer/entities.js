@@ -52,7 +52,7 @@ export class CharacterFactory {
     group.add(hair);
     group.userData.parts.hair = hair;
 
-    // --- Eyes (head의 자식으로 — head 이동 시 함께 이동) ---
+    // --- Eyes (child of head — moves with head) ---
     const eyeGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
     const eyeMat = this._toon('#1a1a1a');
     const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
@@ -159,12 +159,12 @@ export class CharacterFactory {
   animateSit(group) {
     const p = group.userData.parts;
     if (!p) return;
-    // 다리를 앞으로 꺾기
+    // Bend legs forward
     if (p.leftLeg)  { p.leftLeg.rotation.x = -Math.PI / 2; p.leftLeg.position.y = 0.35; }
     if (p.rightLeg) { p.rightLeg.rotation.x = -Math.PI / 2; p.rightLeg.position.y = 0.35; }
-    if (p.leftArm)  { p.leftArm.rotation.x = -0.3; }  // 살짝 무릎 위에
+    if (p.leftArm)  { p.leftArm.rotation.x = -0.3; }  // resting on knees
     if (p.rightArm) { p.rightArm.rotation.x = -0.3; }
-    // 몸통과 머리를 벤치 높이로
+    // Position torso and head at bench height
     if (p.body) p.body.position.y = 0.55;
     if (p.head) { p.head.position.y = 0.95; p.head.rotation.x = 0; p.head.rotation.z = 0; }
     if (p.hair) p.hair.position.y = 1.15;
@@ -296,7 +296,7 @@ export class CharacterFactory {
       this.animateWalk(group, time);
       return;
     }
-    // 자세에 따른 포즈
+    // Pose based on posture
     if (pose === 'sitting') {
       this.animateSit(group);
       return;

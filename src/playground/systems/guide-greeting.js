@@ -72,7 +72,7 @@ export function createGuideGreetingSystem(ctx) {
         const line = hi || ctx.t("docent_hi");
         ctx.addChat(guideNpc.name, line);
         ctx.upsertSpeechBubble(guideNpc.id, line, 5000);
-        // 후속 대사: 탐험 유도 or 마을 근황
+        // Follow-up: encourage exploration or village news
         return new Promise(r => setTimeout(r, 3500)).then(() =>
           ctx.llmReplyOrEmpty(guideNpc, followUpPrompt)
         );
@@ -87,7 +87,7 @@ export function createGuideGreetingSystem(ctx) {
         }
         setTimeout(() => {
           guideNpc.pose = "standing";
-          // 인사 끝 → 대화 세션 해제, 안내소로 복귀
+          // Greeting done → release chat session, return to info center
           ctx.convoMgr.clearFocusIf(guideNpc.id);
           guideNpc.state = "idle";
         }, 3000);

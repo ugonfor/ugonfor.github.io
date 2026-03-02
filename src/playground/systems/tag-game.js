@@ -37,7 +37,7 @@ export function createTagGame(ctx) {
     const targetNpc = ctx.npcs.find(n => n.id === state.targetNpcId);
     if (!targetNpc) { state.active = false; return; }
 
-    // 시간 초과 → 승리! (60초 생존)
+    // Time up → win! (survived 60 seconds)
     if (remaining <= 0) {
       state.active = false;
       targetNpc.favorPoints += 8;
@@ -46,7 +46,7 @@ export function createTagGame(ctx) {
       return;
     }
 
-    // NPC가 플레이어를 잡았는지 확인
+    // Check if NPC caught the player
     const d = Math.hypot(ctx.player.x - targetNpc.x, ctx.player.y - targetNpc.y);
     if (d < GAME.TAG_CATCH_DIST) {
       state.active = false;
@@ -56,11 +56,11 @@ export function createTagGame(ctx) {
       return;
     }
 
-    // NPC 추적 AI: 플레이어를 향해 이동
+    // NPC chase AI: move toward player
     const dx = ctx.player.x - targetNpc.x;
     const dy = ctx.player.y - targetNpc.y;
     if (d > 0.3) {
-      // 스프린트 버스트: 3-7초마다 1.5초간 스프린트
+      // Sprint burst: sprint for 1.5s every 3-7 seconds
       const now = nowMs();
       if (now > state._nextSprintAt && now > state._sprintUntil) {
         state._sprintUntil = now + GAME.TAG_SPRINT_MS;
@@ -71,7 +71,7 @@ export function createTagGame(ctx) {
       const isSprinting = now < state._sprintUntil;
       const chaseSpeed = ctx.player.speed * GAME.TAG_CHASE_SPEED_RATIO * (isSprinting ? GAME.TAG_SPRINT_MULTIPLIER : 1.0) * dt;
 
-      // 약간의 예측: 플레이어 이동 방향으로 보정
+      // Slight prediction: adjust toward player movement direction
       const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.3;
       const nx = targetNpc.x + Math.cos(angle) * chaseSpeed;
       const ny = targetNpc.y + Math.sin(angle) * chaseSpeed;
@@ -80,7 +80,7 @@ export function createTagGame(ctx) {
         targetNpc.y = ny;
         targetNpc.state = "moving";
       } else {
-        // 벽 우회
+        // Wall avoidance
         const altAngle = angle + Math.PI * 0.4 * (Math.random() > 0.5 ? 1 : -1);
         const ax = targetNpc.x + Math.cos(altAngle) * chaseSpeed;
         const ay = targetNpc.y + Math.sin(altAngle) * chaseSpeed;
