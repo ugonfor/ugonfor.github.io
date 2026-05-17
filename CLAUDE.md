@@ -5,12 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GitHub Pages 개인 홈페이지 + 캔버스 기반 오픈월드 브라우저 게임(Playground). Jekyll 정적 사이트에 Node.js LLM 프록시 서버가 결합된 구조.
+GitHub Pages 개인 홈페이지. Jekyll 정적 사이트.
 
 - 운영 도메인: `https://ugonfor.kr`
 - 정적 사이트: Jekyll (`remote_theme: yaoyao-liu/minimal-light`)
-- 동적 백엔드: Node.js LLM Proxy → Google Gemini API
 - 네비게이션: Home → About Me → Playground → Posts
+
+**Playground 게임 코드는 별도 레포에 있음**: <https://github.com/ugonfor/ai-npc-world> (npm `@ugonfor/ai-npc-world` + `@ugonfor/ai-npc-world-server`). 홈페이지의 `/playground` 페이지는 jsDelivr CDN으로 엔진을 로드하고 `PlaygroundWorld.init({ ... })` 한 번 호출하는 게 전부. 게임 로직을 만지려면 그 레포로 가야 한다.
 
 ## 코드 작성 헌법
 

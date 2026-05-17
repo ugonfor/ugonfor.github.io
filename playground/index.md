@@ -3,8 +3,7 @@ layout: default
 title: Playground
 extra_head: |
   <script>document.documentElement.classList.add('playground-page');</script>
-  <link rel="stylesheet" href="/assets/css/playground.css">
-  <script defer src="/assets/js/playground-world.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ugonfor/ai-npc-world@0.1.0/styles/playground.css">
 ---
 
 {% if site.playground_turnstile_site_key and site.playground_turnstile_site_key != "" %}
@@ -17,18 +16,6 @@ extra_head: |
 {% endif %}
 
 <div class="pg-world-shell">
-  <script>
-    window.PG_LLM_API_URL = {{ site.playground_llm_api | jsonify }};
-    window.PG_TURNSTILE_SITE_KEY = {{ site.playground_turnstile_site_key | jsonify }};
-    {% if site.playground_firebase and site.playground_firebase.databaseURL != "" %}
-    window.PG_FIREBASE_CONFIG = {
-      apiKey: {{ site.playground_firebase.apiKey | jsonify }},
-      authDomain: {{ site.playground_firebase.authDomain | jsonify }},
-      databaseURL: {{ site.playground_firebase.databaseURL | jsonify }},
-      projectId: {{ site.playground_firebase.projectId | jsonify }}
-    };
-    {% endif %}
-  </script>
   <div class="pg-world-stage">
     <canvas id="pg-world-canvas" width="960" height="540" aria-label="Local open-world simulation"></canvas>
     <div id="pg-quest-banner" class="pg-quest-banner" hidden>
@@ -158,3 +145,23 @@ extra_head: |
     </div>
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@ugonfor/ai-npc-world@0.1.0/dist/ai-npc-world.iife.js"></script>
+<script>
+  (function () {
+    var config = {
+      llmApiUrl: {{ site.playground_llm_api | jsonify }},
+      turnstileSiteKey: {{ site.playground_turnstile_site_key | jsonify }},
+      locale: 'en',
+    };
+    {% if site.playground_firebase and site.playground_firebase.databaseURL != "" %}
+    config.firebase = {
+      apiKey: {{ site.playground_firebase.apiKey | jsonify }},
+      authDomain: {{ site.playground_firebase.authDomain | jsonify }},
+      databaseURL: {{ site.playground_firebase.databaseURL | jsonify }},
+      projectId: {{ site.playground_firebase.projectId | jsonify }}
+    };
+    {% endif %}
+    PlaygroundWorld.init(config);
+  })();
+</script>

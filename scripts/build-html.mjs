@@ -537,9 +537,10 @@ function buildPlaygroundPage() {
     );
   }
 
+  // Engine + styles are served from the @ugonfor/ai-npc-world npm package via jsDelivr.
+  // Update the version when bumping ai-npc-world.
   const extraHead = `<script>document.documentElement.classList.add('playground-page');</script>
-  <link rel="stylesheet" href="/assets/css/playground.css">
-  <script defer src="/assets/js/playground-world.js"></script>`;
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ugonfor/ai-npc-world@0.1.0/styles/playground.css">`;
 
   return renderLayout(html, {
     title: "Playground",
