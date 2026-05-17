@@ -3,7 +3,7 @@ layout: default
 title: Playground
 extra_head: |
   <script>document.documentElement.classList.add('playground-page');</script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ugonfor/ai-npc-world@0.1.0/styles/playground.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ugonfor/ai-npc-world@0.1.1/styles/playground.css">
 ---
 
 {% if site.playground_turnstile_site_key and site.playground_turnstile_site_key != "" %}
@@ -146,7 +146,7 @@ extra_head: |
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@ugonfor/ai-npc-world@0.1.0/dist/ai-npc-world.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ugonfor/ai-npc-world@0.1.1/dist/ai-npc-world.iife.js"></script>
 <script>
   (function () {
     var config = {
