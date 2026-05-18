@@ -7,12 +7,10 @@ extra_head: |
 ---
 
 <div class="landing-hero">
-  <div class="landing-orb landing-orb--warm"></div>
-  <div class="landing-orb landing-orb--cool"></div>
   <div class="landing-hero-content">
     <h1 class="landing-name">Hyogon<br>Ryu.</h1>
     <p class="landing-role">Applied AI Research Engineer</p>
-    <p class="landing-affiliation">@ Krafton AI</p>
+    <p class="landing-affiliation">Krafton AI</p>
   </div>
   <div class="landing-scroll-hint">
     <div class="landing-scroll-line"></div>
@@ -21,7 +19,7 @@ extra_head: |
 
 <div class="landing-nav-section">
   <a class="landing-nav-item" href="/about">
-    <span class="landing-nav-label">About Me</span>
+    <span class="landing-nav-label">About</span>
     <span class="landing-nav-desc">Research, publications, awards, and career.</span>
     <span class="landing-nav-arrow">&rarr;</span>
   </a>

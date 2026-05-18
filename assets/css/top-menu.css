@@ -1,94 +1,60 @@
 :root {
-  --top-menu-offset: 68px;
+  --top-menu-offset: 56px;
 }
 
-/* Top Menu Bar */
 .top-menu {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    background: linear-gradient(90deg, rgba(18, 45, 62, 0.95), rgba(36, 88, 116, 0.92));
-    border-bottom: 1px solid rgba(222, 226, 216, 0.55);
-    box-shadow: 0 8px 24px rgba(22, 34, 49, 0.24);
-    backdrop-filter: blur(8px);
-    padding: 10px 0 11px;
-    text-align: center;
-    z-index: 1000; /* Ensures it's on top */
-    transition: transform 0.3s ease;
-  }
-  
-  /* Menu List Styling */
-.top-menu ul {
-    list-style: none;
-    margin: 0;
-    padding: 0 12px;
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 20px;
-    row-gap: 7px;
-  }
-  
-  /* Menu Item Styling */
-  .top-menu ul li {
-    display: inline;
-  }
-  
-  /* Menu Link Styling */
-.top-menu ul li a {
-    color: #f6f8f4;
-    text-decoration: none;
-    font-size: 0.98rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    padding: 7px 13px;
-    border-radius: 999px;
-    display: block;
-    white-space: nowrap;
-    transition: background-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
-  }
-  
-  /* Hover Effect */
-  .top-menu ul li a:hover {
-    background: rgba(255, 255, 255, 0.14);
-    color: #ffffff;
-    transform: translateY(-1px);
-  }
-  
-@media print, screen and (max-width: 480px) {
-  :root {
-    --top-menu-offset: 94px;
-  }
-
-  .top-menu ul {
-    gap: 8px;
-    row-gap: 6px;
-  }
-
-  .top-menu ul li a {
-    font-size: 0.82rem;
-    padding: 6px 9px;
-  }
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(245, 245, 247, 0.85);
+  border-bottom: 1px solid var(--line, #d2d2d7);
+  box-shadow: none;
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  padding: 0;
+  text-align: center;
+  z-index: 1000;
+  transition: transform 0.3s ease;
 }
 
-@media print, screen and (max-width: 680px) {
-  :root {
-    --top-menu-offset: 84px;
-  }
+.top-menu ul {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0 24px;
+  max-width: var(--max-width, 720px);
+  height: var(--top-menu-offset, 56px);
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 28px;
+}
 
-  .top-menu {
-    padding: 8px 0 9px;
-  }
+.top-menu ul li { display: inline-flex; }
 
+.top-menu ul li a {
+  font-family: var(--font-sans, sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft, #424245);
+  text-decoration: none;
+  padding: 6px 0;
+  border-bottom: 1px solid transparent;
+  transition: color .15s, border-color .15s;
+  white-space: nowrap;
+}
+
+.top-menu ul li a:hover {
+  color: var(--ink, #111);
+  border-bottom-color: var(--ink, #111);
+}
+
+@media (max-width: 640px) {
   .top-menu ul {
-    gap: 9px;
+    gap: 18px;
+    padding: 0 20px;
+    justify-content: space-between;
   }
-
-  .top-menu ul li a {
-    font-size: 0.82rem;
-    text-transform: none;
-    letter-spacing: 0.01em;
-  }
+  .top-menu ul li a { font-size: 12px; }
 }
