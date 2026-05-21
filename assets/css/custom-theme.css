@@ -1,16 +1,18 @@
 /* ============================================================
-   Architectural minimal — cool neutral palette
+   minsukchang.com-style minimal — Charter serif on white,
+   blue links, page-flow nav, narrow column.
    ============================================================ */
 
 :root {
-  --bg: #f5f5f7;
-  --surface: #ffffff;
+  --bg: #ffffff;
   --ink: #111111;
-  --ink-soft: #424245;
-  --muted: #86868b;
-  --line: #d2d2d7;
-  --line-soft: #e8e8eb;
-  --max-width: 640px;
+  --ink-soft: #333333;
+  --muted: #707070;
+  --line: #d6d6d6;
+  --line-soft: #ececec;
+  --link: #0053D6;
+  --link-hover: #0040a8;
+  --max-width: 600px;
   --top-menu-offset: 0px;
 }
 
@@ -19,20 +21,17 @@
 html, body {
   background: var(--bg);
   color: var(--ink);
+  overflow-wrap: break-word;
 }
 
 body::before,
 body::after { display: none !important; content: none !important; }
 
-/* ============================================================
-   Layout
-   ============================================================ */
-
 .wrapper {
-  width: 100%;
+  width: auto;
   max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 0 24px 120px;
+  margin: 50px auto;
+  padding: 0 20px;
   display: block;
 }
 
@@ -48,198 +47,76 @@ section {
   animation: none;
 }
 
-/* ============================================================
-   Header — name block on internal pages
-   ============================================================ */
-
-header {
-  position: static;
-  float: none;
-  width: auto;
-  padding: 0 0 32px;
-  margin: 0 0 56px;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-  animation: none;
-  text-align: left;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-header h1 {
-  font-family: var(--font-sans);
-  font-size: 24px;
-  font-weight: 500;
-  letter-spacing: -0.015em;
-  color: var(--ink);
-  margin: 0 0 4px;
-  border: 0;
-  padding: 0;
-}
-
-header .image.avatar {
-  float: none;
-  margin: 0;
-  flex-shrink: 0;
-}
-
-header .image.avatar img {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  filter: grayscale(0.4) contrast(1.02);
-  display: block;
-}
-
-header > *:not(.image.avatar) {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-header position,
-header email,
-header autocolor,
-header a {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--ink-soft);
-  letter-spacing: 0;
-}
-
-header position { display: inline-block; }
-
-header > br { display: none; }
-
-header a {
-  text-decoration: none;
-  color: var(--ink-soft);
-  transition: color .2s;
-}
-header a:hover { color: var(--ink); }
-
-header .social-icons {
-  margin-top: 8px;
-  display: flex;
-  gap: 14px;
-  width: 100%;
-}
-
-header .social-icons a {
-  display: inline-flex;
-  width: auto !important;
-  height: auto !important;
-  background: none !important;
-  color: var(--ink-soft) !important;
-  border-radius: 0;
-  font-size: 16px;
-  line-height: 1;
-  margin: 0 !important;
-  transition: color .2s, transform .2s;
-}
-header .social-icons a:hover {
-  background: none !important;
-  color: var(--ink) !important;
-  transform: none;
-}
+/* Site header is hidden on all pages — the inline nav above handles identity. */
+header { display: none !important; }
 
 /* ============================================================
    Typography
    ============================================================ */
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-sans);
-  font-weight: 500;
+  font-family: inherit;
+  font-weight: 600;
   color: var(--ink);
-  letter-spacing: -0.012em;
-  line-height: 1.25;
+  line-height: 1.3;
+  letter-spacing: 0;
 }
 
-h2 {
-  font-size: 22px;
-  margin: 64px 0 16px;
-  padding-top: 24px;
-  border-top: 1px solid var(--line-soft);
-}
-h2:first-of-type,
-section > h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+h1 { font-size: 1.4em; margin: 1.6em 0 0.4em; }
+h2 { font-size: 1.2em; margin: 1.6em 0 0.4em; }
+h3 { font-size: 1.05em; margin: 1.4em 0 0.3em; }
+h4 { font-size: 1em; margin: 1.2em 0 0.2em; }
 
-h3 {
-  font-size: 17px;
-  margin: 36px 0 12px;
-}
-
-h4 {
-  font-size: 15px;
-  margin: 24px 0 8px;
-  color: var(--ink-soft);
-}
-
-p {
-  margin: 0 0 16px;
-  color: var(--ink);
-}
+p { margin: 0 0 1em; }
 
 a {
-  color: var(--ink);
-  text-decoration: underline;
-  text-decoration-color: var(--line);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  transition: text-decoration-color .15s ease;
+  color: var(--link);
+  text-decoration: none;
 }
-a:hover {
-  text-decoration-color: var(--ink);
-}
+a:hover { color: var(--link-hover); text-decoration: underline; }
 
 ul, ol {
-  padding-left: 20px;
-  margin: 0 0 16px;
+  padding-left: 22px;
+  margin: 0 0 1em;
 }
-li { margin: 6px 0; line-height: 1.65; }
+li { margin: 0.2em 0; }
 
 strong { font-weight: 600; }
 em { font-style: italic; }
 
 code {
   font-family: var(--font-mono);
-  font-size: 0.88em;
-  background: #ececef;
-  padding: 1px 6px;
+  font-size: 0.92em;
+  background: #f3f3f3;
+  padding: 1px 5px;
   border-radius: 3px;
   color: var(--ink);
 }
 
 pre {
-  background: #ececef;
-  padding: 16px 20px;
+  background: #f3f3f3;
+  padding: 14px 18px;
   overflow-x: auto;
-  border-radius: 4px;
+  border-radius: 3px;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.55;
-  margin: 20px 0;
+  margin: 1em 0;
 }
 pre code { background: none; padding: 0; }
 
 hr {
   border: 0;
   border-top: 1px solid var(--line-soft);
-  margin: 48px 0;
+  margin: 2em 0;
 }
 
 blockquote {
-  margin: 24px 0;
-  padding: 4px 0 4px 20px;
+  margin: 1em 0;
+  padding: 0 0 0 18px;
   border-left: 2px solid var(--line);
   color: var(--ink-soft);
-  font-style: normal;
+  font-style: italic;
 }
 
 img { max-width: 100%; height: auto; }
@@ -247,83 +124,57 @@ img { max-width: 100%; height: auto; }
 table {
   width: 100%;
   border-collapse: collapse;
-  margin: 24px 0;
-  font-size: 14px;
+  margin: 1em 0;
+  font-size: 0.95em;
 }
 th, td {
   text-align: left;
-  padding: 10px 12px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--line-soft);
 }
-th { font-weight: 500; color: var(--ink-soft); }
+th { font-weight: 600; }
 
-kbd {
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-  padding: 1px 6px;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  background: #ffffff;
-  color: var(--ink);
-}
+small { font-size: 0.85em; color: var(--muted); }
 
 /* ============================================================
-   Footer
+   Footer — small "&copy; year name" line
    ============================================================ */
 
 footer {
   position: static;
   float: none;
   width: auto;
-  margin: 96px 0 0;
-  padding: 24px 0 0;
+  margin: 60px 0 0;
+  padding: 16px 0 0;
   border-top: 1px solid var(--line-soft);
   text-align: left;
 }
-
 footer p {
   margin: 0;
-  font-size: 12px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.85em;
   color: var(--muted);
 }
 
 /* ============================================================
-   Reset legacy artefacts
+   Reset old artefacts: social icons (we don't show them now),
+   icon-button, publications cards.
    ============================================================ */
 
-.social-icons a {
-  height: auto;
-  width: auto;
-  background: none;
-  color: inherit !important;
-  border-radius: 0;
-  line-height: 1;
-}
-.social-icons a:hover {
-  background: none;
-  color: var(--ink) !important;
-  transform: none;
-}
+.social-icons,
+.icon-button { display: none !important; }
 
-.icon-button { display: none; }
-
-/* ============================================================
-   Publications block
-   ============================================================ */
-
-.publications { margin: 8px 0 0; }
+/* Publications block — keep it simple list-style for /posts category etc. */
+.publications { margin: 1em 0; }
 .publications ol.bibliography { list-style: none; padding: 0; margin: 0; }
 .publications ol.bibliography > li {
-  padding: 20px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--line-soft);
   margin: 0 !important;
 }
 .publications ol.bibliography > li:last-child { border-bottom: 0; }
-.publications .pub-row { display: flex; gap: 20px; align-items: flex-start; }
+.publications .pub-row { display: flex; gap: 16px; align-items: flex-start; }
 .publications .pub-row .abbr {
-  flex: 0 0 96px;
+  flex: 0 0 80px;
   padding: 0 !important;
   margin: 0;
 }
@@ -331,71 +182,46 @@ footer p {
   width: 100%;
   height: auto;
   border-radius: 2px;
-  filter: grayscale(0.3);
 }
 .publications .pub-row .abbr .badge,
 .publications .pub-row .abbr abbr.badge {
   display: inline-block;
-  margin-top: 6px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
+  margin-top: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
   background: transparent !important;
   color: var(--ink-soft) !important;
-  padding: 2px 0 !important;
+  padding: 0 !important;
   border: 0;
-  border-radius: 0;
-  text-transform: uppercase;
   text-decoration: none;
 }
 .publications .pub-row .col-sm-9 { flex: 1; padding: 0 !important; }
 .publications .pub-row .title a {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--ink);
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--link);
   text-decoration: none;
-  letter-spacing: -0.005em;
 }
 .publications .pub-row .title a:hover { text-decoration: underline; }
-.publications .pub-row .author {
-  font-size: 13px;
-  color: var(--ink-soft);
-  margin-top: 4px;
-}
-.publications .pub-row .periodical {
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-.publications .pub-row .periodical em { font-style: italic; }
-.publications .pub-row .links { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.publications .pub-row .author { font-size: 0.92em; color: var(--ink-soft); }
+.publications .pub-row .periodical { font-size: 0.9em; color: var(--muted); font-style: italic; }
+.publications .pub-row .links { margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
 .publications .pub-row .links .btn {
-  font-family: var(--font-mono) !important;
-  font-size: 11px !important;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ink-soft) !important;
+  font-family: inherit !important;
+  font-size: 0.85em !important;
+  color: var(--link) !important;
   background: transparent !important;
-  border: 1px solid var(--line) !important;
-  border-radius: 2px !important;
-  padding: 4px 10px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
   text-decoration: none;
-  transition: border-color .15s, color .15s;
 }
-.publications .pub-row .links .btn:hover {
-  border-color: var(--ink) !important;
-  color: var(--ink) !important;
-}
+.publications .pub-row .links .btn:hover { text-decoration: underline; }
 
 /* responsive */
 @media (max-width: 640px) {
-  .wrapper { padding: 0 20px 80px; }
-  header { gap: 16px; }
-  header h1 { font-size: 22px; }
-  header .image.avatar img { width: 48px; height: 48px; }
-  h2 { font-size: 20px; margin: 48px 0 14px; padding-top: 20px; }
-  .publications .pub-row { flex-direction: column; gap: 12px; }
-  .publications .pub-row .abbr { flex: 0 0 auto; max-width: 120px; }
+  .wrapper { margin: 32px auto 24px; }
+  .publications .pub-row { flex-direction: column; gap: 10px; }
+  .publications .pub-row .abbr { flex: 0 0 auto; max-width: 100px; }
 }

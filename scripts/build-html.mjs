@@ -154,7 +154,6 @@ function renderLayout(content, opts = {}) {
     <link rel="stylesheet" href="/assets/css/style-no-dark-mode.css?v=${BUILD_TS}">
     <link rel="stylesheet" href="/assets/css/publications-no-dark-mode.css?v=${BUILD_TS}">
     <link rel="stylesheet" href="/assets/css/custom-theme.css?v=${BUILD_TS}">
-    <link rel="stylesheet" href="/assets/css/bg-effects.css?v=${BUILD_TS}">
 
     ${extraHead || ""}${postCss}
   </head>
@@ -185,22 +184,6 @@ function renderLayout(content, opts = {}) {
       </footer>
     </div>
 
-    <script src="/assets/js/scale.fix.js"></script>
-    <script defer src="/assets/js/bg-effects.js?v=${BUILD_TS}"></script>
-
-    <!-- 스크롤 시 상단 메뉴바 숨김/표시 스크립트 -->
-    <script>
-      var prevScrollpos = window.pageYOffset;
-      window.onscroll = function() {
-        var currentScrollPos = window.pageYOffset;
-        if (currentScrollPos <= 10 || prevScrollpos > currentScrollPos) {
-          document.querySelector('.top-menu').style.transform = "translateY(0)";
-        } else {
-          document.querySelector('.top-menu').style.transform = "translateY(-100%)";
-        }
-        prevScrollpos = currentScrollPos;
-      }
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script>mermaid.initialize({startOnLoad:true, theme:'neutral', securityLevel:'loose'});</script>
   </body>
