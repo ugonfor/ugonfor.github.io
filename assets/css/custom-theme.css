@@ -10,8 +10,8 @@
   --muted: #86868b;
   --line: #d2d2d7;
   --line-soft: #e8e8eb;
-  --max-width: 720px;
-  --top-menu-offset: 56px;
+  --max-width: 640px;
+  --top-menu-offset: 0px;
 }
 
 * { box-sizing: border-box; }
@@ -32,7 +32,7 @@ body::after { display: none !important; content: none !important; }
   width: 100%;
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: calc(var(--top-menu-offset) + 96px) 24px 120px;
+  padding: 0 24px 120px;
   display: block;
 }
 
@@ -391,7 +391,7 @@ footer p {
 
 /* responsive */
 @media (max-width: 640px) {
-  .wrapper { padding: calc(var(--top-menu-offset) + 56px) 20px 80px; }
+  .wrapper { padding: 0 20px 80px; }
   header { gap: 16px; }
   header h1 { font-size: 22px; }
   header .image.avatar img { width: 48px; height: 48px; }

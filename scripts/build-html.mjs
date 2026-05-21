@@ -161,8 +161,12 @@ function renderLayout(content, opts = {}) {
   <!-- 상단 메뉴바 -->
   <nav class="top-menu">
     <ul>
-      <li><a href="/">Home</a></li>
+      <li><a href="/" class="top-name">${site.title}</a></li>
       <li><a href="/posts">Writing</a></li>
+      ${site.cv_link ? `<li><a href="/${site.cv_link}">CV</a></li>` : ""}
+      ${site.google_scholar ? `<li><a href="${site.google_scholar}">Scholar</a></li>` : ""}
+      ${site.github_link ? `<li><a href="${site.github_link}">GitHub</a></li>` : ""}
+      ${site.linkedin ? `<li><a href="${site.linkedin}">LinkedIn</a></li>` : ""}
     </ul>
   </nav>
   <body>
