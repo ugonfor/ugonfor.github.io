@@ -162,9 +162,7 @@ function renderLayout(content, opts = {}) {
   <nav class="top-menu">
     <ul>
       <li><a href="/">Home</a></li>
-      <li><a href="/about">About Me</a></li>
-      <li><a href="/playground">Playground</a></li>
-      <li><a href="/posts">Posts</a></li>
+      <li><a href="/posts">Writing</a></li>
     </ul>
   </nav>
   <body>
@@ -364,7 +362,7 @@ function renderPostPage(post, prevPost, nextPost) {
 
   const inner = `<article class="post-article">
   <!-- 뒤로가기 -->
-  <a href="/posts" class="post-back">&larr; 목록으로</a>
+  <a href="/posts" class="post-back">&larr; All writing</a>
 
   <!-- 포스트 헤더 -->
   <h1 class="post-title">${post.title}</h1>
@@ -471,6 +469,26 @@ function buildHomePage() {
   <link rel="stylesheet" href="/assets/css/landing.css">`;
 
   return renderLayout(htmlContent, { hideHeader: true, isHomepage: true, extraHead });
+}
+
+function buildAboutRedirect() {
+  // About content lives on the home page now. Keep /about as a 301-style
+  // client redirect so any external links still land somewhere sane.
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>About — ${site.title}</title>
+    <link rel="canonical" href="${site.canonical}/">
+    <meta http-equiv="refresh" content="0; url=/">
+    <meta name="robots" content="noindex">
+    <script>window.location.replace('/');</script>
+  </head>
+  <body>
+    Redirecting to <a href="/">${site.canonical}/</a>.
+  </body>
+</html>
+`;
 }
 
 function buildAboutPage() {
@@ -595,7 +613,7 @@ copyStaticFiles();
 // 3. Build static pages
 console.log("[2/5] Building static pages...");
 writeDist("index.html", buildHomePage());
-writeDist("about/index.html", buildAboutPage());
+writeDist("about/index.html", buildAboutRedirect());
 writeDist("playground/index.html", buildPlaygroundPage());
 
 // 4. Scan and build posts
