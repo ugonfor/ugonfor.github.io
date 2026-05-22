@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #32 - 인트로 카메라 완성: NPC가 살아있는 첫인상"
 date: 2026-02-25 23:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [intro-camera, npc-conversation, audio, ambient, ux]
 ---
 

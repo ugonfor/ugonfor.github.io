@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #31 - 디테일 폴리시: NPC 행동, 오디오, 대화 품질"
 date: 2026-02-25 22:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [npc-behavior, audio-fix, prompt-fix, ux-polish, camera]
 ---
 

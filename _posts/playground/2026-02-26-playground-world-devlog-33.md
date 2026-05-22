@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #33 - NPC 프롬프트 대수술: 메타 언어 제거, 개인 서사 추가"
 date: 2026-02-26 00:30:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [llm-prompt, npc-backstory, immersion, multi-turn, korean-nlp]
 ---
 

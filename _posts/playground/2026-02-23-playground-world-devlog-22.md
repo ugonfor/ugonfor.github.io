@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #22 - 모바일 최적화와 디버그 모드"
 date: 2026-02-23 10:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [mobile, debug-mode, html-overlay, pinch-zoom, llm-gossip]
 ---
 

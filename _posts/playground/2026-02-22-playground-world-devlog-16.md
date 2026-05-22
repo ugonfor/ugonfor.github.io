@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #16 - LLM 프록시 500 에러 디버깅 & 수정"
 date: 2026-02-22 02:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [llm, gemini, gemma, cloud-run, bugfix, debugging]
 ---
 

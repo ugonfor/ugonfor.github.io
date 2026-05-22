@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #26 - i18n 완전 정복: 639키, 에이전트 팀 작업"
 date: 2026-02-24 00:30:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [i18n, internationalization, translation, agent-team, english]
 ---
 

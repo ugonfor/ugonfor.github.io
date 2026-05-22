@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #17 - 도시를 살아 숨쉬게: 건물 장식, 동물, 신규 시설"
 date: 2026-02-22 03:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [three.js, buildings, animals, city, decorations, polish]
 ---
 

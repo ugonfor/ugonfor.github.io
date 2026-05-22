@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #38 - ai-npc-world 레포 분리 + npm publish"
 date: 2026-05-17 22:30:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [refactor, monorepo, npm, open-source, security, cdn]
 ---
 

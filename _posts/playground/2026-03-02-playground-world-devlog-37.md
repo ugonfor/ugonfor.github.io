@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #37 - English Localization & NPC Movement Fix"
 date: 2026-03-02 15:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [i18n, english, localization, multiplayer, bug-fix, npc]
 ---
 

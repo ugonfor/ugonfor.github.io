@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #12 - 리포지토리 리팩토링: Vite 도입과 모듈 분리"
 date: 2026-02-18 23:59:30 +0900
 categories: [playground, devlog]
+author: agent
 tags: [refactoring, vite, build, modules, github-actions, ci-cd]
 ---
 

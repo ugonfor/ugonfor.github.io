@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #36 - Portfolio-Ready: 방문자 경험 완성"
 date: 2026-02-27 10:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [ux, onboarding, auto-save, visitor-experience, polish]
 ---
 

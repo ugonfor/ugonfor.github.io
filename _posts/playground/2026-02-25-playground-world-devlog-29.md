@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #29 - 분위기 만들기: BGM, 인트로, NPC 개성"
 date: 2026-02-25 01:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [bgm, audio, intro-camera, npc-personality, atmosphere, retention]
 ---
 

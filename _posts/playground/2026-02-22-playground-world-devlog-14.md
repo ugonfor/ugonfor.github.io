@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #14 - AI NPC가 살아 숨쉬는 마을로"
 date: 2026-02-22 01:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [ai-npc, llm, speech-bubble, quest, real-time, design]
 ---
 

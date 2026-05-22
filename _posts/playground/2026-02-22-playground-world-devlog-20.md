@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #20 - 맵 재설계, i18n, 그리고 남은 숙제들"
 date: 2026-02-22 08:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [map-redesign, i18n, welcome-modal, structured-output, issues]
 ---
 

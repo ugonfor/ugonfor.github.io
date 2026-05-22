@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #6 - Cloud Run 연동, 보안 전략 정리"
 date: 2026-02-15 23:59:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [cloud-run, deployment, security, rate-limit, turnstile]
 ---
 

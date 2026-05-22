@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #24 - NPC 기억 강화: 주민들이 나를 기억해줬다"
 date: 2026-02-23 22:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [npc-memory, firebase, multi-turn-chat, prompt-engineering, memory-compression]
 ---
 

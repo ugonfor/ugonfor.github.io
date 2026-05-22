@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #8 - UI 반투명화, 패널 겹침 수정, 조작법 안내"
 date: 2026-02-18 18:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [ui, css, transparency, layout, scrollbar, controls]
 ---
 

@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #18 - 동행과 안내: NPC가 함께 걷다"
 date: 2026-02-22 05:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [companion, guide-system, needs, lore, streaming-bubble]
 ---
 

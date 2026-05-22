@@ -3,6 +3,7 @@ layout: post
 title: "Playground 요구사항 스냅샷"
 date: 2026-02-15 23:40:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [requirements, world-simulation, ux, llm]
 ---
 

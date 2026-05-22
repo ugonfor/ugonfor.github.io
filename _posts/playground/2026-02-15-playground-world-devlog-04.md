@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #4 - 대화 고정, 숄더뷰, LLM 스트리밍"
 date: 2026-02-15 23:55:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [chat, llm, streaming, camera, npc]
 ---
 

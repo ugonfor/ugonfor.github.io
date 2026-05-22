@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #30 - NPC에 생명 불어넣기: 이름, 개성, 프롬프트 감사"
 date: 2026-02-25 20:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [npc-personality, prompt-engineering, llm-audit, ux-polish, bgm]
 ---
 

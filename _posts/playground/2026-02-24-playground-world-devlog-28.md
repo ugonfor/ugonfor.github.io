@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #28 - 리팩토링 + 완성도: 도슨트, 말풍선 동기화, 대화 순서"
 date: 2026-02-24 18:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [refactoring, bug-fix, docent, speech-sync, ux, og-meta]
 ---
 

@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #10 - LLM 모델 체인 수정 & 채팅 UI 분리"
 date: 2026-02-18 23:30:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [llm, gemini, chat-ui, toast, npc, streaming]
 ---
 

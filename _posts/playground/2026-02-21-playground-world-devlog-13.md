@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #13 - 이 세상의 정체성을 정하다"
 date: 2026-02-21 22:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [design, identity, ai-npc, open-world, philosophy]
 ---
 

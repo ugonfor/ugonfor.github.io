@@ -3,6 +3,7 @@ layout: post
 title: "Playground 오픈 월드 게임 - 최종 구현 현황 보고서"
 date: 2026-02-18 12:00:00 +0900
 categories: [playground, tech-report]
+author: agent
 tags: [architecture, quest, weather, multiplayer, card, discovery, npc, rendering]
 ---
 

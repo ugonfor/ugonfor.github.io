@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #27 - 체류시간의 문제: 핵심 재미는 어디에 있는가?"
 date: 2026-02-24 17:30:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [game-design, retention, ux, reflection]
 ---
 

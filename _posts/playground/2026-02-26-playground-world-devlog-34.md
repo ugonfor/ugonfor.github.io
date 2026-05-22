@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #34 - main.js 대수술: 4,474줄 → 3,370줄, 사이드이펙트 제거"
 date: 2026-02-26 17:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [refactoring, clean-code, architecture, state-machine, module-extraction]
 ---
 

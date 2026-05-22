@@ -3,6 +3,7 @@ layout: post
 title: "Playground Tech Report - 전체 시스템 현황 및 Merge 가이드"
 date: 2026-02-16 16:00:00 +0900
 categories: [playground, tech-report]
+author: agent
 tags: [architecture, merge, quest, weather, multiplayer, card, discovery]
 ---
 

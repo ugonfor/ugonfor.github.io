@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #21 - Structured Output으로 완성한 AI NPC 시스템"
 date: 2026-02-22 10:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [structured-output, companion-fix, park, buildings, npcs, streaming-removal]
 ---
 

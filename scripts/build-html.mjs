@@ -161,6 +161,7 @@ function renderLayout(content, opts = {}) {
   <nav class="top-menu">
     <ul>
       <li><a href="/" class="top-name">${site.title}</a></li>
+      <li><a href="/about">About</a></li>
       <li><a href="/posts">Writing</a></li>
       ${site.cv_link ? `<li><a href="/${site.cv_link}">CV</a></li>` : ""}
       ${site.google_scholar ? `<li><a href="${site.google_scholar}">Scholar</a></li>` : ""}
@@ -281,6 +282,7 @@ function scanPosts() {
         const tags = data.tags || [];
         const title = data.title || basename(entry, ".md");
         const listed = data.listed || false;
+        const author = data.author === "agent" ? "agent" : "human";
 
         // URL pattern: /{cat0}/{cat1}/{YYYY}/{MM}/{DD}/{slug}.html
         // slug = filename without date prefix
@@ -297,6 +299,7 @@ function scanPosts() {
           categories,
           tags,
           listed,
+          author,
           url,
           slug,
           markdownContent: content,
@@ -387,7 +390,11 @@ function renderPostPage(post, prevPost, nextPost) {
 // Posts listing page
 // ---------------------------------------------------------------------------
 
-function renderPostsListing(posts) {
+function renderPostGroups(posts, emptyMessage) {
+  if (posts.length === 0) {
+    return `      <p class="post-list-empty">${emptyMessage}</p>\n`;
+  }
+
   // Group posts by first category
   const groups = new Map();
   for (const p of posts) {
@@ -396,8 +403,7 @@ function renderPostsListing(posts) {
     groups.get(topic).push(p);
   }
 
-  let html = `<div class="post-list-page">\n  <h1 class="post-list-title">글 목록</h1>\n`;
-
+  let html = "";
   for (const [topic, topicPosts] of groups) {
     html += `\n    <section class="post-group">\n      <h2 class="post-group-title">${topic}</h2>\n`;
 
@@ -435,8 +441,56 @@ function renderPostsListing(posts) {
 
     html += `    </section>\n`;
   }
+  return html;
+}
 
-  html += `</div>\n`;
+function renderPostsListing(posts) {
+  const humanPosts = posts.filter((p) => p.author === "human");
+  const agentPosts = posts.filter((p) => p.author === "agent");
+
+  const humanHtml = renderPostGroups(humanPosts, "아직 직접 쓴 글이 없습니다.");
+  const agentHtml = renderPostGroups(agentPosts, "아직 Agent가 쓴 글이 없습니다.");
+
+  const html = `<div class="post-list-page">
+  <h1 class="post-list-title">글 목록</h1>
+
+  <div class="post-tabs" role="tablist">
+    <button type="button" class="post-tab is-active" data-tab="human" role="tab" aria-selected="true">사람 <span class="post-tab-count">(${humanPosts.length})</span></button>
+    <button type="button" class="post-tab" data-tab="agent" role="tab" aria-selected="false">Agent <span class="post-tab-count">(${agentPosts.length})</span></button>
+  </div>
+
+  <div class="post-tab-panel is-active" data-panel="human" role="tabpanel">
+${humanHtml}  </div>
+
+  <div class="post-tab-panel" data-panel="agent" role="tabpanel" hidden>
+${agentHtml}  </div>
+</div>
+
+<script>
+(function () {
+  var tabs = document.querySelectorAll('.post-tab');
+  var panels = document.querySelectorAll('.post-tab-panel');
+  function activate(name) {
+    tabs.forEach(function (t) {
+      var on = t.dataset.tab === name;
+      t.classList.toggle('is-active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panels.forEach(function (p) {
+      var on = p.dataset.panel === name;
+      p.classList.toggle('is-active', on);
+      if (on) { p.removeAttribute('hidden'); } else { p.setAttribute('hidden', ''); }
+    });
+    try { history.replaceState(null, '', '#' + name); } catch (e) {}
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { activate(t.dataset.tab); });
+  });
+  var hash = (location.hash || '').replace('#', '');
+  if (hash === 'agent' || hash === 'human') activate(hash);
+})();
+</script>
+`;
 
   return renderLayout(html, { title: "글 목록", hideHeader: true, loadPostCss: true });
 }
@@ -600,7 +654,7 @@ copyStaticFiles();
 // 3. Build static pages
 console.log("[2/5] Building static pages...");
 writeDist("index.html", buildHomePage());
-writeDist("about/index.html", buildAboutRedirect());
+writeDist("about/index.html", buildAboutPage());
 writeDist("playground/index.html", buildPlaygroundPage());
 
 // 4. Scan and build posts

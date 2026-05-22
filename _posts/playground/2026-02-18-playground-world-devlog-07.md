@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #7 - 멀티플레이 채팅, 이름 모달, 국기 표시"
 date: 2026-02-18 12:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [multiplayer, chat, firebase, ip-geolocation, modal]
 ---
 

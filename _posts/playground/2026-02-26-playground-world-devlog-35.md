@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #35 - 멀티플레이어 완성: 3D 렌더링, NPC 동기화, 공유 기억"
 date: 2026-02-26 19:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [multiplayer, firebase, 3d-rendering, npc-sync, shared-memory]
 ---
 

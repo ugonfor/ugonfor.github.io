@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #9 - NPC 기억 시스템부터 경제·탐험까지, 6개 Phase 한번에 구현"
 date: 2026-02-18 22:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [npc, memory, social-graph, story-arc, economy, achievement, challenge]
 ---
 

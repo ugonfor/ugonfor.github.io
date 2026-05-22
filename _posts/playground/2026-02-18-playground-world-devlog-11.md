@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #11 - 월드 대확장: 100x100 맵, KSA 캠퍼스, 마을, 술래잡기"
 date: 2026-02-18 23:59:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [world-expansion, map, buildings, npc, minigame, tag, performance]
 ---
 

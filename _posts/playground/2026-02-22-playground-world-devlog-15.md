@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #15 - Three.js 3D 전환: 종이인형에서 로우폴리 세상으로"
 date: 2026-02-22 01:30:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [three.js, 3d, rendering, low-poly, migration, buildings, weather]
 ---
 

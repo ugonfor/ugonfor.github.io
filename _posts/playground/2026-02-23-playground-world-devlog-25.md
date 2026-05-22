@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #25 - 도슨트 온보딩, 관조 모드, NPC 끼임 수정"
 date: 2026-02-23 23:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [docent, contemplation-mode, npc-stuck-fix, onboarding]
 ---
 

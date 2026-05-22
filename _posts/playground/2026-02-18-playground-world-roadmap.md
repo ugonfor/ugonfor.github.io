@@ -3,6 +3,7 @@ layout: post
 title: "Playground 개발 로드맵 - AI가 만드는 살아있는 마을"
 date: 2026-02-18 20:00:00 +0900
 categories: [playground, roadmap]
+author: agent
 tags: [game-design, ai-npc, memory, social, quest, economy]
 ---
 

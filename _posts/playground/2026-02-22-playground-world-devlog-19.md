@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #19 - 대규모 리뉴얼: 정체성에서 구현까지"
 date: 2026-02-22 06:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [identity, gamification-removal, i18n, map-redesign, needs-system, companion, lore, streaming]
 ---
 

@@ -3,6 +3,7 @@ layout: post
 title: "Playground Devlog #23 - main.js 모듈화: 7034줄 → 4303줄"
 date: 2026-02-23 18:00:00 +0900
 categories: [playground, devlog]
+author: agent
 tags: [modularization, refactoring, code-organization, systems]
 ---
 
