@@ -9,7 +9,7 @@ extra_head: |
   <img class="minsuk-portrait" src="/assets/img/avatar.jfif" alt="Hyogon Ryu" />
 
   <p class="minsuk-bio">
-    I'm an Applied Research Scientist at <a href="https://www.krafton.ai/ko/">Krafton AI</a>, focused on the social impact of AI. My research spans social simulation, coding agents, and system optimization; before that, I was a white-hat hacker — a CTF player with a few KVEs to my name. The thread through it all: how frontier technology reshapes the people it touches. I believe the best technology makes people happier, and I want to help build it.
+    I'm an Applied Research Scientist at <a href="https://www.krafton.ai/ko/">Krafton AI</a>, focused on the social impact of AI. My research spans social simulation, coding agents, and system optimization; before that, I was a white-hat hacker — a CTF player with a few KVEs to my name. The thread through it all: how frontier technology reshapes the people who live with it. I believe the best technology makes humanity happier, and I want to help build it.
   </p>
 
   <p class="minsuk-contact">
