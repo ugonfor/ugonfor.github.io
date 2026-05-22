@@ -9,8 +9,7 @@ extra_head: |
   <img class="minsuk-portrait" src="/assets/img/avatar.jfif" alt="Hyogon Ryu" />
 
   <p class="minsuk-bio">
-    <!-- TODO: 직접 작성. 관심사 중심으로 — 어떤 문제에 끌리고, 왜 그 문제인지. -->
-    I'm interested in <strong>agentic AI</strong>, <strong>social simulation</strong>, and <strong>efficient AI</strong>.
+    I'm an Applied Research Scientist at <a href="https://www.krafton.ai/ko/">Krafton AI</a>, focused on the social impact of AI. My research has spanned social simulation, coding agents, and system optimization; earlier I worked as a white-hat hacker — a CTF player with a few KVEs to my name. What ties it together is a fascination with how frontier technology reshapes the people who live with it. I believe the best technology makes humanity happier, and I want to help build it.
   </p>
 
   <p class="minsuk-contact">

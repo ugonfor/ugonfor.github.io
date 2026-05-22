@@ -4,7 +4,7 @@ layout: default
 
 ## About Me
 
-- I am an Applied Research Engineer at [Krafton AI](https://www.krafton.ai/ko/), where I work on simulation and agent systems.
+- I am an Applied Research Scientist at [Krafton AI](https://www.krafton.ai/ko/), where I work on simulation and agent systems.
 - I completed my M.S. in AI at [KAIST](https://www.kaist.ac.kr/en/) in February 2025, and earned my Bachelor's degree in Cyber Defense from [Korea University](https://www.korea.edu/mbshome/mbs/en/index.do).
 - My current interests are **Agentic AI**, **Social Simulation with AI**, and **Efficient AI**. During my M.S., I focused on efficient deep learning systems and diffusion model quantization. In my undergraduate years, I was active in whitehat hacking and CTF, and served as Vice President of [CyKor](https://ctftime.org/team/369).
 
@@ -12,7 +12,7 @@ layout: default
 
 ### Full-time
 - **[Krafton AI](https://www.krafton.ai/ko/)** (2025.04-Present)
-  - Research Engineer, Simulation AI Team
+  - Research Scientist, Simulation AI Team
   - Working on [inZOI](https://playinzoi.com/en) character simulation and [SmartZoi](https://www.youtube.com/watch?v=Pk9z1upOj3U)
   - Built [Terminus-KIRA](https://github.com/krafton-ai/kira), a coding agent harness achieving 74.8% on [Terminal-Bench](https://www.tbench.ai/leaderboard/terminal-bench/2.0) (Rank #2 Global, Rank #1 with Opus 4.6) — [Tech Blog](https://krafton-ai.github.io/blog/terminus_kira_en/)
 
