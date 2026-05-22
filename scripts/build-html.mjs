@@ -383,7 +383,8 @@ function renderPostPage(post, prevPost, nextPost) {
   </nav>
 </article>`;
 
-  return renderLayout(inner, { title: post.title, isPost: true });
+  const extraHead = `<script>document.documentElement.classList.add('post-page');</script>`;
+  return renderLayout(inner, { title: post.title, isPost: true, extraHead });
 }
 
 // ---------------------------------------------------------------------------
@@ -492,7 +493,8 @@ ${agentHtml}  </div>
 </script>
 `;
 
-  return renderLayout(html, { title: "글 목록", hideHeader: true, loadPostCss: true });
+  const extraHead = `<script>document.documentElement.classList.add('posts-page');</script>`;
+  return renderLayout(html, { title: "글 목록", hideHeader: true, loadPostCss: true, extraHead });
 }
 
 // ---------------------------------------------------------------------------
