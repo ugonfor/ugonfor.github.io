@@ -222,6 +222,7 @@ function scanPosts() {
         const title = data.title || basename(entry, ".md");
         const listed = data.listed || false;
         const author = data.author === "agent" ? "agent" : "human";
+        const thumbnail = data.thumbnail || "";
 
         // URL pattern: /{cat0}/{cat1}/{YYYY}/{MM}/{DD}/{slug}.html
         // slug = filename without date prefix
@@ -239,6 +240,7 @@ function scanPosts() {
           tags,
           listed,
           author,
+          thumbnail,
           url,
           slug,
           markdownContent: content,
@@ -262,6 +264,11 @@ function scanPosts() {
 
 function renderPostPage(post, prevPost, nextPost) {
   const htmlContent = marked.parse(post.markdownContent);
+  const thumbnailHtml = post.thumbnail
+    ? `<figure class="post-thumbnail">
+    <img src="${post.thumbnail}" alt="" loading="eager">
+  </figure>`
+    : "";
 
   // Categories badges
   const categoriesHtml = post.categories.length > 0
@@ -305,6 +312,8 @@ function renderPostPage(post, prevPost, nextPost) {
 
   ${tagsHtml}
 
+  ${thumbnailHtml}
+
   <hr class="post-divider">
 
   <!-- 본문 -->
@@ -323,7 +332,7 @@ function renderPostPage(post, prevPost, nextPost) {
 </article>`;
 
   const extraHead = `<script>document.documentElement.classList.add('post-page');</script>`;
-  return renderLayout(inner, { title: post.title, isPost: true, extraHead });
+  return renderLayout(inner, { title: post.title, isPost: true, extraHead, ogImage: post.thumbnail || undefined });
 }
 
 // ---------------------------------------------------------------------------
@@ -368,8 +377,12 @@ function renderPostGroups(posts, emptyMessage) {
             : "";
 
         const dateStr = `${pad2(p.date.getMonth() + 1)}.${pad2(p.date.getDate())}`;
+        const thumbnail = p.thumbnail
+          ? `<span class="post-list-thumb" style="background-image:url('${p.thumbnail}')"></span>`
+          : "";
         html += `          <li class="post-list-item">
             <a href="${p.url}" class="post-list-link">
+              ${thumbnail}
               <span class="post-list-link-title">${p.title}</span>${badges}
               <span class="post-list-date">${dateStr}</span>
             </a>
@@ -551,6 +564,7 @@ function copyStaticFiles() {
     "assets/files/how-to-use-git.pdf",
     "assets/files/secure-coding-slide.v2.pdf",
     "assets/images/playground-og.png",
+    "assets/images/research",
     "assets/img/avatar.jfif",
     "assets/img/favicon_io",
     "assets/js/favicon-switcher.js",
