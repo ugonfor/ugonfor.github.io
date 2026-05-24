@@ -25,9 +25,6 @@ export const site = {
   favicon: "/assets/img/favicon_io/favicon-32x32.png",
   favicon_dark: "",
 
-  // Font
-  font: "Serif",
-
   // Playground
   playground_llm_api: "https://playground-llm-proxy-733855937288.asia-northeast3.run.app/api/npc-chat",
   playground_turnstile_site_key: "",
@@ -38,26 +35,3 @@ export const site = {
     projectId: "ugonfor-playground-ef32a",
   },
 };
-
-// Publications data — _data/publications.yml 대체
-export const publications = [
-  {
-    title: "DGQ: Distribution-Aware Group Quantization for Text-to-Image Diffusion Models",
-    authors: "<strong>Hyogon Ryu</strong>, NaHyeon Park, Hyunjung Shim",
-    conference_short: "ICLR",
-    conference: 'International Conference on Learning Representations <strong>(ICLR)</strong>, 2025.',
-    pdf: "https://arxiv.org/abs/2501.04304",
-    code: "https://github.com/ugonfor/DGQ",
-    page: "https://ugonfor.kr/DGQ",
-    image: "https://ugonfor.kr/DGQ/static/images/teaser.jpg",
-  },
-  {
-    title: "Memory-Efficient Fine-Tuning for Quantized Diffusion Model",
-    authors: "<strong>Hyogon Ryu</strong>, Seohyun Lim, Hyunjung Shim",
-    conference_short: "ECCV",
-    conference: 'European Conference on Computer Vision <strong>(ECCV)</strong>, 2024.',
-    pdf: "https://arxiv.org/abs/2401.04339",
-    code: "https://github.com/ugonfor/TuneQDM",
-    image: "/assets/img/teaser_TuneQDM.png",
-  },
-];

@@ -2,13 +2,13 @@
 // build-html.mjs — Jekyll을 대체하는 정적 사이트 빌더
 // _posts/ 스캔 → front matter 파싱 → markdown→HTML → dist/에 출력
 
-import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, readdirSync, statSync, rmSync } from "node:fs";
 import { resolve, dirname, basename, join, extname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
 import { marked } from "marked";
 
-import { site, publications } from "./site-config.mjs";
+import { site } from "./site-config.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -84,12 +84,6 @@ function renderLayout(content, opts = {}) {
     titleTag = `${title} | ${site.title}`;
   }
 
-  // Font stylesheet
-  const fontCss =
-    site.font === "Sans Serif"
-      ? `<link rel="stylesheet" href="/assets/css/font_sans_serif.css?v=${BUILD_TS}">`
-      : `<link rel="stylesheet" href="/assets/css/font.css?v=${BUILD_TS}">`;
-
   // Post CSS (for post layout or pages with load_post_css)
   const postCss =
     isPost || loadPostCss
@@ -150,9 +144,8 @@ function renderLayout(content, opts = {}) {
 
     <!-- 공통 스타일시트 -->
     <link rel="stylesheet" href="/assets/css/top-menu.css?v=${BUILD_TS}">
-    ${fontCss}
+    <link rel="stylesheet" href="/assets/css/font.css?v=${BUILD_TS}">
     <link rel="stylesheet" href="/assets/css/style-no-dark-mode.css?v=${BUILD_TS}">
-    <link rel="stylesheet" href="/assets/css/publications-no-dark-mode.css?v=${BUILD_TS}">
     <link rel="stylesheet" href="/assets/css/custom-theme.css?v=${BUILD_TS}">
 
     ${extraHead || ""}${postCss}
@@ -189,60 +182,6 @@ function renderLayout(content, opts = {}) {
     <script>mermaid.initialize({startOnLoad:true, theme:'neutral', securityLevel:'loose'});</script>
   </body>
 </html>
-`;
-}
-
-// ---------------------------------------------------------------------------
-// Publications renderer — reproduces _includes/publications.md
-// ---------------------------------------------------------------------------
-
-function renderPublications() {
-  let html = `<h2 id="publications" style="margin: 2px 0px -15px;">Publications</h2>\n\n<div class="publications">\n<ol class="bibliography">\n`;
-
-  for (const pub of publications) {
-    html += `\n<li>\n<div class="pub-row">\n`;
-    html += `  <div class="col-sm-3 abbr" style="position: relative;padding-right: 15px;padding-left: 15px;">\n`;
-    if (pub.image) {
-      html += `    <img src="${pub.image}" class="teaser img-fluid z-depth-1" style="width=100;height=40%">\n`;
-      if (pub.conference_short) {
-        html += `    <abbr class="badge">${pub.conference_short}</abbr>\n`;
-      }
-    }
-    html += `  </div>\n`;
-    html += `  <div class="col-sm-9" style="position: relative;padding-right: 15px;padding-left: 20px;">\n`;
-    html += `      <div class="title"><a href="${pub.pdf}">${pub.title}</a></div>\n`;
-    html += `      <div class="author">${pub.authors}</div>\n`;
-    html += `      <div class="periodical"><em>${pub.conference}</em>\n      </div>\n`;
-    html += `    <div class="links">\n`;
-    if (pub.pdf) html += `      <a href="${pub.pdf}" class="btn btn-sm z-depth-0" role="button" target="_blank" style="font-size:12px;">PDF</a>\n`;
-    if (pub.code) html += `      <a href="${pub.code}" class="btn btn-sm z-depth-0" role="button" target="_blank" style="font-size:12px;">Code</a>\n`;
-    if (pub.page) html += `      <a href="${pub.page}" class="btn btn-sm z-depth-0" role="button" target="_blank" style="font-size:12px;">Project Page</a>\n`;
-    if (pub.bibtex) html += `      <a href="${pub.bibtex}" class="btn btn-sm z-depth-0" role="button" target="_blank" style="font-size:12px;">BibTex</a>\n`;
-    html += `    </div>\n  </div>\n</div>\n</li>\n<br>\n`;
-  }
-
-  html += `\n</ol>\n</div>\n`;
-  return html;
-}
-
-// ---------------------------------------------------------------------------
-// Services renderer — reproduces _includes/services.md
-// ---------------------------------------------------------------------------
-
-function renderServices() {
-  return `<h2 id="services">Services</h2>
-
-<h4 style="margin:0 10px 0;">Conference Reviewers</h4>
-
-<ul style="margin:0 0 5px;">
-  <li><autocolor>ICLR: 2025</autocolor></li>
-</ul>
-
-<h4 style="margin:0 10px 0;">Journal Reviewers</h4>
-
-<ul style="margin:0 0 20px;">
-  <li><a href="https://www.computer.org/csdl/journal/tp"><autocolor>IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI)</autocolor></a></li>
-</ul>
 `;
 }
 
@@ -534,21 +473,6 @@ function buildAboutRedirect() {
 `;
 }
 
-function buildAboutPage() {
-  const raw = readSrc("about/index.md");
-  const { content } = matter(raw);
-
-  // Process includes: {% include publications.md %} and {% include services.md %}
-  let md = content;
-  md = md.replace(/\{%\s*include\s+publications\.md\s*%\}/g, renderPublications());
-  md = md.replace(/\{%\s*include\s+services\.md\s*%\}/g, renderServices());
-
-  const htmlContent = marked.parse(md);
-
-  const aboutExtraHead = `<script>document.documentElement.classList.add('about-page');</script>`;
-  return renderLayout(htmlContent, { extraHead: aboutExtraHead });
-}
-
 function buildPlaygroundPage() {
   const raw = readSrc("playground/index.md");
   const { data, content } = matter(raw);
@@ -616,13 +540,31 @@ function buildPlaygroundPage() {
 // ---------------------------------------------------------------------------
 
 function copyStaticFiles() {
-  // Copy assets/ → dist/assets/ (skip .scss files)
-  const assetsSrc = resolve(ROOT, "assets");
-  if (existsSync(assetsSrc)) {
-    cpSync(assetsSrc, resolve(DIST, "assets"), {
-      recursive: true,
-      filter: (src) => !src.endsWith(".scss"),
-    });
+  const assetPaths = [
+    "assets/css/custom-theme.css",
+    "assets/css/font.css",
+    "assets/css/landing.css",
+    "assets/css/post.css",
+    "assets/css/style-no-dark-mode.css",
+    "assets/css/top-menu.css",
+    "assets/files/CV_HyogonRyu.pdf",
+    "assets/files/how-to-use-git.pdf",
+    "assets/files/secure-coding-slide.v2.pdf",
+    "assets/images/playground-og.png",
+    "assets/img/avatar.jfif",
+    "assets/img/favicon_io",
+    "assets/js/favicon-switcher.js",
+  ];
+
+  for (const relPath of assetPaths) {
+    const srcPath = resolve(ROOT, relPath);
+    if (!existsSync(srcPath)) {
+      continue;
+    }
+
+    const destPath = resolve(DIST, relPath);
+    ensureDir(dirname(destPath));
+    cpSync(srcPath, destPath, { recursive: true });
   }
 
   // Copy individual files
@@ -647,6 +589,7 @@ function copyStaticFiles() {
 console.log("\n🔨 Building site...\n");
 
 // 1. Clean & create dist
+rmSync(DIST, { recursive: true, force: true });
 ensureDir(DIST);
 
 // 2. Copy static files first
@@ -656,7 +599,7 @@ copyStaticFiles();
 // 3. Build static pages
 console.log("[2/5] Building static pages...");
 writeDist("index.html", buildHomePage());
-writeDist("about/index.html", buildAboutPage());
+writeDist("about/index.html", buildAboutRedirect());
 writeDist("playground/index.html", buildPlaygroundPage());
 
 // 4. Scan and build posts
