@@ -270,7 +270,7 @@
 
 .post-list-link {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
   padding: 7px 0;
   text-decoration: none;
@@ -280,7 +280,7 @@
 .post-list-link:hover .post-list-link-title { text-decoration: underline; }
 
 .post-list-thumb {
-  width: 64px;
+  width: 128px;
   aspect-ratio: 16 / 9;
   flex: 0 0 auto;
   align-self: center;
