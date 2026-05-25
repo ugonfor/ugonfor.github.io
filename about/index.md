@@ -5,34 +5,23 @@ hide_header: true
 ---
 
 <div class="about-profile">
-  <img class="about-profile-photo" src="/assets/img/avatar.jfif" alt="Hyogon Ryu" />
+<img class="about-profile-photo" src="/assets/img/avatar.jfif" alt="Hyogon Ryu" />
 
-  <div class="about-profile-copy">
-    <h1>Hyogon Ryu</h1>
-    <p class="about-profile-role">Applied Research Scientist, Krafton AI</p>
-    <p class="about-profile-links">
-      <a href="mailto:hyogon.ryu@kaist.ac.kr">Email</a> /
-      <a href="/assets/files/CV_HyogonRyu.pdf">CV</a> /
-      <a href="https://scholar.google.com/citations?user=Xq5B3LQAAAAJ">Google Scholar</a> /
-      <a href="https://github.com/ugonfor">GitHub</a> /
-      <a href="https://www.linkedin.com/in/hyogon-ryu/">LinkedIn</a>
-    </p>
+<div class="about-profile-copy">
+<h1>Hyogon Ryu</h1>
+<p class="about-profile-role">Applied Research Scientist, Krafton AI</p>
+<p class="about-profile-links">
+<a href="mailto:hyogon.ryu@kaist.ac.kr">Email</a> /
+<a href="/assets/files/CV_HyogonRyu.pdf">CV</a> /
+<a href="https://scholar.google.com/citations?user=Xq5B3LQAAAAJ">Google Scholar</a> /
+<a href="https://github.com/ugonfor">GitHub</a> /
+<a href="https://www.linkedin.com/in/hyogon-ryu/">LinkedIn</a>
+</p>
 
-    <p>
-      I am an Applied Research Scientist at <a href="https://www.krafton.ai/ko/">Krafton AI</a>,
-      where I work on simulation and agent systems. My current interests are
-      <strong>agentic AI</strong>, <strong>social simulation</strong>, and
-      <strong>efficient AI systems</strong>.
-    </p>
+<p>I am an Applied Research Scientist at <a href="https://www.krafton.ai/ko/">Krafton AI</a>, where I work on simulation and agent systems. My current interests are <strong>agentic AI</strong>, <strong>social simulation</strong>, and <strong>efficient AI systems</strong>.</p>
 
-    <p>
-      I completed my M.S. in AI at <a href="https://www.kaist.ac.kr/en/">KAIST</a>
-      in February 2025, advised by Prof. Hyunjung Shim, and earned my B.S. in
-      Cyber Defense from <a href="https://www.korea.edu/mbshome/mbs/en/index.do">Korea University</a>.
-      Before working on agents and simulation, I was active in white-hat hacking
-      and CTFs as a member and vice president of <a href="https://ctftime.org/team/369">CyKor</a>.
-    </p>
-  </div>
+<p>I completed my M.S. in AI at <a href="https://www.kaist.ac.kr/en/">KAIST</a> in February 2025, advised by Prof. Hyunjung Shim, and earned my B.S. in Cyber Defense from <a href="https://www.korea.edu/mbshome/mbs/en/index.do">Korea University</a>. Before working on agents and simulation, I was active in white-hat hacking and CTFs as a member and vice president of <a href="https://ctftime.org/team/369">CyKor</a>.</p>
+</div>
 </div>
 
 ## Research Interests
