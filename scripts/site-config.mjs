@@ -4,7 +4,7 @@
 export const site = {
   // Basic Information
   title: "Hyogon Ryu",
-  position: "Applied Research Engineer",
+  position: "Applied Research Scientist",
   affiliation: "Krafton AI",
   affiliation_link: "https://www.krafton.ai/ko/",
   email: "hyogon.ryu (at) kaist.ac.kr",

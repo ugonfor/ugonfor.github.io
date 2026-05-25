@@ -486,6 +486,20 @@ function buildAboutRedirect() {
 `;
 }
 
+function buildAboutPage() {
+  const raw = readSrc("about/index.md");
+  const { content } = matter(raw);
+  const htmlContent = marked.parse(content);
+
+  const extraHead = `<script>document.documentElement.classList.add('about-page');</script>`;
+  return renderLayout(htmlContent, {
+    title: "About",
+    hideHeader: true,
+    extraHead,
+    ogDescription: "Background, research interests, publications, and work history for Hyogon Ryu.",
+  });
+}
+
 function buildPlaygroundPage() {
   const raw = readSrc("playground/index.md");
   const { data, content } = matter(raw);
@@ -613,7 +627,7 @@ copyStaticFiles();
 // 3. Build static pages
 console.log("[2/5] Building static pages...");
 writeDist("index.html", buildHomePage());
-writeDist("about/index.html", buildAboutRedirect());
+writeDist("about/index.html", buildAboutPage());
 writeDist("playground/index.html", buildPlaygroundPage());
 
 // 4. Scan and build posts

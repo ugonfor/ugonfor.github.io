@@ -146,6 +146,52 @@ th { font-weight: 600; }
 small { font-size: 0.85em; color: var(--muted); }
 
 /* ============================================================
+   About page — compact academic profile
+   ============================================================ */
+
+.about-profile {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 30px;
+  align-items: start;
+  margin: 12px 0 28px;
+}
+
+.about-profile-photo {
+  width: 170px;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 2px;
+  border: 1px solid var(--line-soft);
+}
+
+.about-profile-copy h1 {
+  margin: 0 0 4px;
+  font-size: 1.8em;
+  line-height: 1.15;
+}
+
+.about-profile-role {
+  margin: 0 0 4px;
+  color: var(--ink-soft);
+}
+
+.about-profile-links {
+  margin: 0 0 16px;
+  font-size: 0.95em;
+}
+
+html.about-page h2 {
+  margin-top: 1.55em;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+html.about-page li {
+  margin: 0.28em 0;
+}
+
+/* ============================================================
    Footer — small "&copy; year name" line
    ============================================================ */
 
@@ -174,4 +220,11 @@ footer p {
 /* responsive */
 @media (max-width: 640px) {
   .wrapper { margin: 32px auto 24px; }
+  .about-profile {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .about-profile-photo {
+    width: 140px;
+  }
 }
