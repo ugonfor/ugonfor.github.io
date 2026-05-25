@@ -1,5 +1,5 @@
 /* ============================================================
-   minsukchang.com-style minimal: Charter serif on white,
+   Site theme: Charter serif on white,
    blue links, page-flow nav, narrow column.
    ============================================================ */
 
@@ -146,7 +146,7 @@ th { font-weight: 600; }
 small { font-size: 0.85em; color: var(--muted); }
 
 /* ============================================================
-   About page: compact academic profile
+   About page: compact profile
    ============================================================ */
 
 .about-profile {

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   Background Effect — Constellation Particles
+   Background Effect: Constellation Particles
    (Mobile-optimized)
    ═══════════════════════════════════════════ */
 (function () {
