@@ -6,7 +6,7 @@ export const site = {
   title: "Hyogon Ryu",
   position: "Applied Research Scientist",
   affiliation: "Krafton AI",
-  affiliation_link: "https://www.krafton.ai/ko/",
+  affiliation_link: "https://www.krafton.ai/en/",
   email: "ugonfor@gmail.com",
 
   // SEO
