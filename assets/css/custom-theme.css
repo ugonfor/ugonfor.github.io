@@ -1,5 +1,5 @@
 /* ============================================================
-   minsukchang.com-style minimal — Charter serif on white,
+   minsukchang.com-style minimal: Charter serif on white,
    blue links, page-flow nav, narrow column.
    ============================================================ */
 
@@ -35,7 +35,7 @@ body::after { display: none !important; content: none !important; }
   display: block;
 }
 
-/* Wider columns on About / Writing pages — keep top nav aligned with body */
+/* Wider columns on About / Writing pages: keep top nav aligned with body */
 html.about-page .wrapper { max-width: 1180px; }
 html.post-page .wrapper { max-width: 760px; }
 html.posts-page .wrapper { max-width: 820px; }
@@ -56,7 +56,7 @@ section {
   animation: none;
 }
 
-/* Site header is hidden on all pages — the inline nav above handles identity. */
+/* Site header is hidden on all pages: the inline nav above handles identity. */
 header { display: none !important; }
 
 /* ============================================================
@@ -146,7 +146,7 @@ th { font-weight: 600; }
 small { font-size: 0.85em; color: var(--muted); }
 
 /* ============================================================
-   About page — compact academic profile
+   About page: compact academic profile
    ============================================================ */
 
 .about-profile {
@@ -214,7 +214,7 @@ html.about-page ul {
 }
 
 /* ============================================================
-   Footer — small "&copy; year name" line
+   Footer: small "&copy; year name" line
    ============================================================ */
 
 footer {

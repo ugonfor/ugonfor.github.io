@@ -1,4 +1,4 @@
-// site-config.mjs — _config.yml 대체
+// site-config.mjs: _config.yml 대체
 // Jekyll 설정을 JS 객체로 이전
 
 export const site = {

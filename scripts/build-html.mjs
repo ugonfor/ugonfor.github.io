@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// build-html.mjs — Jekyll을 대체하는 정적 사이트 빌더
+// build-html.mjs: Jekyll을 대체하는 정적 사이트 빌더
 // _posts/ 스캔 → front matter 파싱 → markdown→HTML → dist/에 출력
 
 import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, readdirSync, statSync, rmSync } from "node:fs";
@@ -59,7 +59,7 @@ function writeDist(relPath, content) {
 }
 
 // ---------------------------------------------------------------------------
-// Layout renderer — reproduces _layouts/default.html
+// Layout renderer: reproduces _layouts/default.html
 // ---------------------------------------------------------------------------
 
 /**
@@ -280,7 +280,7 @@ function renderPostPage(post, prevPost, nextPost) {
     ? `<div class="post-tags">\n      ${post.tags.map((t) => `<span class="post-tag">#${t}</span>`).join("\n      ")}\n    </div>`
     : "";
 
-  // Prev/next nav — NOTE: Jekyll's previous/next is chronologically adjacent
+  // Prev/next nav: Jekyll's previous/next is chronologically adjacent
   // In Jekyll, "previous" = older post, "next" = newer post
   const prevNav = prevPost
     ? `<a href="${prevPost.url}" class="post-nav-card post-nav-prev">
@@ -473,7 +473,7 @@ function buildAboutRedirect() {
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <title>About — ${site.title}</title>
+    <title>About: ${site.title}</title>
     <link rel="canonical" href="${site.canonical}/">
     <meta http-equiv="refresh" content="0; url=/">
     <meta name="robots" content="noindex">

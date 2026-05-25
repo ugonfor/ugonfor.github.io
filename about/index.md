@@ -33,8 +33,8 @@ hide_header: true
 
 ## Research and Professional Work
 
-- **SmartZoi** — character simulation work for inZOI at Krafton AI, focused on making game characters behave more believably through AI-driven simulation. [Video](https://www.youtube.com/watch?v=Pk9z1upOj3U)
-- **Terminus-KIRA** — coding-agent harness built at Krafton AI by a task force in about one month. It reached 74.8% on Terminal-Bench 2.0, ranked #2 globally and #1 with Opus 4.6. [Project](https://github.com/krafton-ai/kira) / [Tech Blog](https://www.krafton.ai/blog/posts/2026-02-20-terminus_kira/terminus-en.html)
+- **SmartZoi**: character simulation work for inZOI at Krafton AI, focused on making game characters behave more believably through AI-driven simulation. [Video](https://www.youtube.com/watch?v=Pk9z1upOj3U)
+- **Terminus-KIRA**: coding-agent harness built at Krafton AI by a task force in about one month. It reached 74.8% on Terminal-Bench 2.0, ranked #2 globally and #1 with Opus 4.6. [Project](https://github.com/krafton-ai/kira) / [Tech Blog](https://www.krafton.ai/blog/posts/2026-02-20-terminus_kira/terminus-en.html)
 - **DGQ: Distribution-Aware Group Quantization for Text-to-Image Diffusion Models**  
   Hyogon Ryu, NaHyeon Park, Hyunjung Shim. ICLR 2025. [Paper](https://arxiv.org/abs/2501.04304) / [Code](https://github.com/ugonfor/DGQ)
 - **Memory-Efficient Fine-Tuning for Quantized Diffusion Model**  
@@ -42,7 +42,7 @@ hide_header: true
 
 ## Side Projects
 
-- **Playground / ai-npc-world** — a small open-world village on this homepage whose AI NPCs remember visitors. `ai-npc-world` is the lightweight package split out while building Playground. [Playground](/playground) / [GitHub](https://github.com/ugonfor/ai-npc-world)
+- **Playground / ai-npc-world**: a small open-world village on this homepage whose AI NPCs remember visitors. `ai-npc-world` is the lightweight package split out while building Playground. [Playground](/playground) / [GitHub](https://github.com/ugonfor/ai-npc-world)
 
 ## Experience
 
