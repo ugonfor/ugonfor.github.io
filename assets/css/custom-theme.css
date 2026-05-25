@@ -192,21 +192,21 @@ small { font-size: 0.85em; color: var(--muted); }
 }
 
 html.about-page section {
-  font-size: 1.08em;
-  line-height: 1.42;
+  font-size: 1.01em;
+  line-height: 1.4;
 }
 
 html.about-page h2 {
-  margin: 2.25em 0 0.75em;
-  padding-bottom: 8px;
+  margin: 2em 0 0.62em;
+  padding-bottom: 7px;
   border-bottom: 2px solid var(--line-soft);
-  font-size: 1.45em;
+  font-size: 1.32em;
   line-height: 1.2;
 }
 
 html.about-page li {
-  margin: 0.42em 0;
-  line-height: 1.42;
+  margin: 0.32em 0;
+  line-height: 1.4;
 }
 
 html.about-page ul {
