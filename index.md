@@ -13,7 +13,7 @@ extra_head: |
   </p>
 
   <p class="minsuk-contact">
-    Background, publications, and work history live on the <a href="/about">About</a> page. Reach me at <a href="mailto:hyogon.ryu@kaist.ac.kr">hyogon.ryu (at) kaist.ac.kr</a>.
+    Background, publications, and work history live on the <a href="/about">About</a> page. Reach me at <a href="mailto:ugonfor@gmail.com">ugonfor@gmail.com</a>.
   </p>
 
   <p class="minsuk-updated">

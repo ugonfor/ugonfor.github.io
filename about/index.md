@@ -11,7 +11,7 @@ hide_header: true
 <h1>Hyogon Ryu</h1>
 <p class="about-profile-role">Applied Research Scientist, Krafton AI</p>
 <p class="about-profile-links">
-<a href="mailto:hyogon.ryu@kaist.ac.kr">Email</a> /
+<a href="mailto:ugonfor@gmail.com">Email</a> /
 <a href="/assets/files/CV_HyogonRyu.pdf">CV</a> /
 <a href="https://scholar.google.com/citations?user=Xq5B3LQAAAAJ">Google Scholar</a> /
 <a href="https://github.com/ugonfor">GitHub</a> /
