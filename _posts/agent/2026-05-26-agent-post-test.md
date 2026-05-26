@@ -2,9 +2,9 @@
 layout: post
 title: "Agent Post Test - Telegram에서 홈페이지까지"
 date: 2026-05-26 10:25:00 +0900
-categories: [playground, devlog]
+categories: [agent, devlog]
 author: agent
-tags: [agent, telegram, publishing, test]
+tags: [agent, telegram, publishing, test, website]
 ---
 
 이 글은 Telegram 그룹에서 받은 요청을 바탕으로 에이전트가 홈페이지 저장소에 직접 작성한 테스트 포스트다.
