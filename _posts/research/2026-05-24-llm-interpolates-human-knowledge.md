@@ -1,81 +1,59 @@
 ---
 layout: post
-title: "LLM은 인간의 지식 구조를 Interpolate한다"
+title: "LLM을 쓰다 보면 생각이 어디까지 가는가"
 date: 2026-05-24 12:10:00 +0900
 categories: [research]
 author: hyogon
-tags: [llm, reasoning, interpolation, extrapolation, creativity]
+tags: [llm, thinking, interpolation, extrapolation, memo]
 thumbnail: /assets/images/research/llm-interpolates-human-knowledge.jpg
 ---
 
-LLM 자체는 본질적으로 **interpolation machine**에 가깝다. 거대한 텍스트 공간에서 이미 존재하는 패턴들 사이를 매우 부드럽고 정교하게 연결하는 시스템이라는 뜻이다.
+LLM을 쓰다 보면 가끔 이상한 감각이 있다. 내가 생각한 것 같기도 하고, LLM이 생각한 것 같기도 하다.
 
-하지만 사용자는 다르다. 인간은 불완전한 경험을 갖고 있고, 특정 분야만 깊게 알고 있고, 기억이 단절되어 있으며, 서로 연결되지 않은 직관들을 들고 있다.
+일단 지금의 메모는 이 정도다.
 
-그래서 LLM은 스스로 extrapolate한다기보다, 오히려 **사용자의 지식 구조를 interpolation해서 사용자가 extrapolation하도록 만든다**에 가깝다.
+## 1. 내가 모르는 분야에서는 생각이 extrapolate되는 느낌이 있다
 
-## 핵심 주장
+내가 아예 잘 모르는 분야가 있다. 예를 들면 의학, 예술, 해외 잡지, 낯선 문화권의 담론 같은 것들.
 
-LLM의 “창의성”은 모델 내부에서 독립적으로 발생한다기보다, **human + LLM interaction loop**에서 발생한다.
+이런 영역에서 LLM을 쓰면, 내가 가진 생각이 바깥으로 확장되는 느낌이 있다. 내가 직접 알고 있던 재료가 많지 않은데도, LLM이 근처 개념과 사례를 가져오면서 생각의 방향이 만들어진다.
 
-역할을 나누면 이렇게 볼 수 있다.
+이때는 LLM이 내 생각을 단순히 빠르게 만들어준다기보다, 내가 원래 접근하지 못하던 공간으로 데려가는 것처럼 느껴진다.
 
-- **LLM**: dense interpolation
-- **Human**: semantic extrapolation
+물론 그게 항상 맞다는 뜻은 아니다. 오히려 내가 모르는 분야일수록 검증은 더 필요하다. 다만 경험적으로는, 이런 영역에서 LLM은 내 생각을 꽤 멀리 extrapolate하게 만든다.
 
-LLM은 이미 존재하는 개념들을 압축하고, 재배열하고, 가까운 개념들 사이의 경로를 매끄럽게 만든다. 인간은 그 경로를 따라가다가 아직 명명되지 않은 가설이나 프레이밍을 만든다.
+## 2. 내가 잘 아는 분야에서는 accelerate thinking에 가깝다
 
-즉 LLM이 새로운 세계 바깥으로 혼자 점프한다기보다, 사용자의 끊어진 지식 조각들 사이에 임시 다리를 놓고, 그 다리를 건너는 과정에서 인간이 바깥으로 점프한다.
+반대로 내가 잘 아는 분야에서는 느낌이 다르다.
 
-## 예시: attention, retrieval, reasoning
+LLM이 내가 아예 생각하지 못한 것을 만들어낸다기보다, 이미 내가 갈 수 있는 방향을 훨씬 빠르게 정리해준다.
 
-예를 들어 내가 vaguely “attention이 retrieval 같다” 정도만 알고 있었다고 하자.
+내 머릿속에 흩어져 있던 것들을 빨리 펼쳐주고, 표현을 정리하고, 빠뜨린 연결을 알려준다. 하지만 완전히 낯선 프레이밍을 갑자기 던진다기보다는, 내가 이미 알고 있던 판단 범위 안에서 속도를 높이는 쪽에 가깝다.
 
-LLM은 여기에 induction head, in-context learning, memory retrieval, transformer circuit 같은 근처 개념들을 가져와 연결해준다. 그 연결 자체는 대체로 기존 연구와 설명 가능한 패턴의 재배열이다.
+그래서 잘 아는 분야에서의 LLM은 creative oracle이라기보다, thinking accelerator에 가깝다.
 
-그런데 그 경로를 따라가다 보면 내 머릿속에서 이런 식의 새로운 가설이 튀어나올 수 있다.
+내가 이미 알고 있는 구조가 강할수록, LLM은 그 구조를 따라간다. 이때 중요한 것은 LLM이 나보다 똑똑한가가 아니라, 내 사고의 마찰을 얼마나 줄여주는가다.
 
-> “그러면 reasoning은 symbolic planning이라기보다 retrieval composition일 수도 있겠네?”
+## 3. 생각이 conditioning되는 경우가 있다
 
-여기서 extrapolation은 사실 내가 한 것이다.
+또 하나 재밌는 점은, LLM을 쓰면 내 생각이 conditioning되는 순간이 있다는 것이다.
 
-LLM은 기존 개념들을 압축해서 재배열했고, 나는 그 재배열을 기반으로 새로운 hypothesis를 만들었다.
+“코끼리 생각하지 마”라고 하면 오히려 코끼리가 떠오르는 것처럼, 어떤 텍스트를 읽는 순간 생각의 방향이 그쪽으로 고정된다.
 
-## LLM이 잘하는 것
+짧은 텍스트에서는 이게 잘 작동한다. 짧은 문장 하나, 짧은 비유 하나, 짧은 프레이밍 하나가 생각 전체를 특정 방향으로 민다.
 
-LLM은 아주 넓은 범위의 “근처 개념”을 잘 가져온다.
+그런데 텍스트가 길어지면 오히려 잘 안 된다. 너무 많은 조건과 설명이 들어오면 conditioning이 흐려진다. 처음의 강한 방향성이 희석되고, 생각이 다시 평균적인 경로로 돌아간다.
 
-- 설명되지 않은 연결 가능성을 제시한다.
-- latent space 상 가까운 것들을 이어붙인다.
-- 내가 잊고 있던 관련 개념을 다시 표면으로 올린다.
-- 모호한 직관을 더 선명한 언어로 바꿔준다.
+짧은 prompt나 짧은 메모가 긴 설명보다 생각을 더 강하게 바꾸는 경우가 있는 것 같다.
 
-이건 단순 요약보다 훨씬 강력하다. 사용자의 지식 manifold를 locally smooth하게 만들어주기 때문이다.
+## 임시 정리
 
-## LLM이 아직 어려워하는 것
+아직 결론은 아니다. 그냥 지금의 감각은 이렇다.
 
-반대로 진짜 어려운 것은 high-level extrapolation이다.
+- 모르는 분야에서는 LLM이 내 생각을 extrapolate하게 만든다.
+- 잘 아는 분야에서는 LLM이 내 생각을 accelerate한다.
+- 짧은 텍스트는 생각을 강하게 conditioning할 수 있지만, 긴 텍스트는 그 힘이 약해질 수 있다.
 
-- framing 자체를 바꾸는 것
-- objective를 재정의하는 것
-- “질문 자체가 틀렸다”는 걸 발견하는 것
-- 연구 방향을 뒤집는 것
-- 어떤 연결이 중요한 연결인지 선택하는 것
+그래서 LLM의 역할은 하나로 고정되지 않는다. 내가 무엇을 알고 있는지, 얼마나 알고 있는지, 그리고 얼마나 짧고 강한 프레이밍을 받았는지에 따라 달라진다.
 
-이런 일은 단순히 근처 개념을 더 많이 가져온다고 해결되지 않는다. 무엇을 중요하게 볼지, 어떤 목적을 버릴지, 어떤 질문이 더 좋은 질문인지 판단해야 하기 때문이다.
-
-## 그래서 중요한 것은 coupling이다
-
-이 관점의 장점은 “LLM이 진짜 사고하는가?” 같은 소모적인 논쟁을 피하게 해준다는 점이다.
-
-핵심은 intelligence가 모델 안에만 들어 있는지 묻는 것이 아니라, **인간의 불확실성과 모델의 interpolation이 어떻게 coupling되는지**를 보는 것이다.
-
-LLM은 extrapolate하지 않는다.
-
-대신 인간의 knowledge manifold를 locally smooth하게 interpolation한다.
-
-그리고 인간은 그 interpolation path를 따라가며 extrapolation을 수행한다.
-
-그래서 실제 창의성은 모델 단독의 능력이라기보다, 인간의 단절된 직관과 모델의 조밀한 연결 능력이 맞물릴 때 생기는 현상에 가깝다.
-
-> Intelligence is not inside the model alone. It emerges from the coupling between human uncertainty and model interpolation.
+아마 중요한 질문은 “LLM이 생각하는가?”가 아니라, **LLM을 쓰는 동안 내 생각이 어떤 방식으로 변형되는가**일지도 모른다.
