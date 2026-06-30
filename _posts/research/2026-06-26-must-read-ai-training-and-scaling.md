@@ -4,7 +4,7 @@ title: "Must Read Articles: AI Training, Scaling, and Reasoning"
 date: 2026-06-26 16:02:16 +0900
 categories: [research, reading-list]
 author: hyogon
-tags: [must-read, llm, training, scaling, moe, reasoning, agents, open-science, synthetic-data, small-models]
+tags: [must-read, llm, training, scaling, moe, reasoning, agents, open-science, synthetic-data, small-models, hardware, roofline]
 ---
 
 앞으로 전달받는 must-read article을 한 페이지에 계속 모아두기 위한 목록이다. 단순 북마크가 아니라, 나중에 글을 쓸 때 바로 꺼내 쓸 수 있도록 **주제별로 분류**하고, 각 글이 어떤 질문에 닿아 있는지 짧게 남긴다.
@@ -20,6 +20,10 @@ LLM을 실제로 크게 학습시키려면 모델 구조보다 먼저 병렬화,
 - [The Smol Training Playbook — Finding the Optimal Parallelism Configuration](https://huggingface.co/spaces/HuggingFaceTB/smol-training-playbook#finding-the-optimal-parallelism-configuration)
   - 키워드: small but strong models, optimal parallelism, training recipe, compute efficiency.
   - 읽을 이유: “큰 모델을 무조건 크게”가 아니라, 주어진 자원에서 어떤 병렬화 구성이 효율적인지 찾는 감각을 준다.
+
+- [All About Rooflines — How To Scale Your Model](https://jax-ml.github.io/scaling-book/roofline/)
+  - 키워드: roofline model, OPs/sec, memory bandwidth, network bandwidth, arithmetic intensity, TPU/GPU performance bounds.
+  - 읽을 이유: 대규모 학습 병렬화를 이해하기 전에 “연산이 느린가, 메모리 이동이 느린가, 네트워크가 느린가”를 구분하는 기본 좌표계다. matmul과 network communication roofline을 함께 다뤄서, 이후 TPUs·sharded matmul·transformer training을 읽기 위한 입구로 좋다.
 
 - [Scalable Training of Mixture-of-Experts Models with Megatron Core](https://arxiv.org/html/2603.07685v2)
   - 키워드: MoE training, Megatron Core, memory/communication/computation co-design, Parallel Folding, FP8/NVFP4, long-context training.
@@ -95,12 +99,12 @@ MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제
 
 ## 현재 읽기 지도
 
-- **시스템 관점**: Ultra-Scale Playbook → Smol Training Playbook → Megatron Core MoE → Open Athena Iris
+- **시스템 관점**: JAX Scaling Book Rooflines → Ultra-Scale Playbook → Smol Training Playbook → Megatron Core MoE → Open Athena Iris
 - **모델 사례 관점**: DeepSeek-V3 → Megatron Core MoE → Open Athena Pretraining Efficiency → Quantile Balancing
 - **scaling law 관점**: Lilian Weng Scaling Laws → Open Athena Delphi → Problems with Chinchilla Approach 2
 - **reasoning 관점**: Tufa Labs synthetic pretraining → MAI Thinking 1 → The Second Half
 - **공개 연구 관점**: The Second Half → Open Athena Blog → Open Development of Frontier AI
-- **글감 관점**: “MoE는 모델 아키텍처가 아니라 클러스터 운영 철학에 가깝다”, “스케일링 법칙은 숫자 공식보다 fit 설계와 compute allocation 철학이다”, “reasoning 향상은 모델 크기뿐 아니라 synthetic data curriculum의 문제일 수 있다”, “후반전의 병목은 pretraining보다 inference-time search와 interaction일 수 있다”
+- **글감 관점**: “MoE는 모델 아키텍처가 아니라 클러스터 운영 철학에 가깝다”, “성능 병목은 FLOPs가 아니라 memory/network roofline에서 먼저 드러날 수 있다”, “스케일링 법칙은 숫자 공식보다 fit 설계와 compute allocation 철학이다”, “reasoning 향상은 모델 크기뿐 아니라 synthetic data curriculum의 문제일 수 있다”, “후반전의 병목은 pretraining보다 inference-time search와 interaction일 수 있다”
 
 ## 업데이트 규칙
 
