@@ -4,7 +4,7 @@ title: "Must Read Articles: AI Training, Scaling, and Reasoning"
 date: 2026-06-26 16:02:16 +0900
 categories: [research, reading-list]
 author: hyogon
-tags: [must-read, llm, training, scaling, moe, reasoning, agents, open-science]
+tags: [must-read, llm, training, scaling, moe, reasoning, agents, open-science, synthetic-data, small-models]
 ---
 
 앞으로 전달받는 must-read article을 한 페이지에 계속 모아두기 위한 목록이다. 단순 북마크가 아니라, 나중에 글을 쓸 때 바로 꺼내 쓸 수 있도록 **주제별로 분류**하고, 각 글이 어떤 질문에 닿아 있는지 짧게 남긴다.
@@ -22,8 +22,8 @@ LLM을 실제로 크게 학습시키려면 모델 구조보다 먼저 병렬화,
   - 읽을 이유: “큰 모델을 무조건 크게”가 아니라, 주어진 자원에서 어떤 병렬화 구성이 효율적인지 찾는 감각을 준다.
 
 - [Scalable Training of Mixture-of-Experts Models with Megatron Core](https://arxiv.org/html/2603.07685v2)
-  - 키워드: MoE training, Megatron Core, memory/communication/computation co-design, FP8/NVFP4, long-context training.
-  - 읽을 이유: MoE를 수천 GPU 규모로 학습할 때 생기는 병목과 최적화를 NVIDIA/Megatron Core 관점에서 정리한 기술 보고서.
+  - 키워드: MoE training, Megatron Core, memory/communication/computation co-design, Parallel Folding, FP8/NVFP4, long-context training.
+  - 읽을 이유: MoE를 수천 GPU 규모로 학습할 때 생기는 병목과 최적화를 NVIDIA/Megatron Core 관점에서 정리한 기술 보고서. memory·communication·computation을 따로 최적화하는 문제가 아니라, 한쪽을 줄이면 다른 쪽에 압력이 생기는 coupled system으로 봐야 한다.
 
 - [Open Athena Blog — Cluster Scheduling with Iris](https://openathena.ai/blog/cluster-scheduling-with-iris/)
   - 키워드: global scheduler, heterogeneous accelerators, TPU utilization, frontier-scale training operations.
@@ -38,8 +38,8 @@ MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제
   - 읽을 이유: 최근 오픈 모델 계열에서 비용 효율적 MoE 스케일링을 대표하는 사례. 학습 안정성, 토큰 수, GPU hour, 활성 파라미터 수를 함께 봐야 한다.
 
 - [Scalable Training of Mixture-of-Experts Models with Megatron Core](https://arxiv.org/html/2603.07685v2)
-  - 키워드: production MoE training, dispatcher, grouped GEMM, recomputation, offloading.
-  - 읽을 이유: DeepSeek-V3 같은 MoE 모델을 “논문 구조”가 아니라 “돌아가는 학습 시스템”으로 볼 때 함께 읽어야 한다.
+  - 키워드: production MoE training, optimized dispatcher, Grouped GEMM, recomputation, offloading, CUDA Graphs, DeepSeek-V3/Qwen3 throughput.
+  - 읽을 이유: DeepSeek-V3 같은 MoE 모델을 “논문 구조”가 아니라 “돌아가는 학습 시스템”으로 볼 때 함께 읽어야 한다. GB300/GB200에서 DeepSeek-V3-685B와 Qwen3-235B throughput을 제시하기 때문에, MoE architecture가 실제 hardware efficiency로 번역되는 지점을 확인할 수 있다.
 
 - [Open Athena Blog — Improving our LLM Pretraining Efficiency](https://openathena.ai/blog/pretraining-speedup/)
   - 키워드: Marin, MoE, expert sparsity, MuonH, PKO, routed expert normalization, pretraining efficiency.
@@ -73,6 +73,10 @@ MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제
   - 키워드: reasoning model, thinking, evaluation, Microsoft AI.
   - 읽을 이유: reasoning 모델의 방향성과 평가 프레이밍을 보기 위한 자료. 특히 링크가 가리키는 page 7 근처의 논점을 따로 확인할 것.
 
+- [Synthetic pretraining for very small reasoning models — Tufa Labs](https://tufalabs.ai/research/enhancing-reasoning-small-language-models/)
+  - 키워드: synthetic pretraining, small language models, sub-1B reasoning, GSM8K, MATH500, few-shot gains, token efficiency.
+  - 읽을 이유: reasoning 성능을 키우는 방법을 frontier-scale 모델이 아니라 very small model 관점에서 묻는 글이다. 같은 크기의 generator가 만든 synthetic data로도 few-shot 성능과 token efficiency를 올릴 수 있다는 결과라, “reasoning은 모델 크기만의 함수인가, 데이터 생성 절차의 함수인가”라는 질문에 연결된다.
+
 ## 5. AI 연구 방향, 공개 개발, “후반전”의 문제
 
 스케일링, 병렬화, reasoning은 기술 세부이지만, 결국 더 큰 질문은 “AI 연구와 제품의 다음 국면이 무엇인가”다. 이 묶음은 기술의 방향성을 해석하고, frontier AI를 더 공개적이고 재현 가능한 방식으로 개발하려는 흐름을 함께 본다.
@@ -94,9 +98,9 @@ MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제
 - **시스템 관점**: Ultra-Scale Playbook → Smol Training Playbook → Megatron Core MoE → Open Athena Iris
 - **모델 사례 관점**: DeepSeek-V3 → Megatron Core MoE → Open Athena Pretraining Efficiency → Quantile Balancing
 - **scaling law 관점**: Lilian Weng Scaling Laws → Open Athena Delphi → Problems with Chinchilla Approach 2
-- **reasoning 관점**: MAI Thinking 1 → The Second Half
+- **reasoning 관점**: Tufa Labs synthetic pretraining → MAI Thinking 1 → The Second Half
 - **공개 연구 관점**: The Second Half → Open Athena Blog → Open Development of Frontier AI
-- **글감 관점**: “MoE는 모델 아키텍처가 아니라 클러스터 운영 철학에 가깝다”, “스케일링 법칙은 숫자 공식보다 fit 설계와 compute allocation 철학이다”, “후반전의 병목은 pretraining보다 inference-time search와 interaction일 수 있다”
+- **글감 관점**: “MoE는 모델 아키텍처가 아니라 클러스터 운영 철학에 가깝다”, “스케일링 법칙은 숫자 공식보다 fit 설계와 compute allocation 철학이다”, “reasoning 향상은 모델 크기뿐 아니라 synthetic data curriculum의 문제일 수 있다”, “후반전의 병목은 pretraining보다 inference-time search와 interaction일 수 있다”
 
 ## 업데이트 규칙
 
