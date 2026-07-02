@@ -4,7 +4,7 @@ title: "Must Read Articles: AI Training, Scaling, and Reasoning"
 date: 2026-06-26 16:02:16 +0900
 categories: [research, reading-list]
 author: hyogon
-tags: [must-read, llm, training, scaling, moe, reasoning, agents, open-science, synthetic-data, small-models, hardware, roofline]
+tags: [must-read, llm, training, scaling, moe, reasoning, agents, open-science, synthetic-data, small-models, hardware, roofline, long-context, sparse-attention]
 ---
 
 앞으로 전달받는 must-read article을 한 페이지에 계속 모아두기 위한 목록이다. 단순 북마크가 아니라, 나중에 글을 쓸 때 바로 꺼내 쓸 수 있도록 **주제별로 분류**하고, 각 글이 어떤 질문에 닿아 있는지 짧게 남긴다.
@@ -33,6 +33,10 @@ LLM을 실제로 크게 학습시키려면 모델 구조보다 먼저 병렬화,
   - 키워드: global scheduler, heterogeneous accelerators, TPU utilization, frontier-scale training operations.
   - 읽을 이유: frontier급 학습은 모델 코드만이 아니라 자원 스케줄링 문제라는 점을 보여준다. “클러스터 운영이 곧 모델 성능의 전제”라는 관점에서 1번 묶음과 함께 읽기 좋다.
 
+- [MegaScale-MoE: Large-Scale Communication-Efficient Training of Mixture-of-Experts Models in Production](https://arxiv.org/abs/2505.11432)
+  - 키워드: production MoE training, communication-efficient parallelism, communication-computation overlap, compression, 352B MoE, 1,440 Hopper GPUs.
+  - 읽을 이유: MoE 학습 병목을 “expert routing”만이 아니라 attention/FFN별 병렬화, inter-/intra-operator overlap, 통신 압축까지 포함한 production system 문제로 다룬다. Megatron Core·Open Athena Iris와 함께 읽으면 frontier-scale 학습에서 network communication이 사실상 모델 설계 변수로 올라오는 지점을 볼 수 있다.
+
 ## 2. MoE 모델 아키텍처와 비용 효율적 스케일링
 
 MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제한하는 방식이다. 이 묶음은 “성능을 키우되 학습·추론 비용을 어떻게 억제할 것인가”에 대한 레퍼런스다.
@@ -48,6 +52,10 @@ MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제
 - [Open Athena Blog — Improving our LLM Pretraining Efficiency](https://openathena.ai/blog/pretraining-speedup/)
   - 키워드: Marin, MoE, expert sparsity, MuonH, PKO, routed expert normalization, pretraining efficiency.
   - 읽을 이유: MoE와 optimizer/normalization/packing 같은 학습 recipe가 실제 pretraining 효율을 어떻게 밀어 올리는지 보는 운영형 사례다.
+
+- [Introducing LongCat-2.0](https://longcat.chat/blog/longcat-2.0/)
+  - 키워드: 1.6T total parameters, 48B activated parameters/token, MoE, N-gram Embedding, LongCat Sparse Attention, million-token context, domestic accelerator cluster.
+  - 읽을 이유: LongCat-2.0은 “총 파라미터는 키우되 token당 활성 파라미터를 제한한다”는 MoE 비용 효율 논리를 실제 공개 모델 릴리스와 장문·코딩-agent 사용처에 연결한다. 5만여 장의 중국산 accelerator chip에서 35T+ tokens를 학습했다는 운영 서사도, NVIDIA 중심 생태계 밖에서 frontier-scale training stack이 어떻게 구성되는지 보는 사례다.
 
 - [Open Athena Blog — Mixture of Experts Quantile Balancing](https://openathena.ai/blog/quantile-balancing/)
   - 키워드: quantile balancing, load balancing, hyperparameter-free MoE, 32B-A5B, 1e22 FLOPs.
@@ -72,6 +80,10 @@ MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제
 ## 4. 추론 모델, test-time compute, reasoning frontier
 
 학습 시점의 스케일링만큼이나, 추론 시점에 더 오래 생각하게 만드는 방식이 중요해지고 있다. 이 묶음은 “모델이 어떻게 생각하게 만들고, 그 생각을 어떻게 평가할 것인가”에 대한 레퍼런스다.
+
+- [Introducing LongCat-2.0](https://longcat.chat/blog/longcat-2.0/)
+  - 키워드: agentic workflow, coding harness, sparse attention, million-token context, speculative decoding, long input efficiency.
+  - 읽을 이유: reasoning model 자체의 평가 글은 아니지만, agentic workflow가 길고 지저분한 repository context를 요구한다는 점에서 test-time compute의 다른 축을 보여준다. LongCat Sparse Attention의 streaming-aware/cross-layer/hierarchical indexing은 “더 오래 생각하기” 이전에 “더 긴 문맥을 싸게 읽기”가 왜 중요해지는지 설명하는 재료다.
 
 - [MAI Thinking 1 PDF](https://microsoft.ai/pdf/mai-thinking-1.pdf?utm_source=pytorchkr&ref=pytorchkr#page=7.37)
   - 키워드: reasoning model, thinking, evaluation, Microsoft AI.
@@ -99,12 +111,12 @@ MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제
 
 ## 현재 읽기 지도
 
-- **시스템 관점**: JAX Scaling Book Rooflines → Ultra-Scale Playbook → Smol Training Playbook → Megatron Core MoE → Open Athena Iris
-- **모델 사례 관점**: DeepSeek-V3 → Megatron Core MoE → Open Athena Pretraining Efficiency → Quantile Balancing
+- **시스템 관점**: JAX Scaling Book Rooflines → Ultra-Scale Playbook → Smol Training Playbook → Megatron Core MoE → MegaScale-MoE → Open Athena Iris
+- **모델 사례 관점**: DeepSeek-V3 → LongCat-2.0 → Megatron Core MoE → Open Athena Pretraining Efficiency → Quantile Balancing
 - **scaling law 관점**: Lilian Weng Scaling Laws → Open Athena Delphi → Problems with Chinchilla Approach 2
-- **reasoning 관점**: Tufa Labs synthetic pretraining → MAI Thinking 1 → The Second Half
+- **reasoning/agent 관점**: Tufa Labs synthetic pretraining → LongCat-2.0 → MAI Thinking 1 → The Second Half
 - **공개 연구 관점**: The Second Half → Open Athena Blog → Open Development of Frontier AI
-- **글감 관점**: “MoE는 모델 아키텍처가 아니라 클러스터 운영 철학에 가깝다”, “성능 병목은 FLOPs가 아니라 memory/network roofline에서 먼저 드러날 수 있다”, “스케일링 법칙은 숫자 공식보다 fit 설계와 compute allocation 철학이다”, “reasoning 향상은 모델 크기뿐 아니라 synthetic data curriculum의 문제일 수 있다”, “후반전의 병목은 pretraining보다 inference-time search와 interaction일 수 있다”
+- **글감 관점**: “MoE는 모델 아키텍처가 아니라 클러스터 운영 철학에 가깝다”, “성능 병목은 FLOPs가 아니라 memory/network roofline에서 먼저 드러날 수 있다”, “스케일링 법칙은 숫자 공식보다 fit 설계와 compute allocation 철학이다”, “reasoning 향상은 모델 크기뿐 아니라 synthetic data curriculum의 문제일 수 있다”, “후반전의 병목은 pretraining보다 inference-time search와 interaction일 수 있다”, “coding agent 모델의 경쟁력은 reasoning뿐 아니라 긴 repository context를 싸게 읽는 attention/inference system에서 갈릴 수 있다”
 
 ## 업데이트 규칙
 
