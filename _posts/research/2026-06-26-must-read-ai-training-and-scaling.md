@@ -4,7 +4,7 @@ title: "Must Read Articles: AI Training, Scaling, and Reasoning"
 date: 2026-06-26 16:02:16 +0900
 categories: [research, reading-list]
 author: hyogon
-tags: [must-read, llm, training, scaling, moe, reasoning, agents, open-science, synthetic-data, small-models, hardware, roofline, long-context, sparse-attention]
+tags: [must-read, llm, training, scaling, moe, reasoning, agents, open-science, synthetic-data, small-models, hardware, roofline, long-context, sparse-attention, speculative-decoding, distillation]
 ---
 
 앞으로 전달받는 must-read article을 한 페이지에 계속 모아두기 위한 목록이다. 단순 북마크가 아니라, 나중에 글을 쓸 때 바로 꺼내 쓸 수 있도록 **주제별로 분류**하고, 각 글이 어떤 질문에 닿아 있는지 짧게 남긴다.
@@ -61,6 +61,10 @@ MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제
   - 키워드: quantile balancing, load balancing, hyperparameter-free MoE, 32B-A5B, 1e22 FLOPs.
   - 읽을 이유: MoE의 load balancing을 auxiliary loss나 capacity factor 없이 안정화하려는 접근. “MoE의 병목은 routing 품질과 안정성”이라는 글감에 바로 연결된다.
 
+- [MiMo-V2-Flash Technical Report](https://arxiv.org/abs/2601.02780)
+  - 키워드: 309B total / 15B activated MoE, SWA-global hybrid attention, 27T tokens, 32k→256k context, Multi-Token Prediction, Multi-Teacher On-Policy Distillation, speculative decoding.
+  - 읽을 이유: DeepSeek-V3·Kimi-K2 같은 거대 MoE와 비교하면서도 더 작은 활성/총 파라미터로 reasoning·agentic 성능과 빠른 추론을 동시에 노리는 사례다. 특히 MTP를 pretraining objective에만 두지 않고 speculative decoding draft model로 재사용하는 점, 그리고 domain-specialized teacher를 on-policy distillation에 끌어오는 점이 “비용 효율적 frontier 모델” 글감에 좋다.
+
 ## 3. 스케일링 법칙과 compute-optimal frontier
 
 스케일링 법칙은 “더 크게 만들면 좋아진다”가 아니라, 제한된 compute를 모델 크기와 데이터 크기 사이에 어떻게 배분할지에 대한 경험 법칙이다. 이 묶음은 Kaplan → Chinchilla → 현실 fit의 함정을 연결해서 읽기 위한 레퍼런스다.
@@ -93,6 +97,10 @@ MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제
   - 키워드: synthetic pretraining, small language models, sub-1B reasoning, GSM8K, MATH500, few-shot gains, token efficiency.
   - 읽을 이유: reasoning 성능을 키우는 방법을 frontier-scale 모델이 아니라 very small model 관점에서 묻는 글이다. 같은 크기의 generator가 만든 synthetic data로도 few-shot 성능과 token efficiency를 올릴 수 있다는 결과라, “reasoning은 모델 크기만의 함수인가, 데이터 생성 절차의 함수인가”라는 질문에 연결된다.
 
+- [MiMo-V2-Flash Technical Report](https://arxiv.org/abs/2601.02780)
+  - 키워드: agentic capability, reasoning distillation, MOPD, MTP draft model, 2.6x decoding speedup, 256k context.
+  - 읽을 이유: reasoning 모델을 “더 큰 RL teacher 하나”가 아니라 domain-specialized teachers의 token-level dense reward를 학생에게 증류하는 시스템으로 본다. test-time latency 측면에서는 MTP layer를 speculative decoding에 재활용해 reasoning/agent 모델의 응답 비용을 낮추는 사례라, LongCat-2.0의 긴 문맥 효율과 함께 읽기 좋다.
+
 ## 5. AI 연구 방향, 공개 개발, “후반전”의 문제
 
 스케일링, 병렬화, reasoning은 기술 세부이지만, 결국 더 큰 질문은 “AI 연구와 제품의 다음 국면이 무엇인가”다. 이 묶음은 기술의 방향성을 해석하고, frontier AI를 더 공개적이고 재현 가능한 방식으로 개발하려는 흐름을 함께 본다.
@@ -112,11 +120,11 @@ MoE는 총 파라미터 수를 키우면서도 토큰당 활성 연산량을 제
 ## 현재 읽기 지도
 
 - **시스템 관점**: JAX Scaling Book Rooflines → Ultra-Scale Playbook → Smol Training Playbook → Megatron Core MoE → MegaScale-MoE → Open Athena Iris
-- **모델 사례 관점**: DeepSeek-V3 → LongCat-2.0 → Megatron Core MoE → Open Athena Pretraining Efficiency → Quantile Balancing
+- **모델 사례 관점**: DeepSeek-V3 → LongCat-2.0 → MiMo-V2-Flash → Megatron Core MoE → Open Athena Pretraining Efficiency → Quantile Balancing
 - **scaling law 관점**: Lilian Weng Scaling Laws → Open Athena Delphi → Problems with Chinchilla Approach 2
-- **reasoning/agent 관점**: Tufa Labs synthetic pretraining → LongCat-2.0 → MAI Thinking 1 → The Second Half
+- **reasoning/agent 관점**: Tufa Labs synthetic pretraining → LongCat-2.0 → MiMo-V2-Flash → MAI Thinking 1 → The Second Half
 - **공개 연구 관점**: The Second Half → Open Athena Blog → Open Development of Frontier AI
-- **글감 관점**: “MoE는 모델 아키텍처가 아니라 클러스터 운영 철학에 가깝다”, “성능 병목은 FLOPs가 아니라 memory/network roofline에서 먼저 드러날 수 있다”, “스케일링 법칙은 숫자 공식보다 fit 설계와 compute allocation 철학이다”, “reasoning 향상은 모델 크기뿐 아니라 synthetic data curriculum의 문제일 수 있다”, “후반전의 병목은 pretraining보다 inference-time search와 interaction일 수 있다”, “coding agent 모델의 경쟁력은 reasoning뿐 아니라 긴 repository context를 싸게 읽는 attention/inference system에서 갈릴 수 있다”
+- **글감 관점**: “MoE는 모델 아키텍처가 아니라 클러스터 운영 철학에 가깝다”, “성능 병목은 FLOPs가 아니라 memory/network roofline에서 먼저 드러날 수 있다”, “스케일링 법칙은 숫자 공식보다 fit 설계와 compute allocation 철학이다”, “reasoning 향상은 모델 크기뿐 아니라 synthetic data curriculum과 teacher distillation 설계의 문제일 수 있다”, “후반전의 병목은 pretraining보다 inference-time search와 interaction일 수 있다”, “coding agent 모델의 경쟁력은 reasoning뿐 아니라 긴 repository context를 싸게 읽는 attention/inference system에서 갈릴 수 있다”, “MTP는 학습 보조 objective를 넘어 speculative decoding 인프라가 될 수 있다”
 
 ## 업데이트 규칙
 
