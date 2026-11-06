@@ -399,53 +399,9 @@ function renderPostGroups(posts, emptyMessage) {
 }
 
 function renderPostsListing(posts) {
-  const humanPosts = posts.filter((p) => p.author === "human");
-  const agentPosts = posts.filter((p) => p.author === "agent");
-
-  const humanHtml = renderPostGroups(humanPosts, "아직 직접 쓴 글이 없습니다.");
-  const agentHtml = renderPostGroups(agentPosts, "아직 Agent가 쓴 글이 없습니다.");
-
   const html = `<div class="post-list-page">
   <h1 class="post-list-title">Writing</h1>
-
-  <div class="post-tabs" role="tablist">
-    <button type="button" class="post-tab is-active" data-tab="human" role="tab" aria-selected="true">사람 <span class="post-tab-count">(${humanPosts.length})</span></button>
-    <button type="button" class="post-tab" data-tab="agent" role="tab" aria-selected="false">Agent <span class="post-tab-count">(${agentPosts.length})</span></button>
-  </div>
-
-  <div class="post-tab-panel is-active" data-panel="human" role="tabpanel">
-${humanHtml}  </div>
-
-  <div class="post-tab-panel" data-panel="agent" role="tabpanel" hidden>
-${agentHtml}  </div>
-</div>
-
-<script>
-(function () {
-  var tabs = document.querySelectorAll('.post-tab');
-  var panels = document.querySelectorAll('.post-tab-panel');
-  function activate(name) {
-    tabs.forEach(function (t) {
-      var on = t.dataset.tab === name;
-      t.classList.toggle('is-active', on);
-      t.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-    panels.forEach(function (p) {
-      var on = p.dataset.panel === name;
-      p.classList.toggle('is-active', on);
-      if (on) { p.removeAttribute('hidden'); } else { p.setAttribute('hidden', ''); }
-    });
-    try { history.replaceState(null, '', '#' + name); } catch (e) {}
-  }
-  tabs.forEach(function (t) {
-    t.addEventListener('click', function () { activate(t.dataset.tab); });
-  });
-  var hash = (location.hash || '').replace('#', '');
-  if (hash === 'agent' || hash === 'human') activate(hash);
-})();
-</script>
-`;
-
+${renderPostGroups(posts, "아직 글이 없습니다.")}</div>`;
   const extraHead = `<script>document.documentElement.classList.add('posts-page');</script>`;
   return renderLayout(html, { title: "Writing", hideHeader: true, loadPostCss: true, extraHead });
 }
@@ -633,7 +589,11 @@ writeDist("playground/index.html", buildPlaygroundPage());
 
 // 4. Scan and build posts
 console.log("[3/5] Scanning posts...");
-const posts = scanPosts();
+// Retired development logs stay in source control, but are no longer published.
+// Their lessons are consolidated in playground-lessons-learned.
+const posts = scanPosts().filter((post) =>
+  !post.slug.startsWith("playground-world-") && post.slug !== "agent-post-test"
+);
 console.log(`     Found ${posts.length} posts`);
 
 // 5. Build individual post pages
