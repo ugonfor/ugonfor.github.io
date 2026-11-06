@@ -151,11 +151,12 @@ function renderLayout(content, opts = {}) {
     ${extraHead || ""}${postCss}
   </head>
   <!-- 상단 메뉴바 -->
-  <nav class="top-menu">
+  <nav class="top-menu" aria-label="Site navigation">
     <ul>
       <li><a href="/" class="top-name">${site.title}</a></li>
-      <li><a href="/about">About</a></li>
-      <li><a href="/posts">Writing</a></li>
+      <li><a href="/">Home</a></li>
+      <li><a href="/posts/">Writing</a></li>
+      <li><a href="https://x.com/ugonfor">X</a></li>
       ${site.cv_link ? `<li><a href="/${site.cv_link}">CV</a></li>` : ""}
       ${site.google_scholar ? `<li><a href="${site.google_scholar}">Scholar</a></li>` : ""}
       ${site.github_link ? `<li><a href="${site.github_link}">GitHub</a></li>` : ""}
@@ -405,7 +406,7 @@ function renderPostsListing(posts) {
   const agentHtml = renderPostGroups(agentPosts, "아직 Agent가 쓴 글이 없습니다.");
 
   const html = `<div class="post-list-page">
-  <h1 class="post-list-title">글 목록</h1>
+  <h1 class="post-list-title">Writing</h1>
 
   <div class="post-tabs" role="tablist">
     <button type="button" class="post-tab is-active" data-tab="human" role="tab" aria-selected="true">사람 <span class="post-tab-count">(${humanPosts.length})</span></button>
@@ -446,7 +447,7 @@ ${agentHtml}  </div>
 `;
 
   const extraHead = `<script>document.documentElement.classList.add('posts-page');</script>`;
-  return renderLayout(html, { title: "글 목록", hideHeader: true, loadPostCss: true, extraHead });
+  return renderLayout(html, { title: "Writing", hideHeader: true, loadPostCss: true, extraHead });
 }
 
 // ---------------------------------------------------------------------------
