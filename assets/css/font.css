@@ -1,21 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
+/* Shared typography for the profile and writing. */
+:root {
+  --font-serif: Georgia, 'Apple SD Gothic Neo', 'Malgun Gothic', serif;
+  --font-sans: var(--font-serif);
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
 
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Crimson Pro', 'Crimson Text', Georgia, 'Times New Roman', serif;
+  font-family: var(--font-serif);
   font-weight: 400;
-  font-size: 19px;
-  line-height: 1.5;
-  color: #111;
-  background: #ffffff;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
-}
-
-:root {
-  --font-sans: 'Crimson Pro', 'Crimson Text', Georgia, 'Times New Roman', serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 17px;
+  line-height: 1.65;
+  color: #191919;
+  background: #fff;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: auto;
+  font-feature-settings: normal;
 }
