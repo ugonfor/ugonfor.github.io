@@ -15,7 +15,7 @@ html.landing-page .wrapper > section { width: 100%; margin: 0; padding: 0; }
 #hyogon-simple a { color: #29549b; text-decoration: none; }
 #hyogon-simple a:hover { text-decoration: underline; }
 #hyogon-simple a:focus-visible { outline: 2px solid #29549b; outline-offset: 3px; }
-#hyogon-simple header { display: flex !important; position: static; float: none; width: auto; align-items: center; justify-content: space-between; gap: 24px; margin: 0 0 24px; padding: 0; text-align: left; }
+#hyogon-simple header { display: flex !important; position: static; float: none; width: auto; align-items: center; justify-content: flex-start; gap: 24px; margin: 0 0 24px; padding: 0; text-align: left; }
 #hyogon-simple h1 { font: 700 26px/1.2 var(--font-serif); margin: 0 0 8px; color: inherit; }
 #hyogon-simple header p { margin: 0 0 7px; font-size: 16px; }
 #hyogon-simple .links { display: flex; gap: 12px; flex-wrap: wrap; font-size: 16px; }
@@ -42,12 +42,13 @@ html.landing-page .wrapper > section { width: 100%; margin: 0; padding: 0; }
 
 <div id="hyogon-simple">
 <main>
-<header><div><h1>Hyogon Ryu</h1><p>LLM Engineering Team Lead at KRAFTON AI</p><nav class="links" aria-label="Profile links"><a href="mailto:ugonfor@gmail.com">Email</a><a href="https://x.com/ugonfor">X</a><a href="https://github.com/ugonfor">GitHub</a><a href="https://scholar.google.com/citations?user=Xq5B3LQAAAAJ">Scholar</a><a href="https://www.linkedin.com/in/hyogon-ryu/">LinkedIn</a><a href="/posts/">Writing</a><a href="/assets/files/CV_HyogonRyu.pdf">CV</a></nav></div><img src="/assets/img/avatar.jfif" width="150" height="188" alt="Hyogon Ryu"></header>
+<header><img src="/assets/img/avatar.jfif" width="150" height="188" alt="Hyogon Ryu"><div><h1>Hyogon Ryu</h1><p>LLM Engineering Team Lead at KRAFTON AI</p><nav class="links" aria-label="Profile links"><a href="mailto:ugonfor@gmail.com">Email</a><a href="https://x.com/ugonfor">X</a><a href="https://github.com/ugonfor">GitHub</a><a href="https://scholar.google.com/citations?user=Xq5B3LQAAAAJ">Scholar</a><a href="https://www.linkedin.com/in/hyogon-ryu/">LinkedIn</a><a href="/posts/">Writing</a><a href="/assets/files/CV_HyogonRyu.pdf">CV</a></nav></div></header>
 <p>I lead the LLM Engineering Team at KRAFTON AI, working with <a href="https://kangwooklee.com/">Kangwook Lee</a>.</p>
-<p>I work on ML systems optimization &amp; engineering across pretraining, RL, and inference. We’re a small team, so we work across the stack and tackle whatever needs optimizing.</p>
 <p>I received my M.S. from KAIST, advised by <a href="https://kaist-cvml.github.io/">Hyunjung Shim</a>, and my B.S. in Cyber Defense from Korea University. My research was on diffusion model quantization; before that, I was a reverse engineer on <a href="https://cykor.kr/">CyKor</a>, the best white-hat hacking team in South Korea.</p>
+<h2>Research Focus</h2>
+<p>I work on ML systems optimization &amp; engineering across pretraining, RL, and inference. We’re a small team, so we work across the stack and tackle whatever needs optimizing.</p>
 <h2>Work</h2>
-<ul><li><span class="work-year">2026</span><strong>Raon.</strong> KRAFTON’s foundation model family. <a href="https://huggingface.co/KRAFTON">Hugging Face</a></li><li><span class="work-year">2025</span><strong>SmartZoi.</strong> Social AI for the life simulation game, inZOI. <a href="https://www.youtube.com/watch?v=Pk9z1upOj3U">NVIDIA video</a></li></ul>
+<ul><li><span class="work-year">2026</span><strong>Raon.</strong> KRAFTON’s foundation model family. <a href="https://huggingface.co/KRAFTON">Hugging Face</a></li><li><span class="work-year">2025</span><strong>SmartZoi.</strong> On-device, real-time social AI for the life simulation game, inZOI. <a href="https://www.youtube.com/watch?v=Pk9z1upOj3U">NVIDIA video</a></li></ul>
 <h2>Publications</h2>
 <div class="paper"><p>Online Agent-as-a-Judge: Situation-Generating Evaluation for Interactive Agents</p><p class="meta">Hyogon Ryu, Jeonghwan Kim, Yewon Lim, Chaeun Lee, Jeongwook Kim, Donghoon Ham</p><p><i>ICML 2026 Workshop</i><a href="https://arxiv.org/abs/2606.08200">Paper</a><a href="https://krafton.ai/portfolio/online-agent-as-a-judge-situation-generating-evaluation-for-interactive-agents/">Overview</a></p></div>
 <div class="paper"><p>Terminus-KIRA: Boosting Frontier Model Performance on Terminal-Bench with Minimal Harness</p><p><i>February 2026</i><a href="https://www.krafton.ai/blog/terminus_kira/">Tech blog</a><a href="https://github.com/krafton-ai/KIRA">Code</a></p></div>
