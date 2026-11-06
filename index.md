@@ -43,7 +43,7 @@ html.landing-page .wrapper > section { width: 100%; margin: 0; padding: 0; }
 <div id="hyogon-simple">
 <main>
 <header><img src="/assets/img/avatar.jfif" width="150" height="188" alt="Hyogon Ryu"><div><h1>Hyogon Ryu</h1><p>LLM Engineering Team Lead at KRAFTON AI</p><nav class="links" aria-label="Profile links"><a href="mailto:ugonfor@gmail.com">Email</a><a href="https://x.com/ugonfor">X</a><a href="https://github.com/ugonfor">GitHub</a><a href="https://scholar.google.com/citations?user=Xq5B3LQAAAAJ">Scholar</a><a href="https://www.linkedin.com/in/hyogon-ryu/">LinkedIn</a><a href="/posts/">Writing</a><a href="/assets/files/CV_HyogonRyu.pdf">CV</a></nav></div></header>
-<p>I lead the LLM Engineering Team at KRAFTON AI, working with <a href="https://kangwooklee.com/">Kangwook Lee</a>.</p>
+<p>I am a research engineer and lead the LLM Engineering Team at KRAFTON AI, working with <a href="https://kangwooklee.com/">Kangwook Lee</a>.</p>
 <p>I received my M.S. from KAIST, advised by <a href="https://kaist-cvml.github.io/">Hyunjung Shim</a>, and my B.S. in Cyber Defense from Korea University. My research was on diffusion model quantization; before that, I was a reverse engineer on <a href="https://cykor.kr/">CyKor</a>, the best white-hat hacking team in South Korea.</p>
 <h2>Research Focus</h2>
 <p>I work on ML systems optimization &amp; engineering across pretraining, RL, and inference. We’re a small team, so we work across the stack and tackle whatever needs optimizing.</p>
