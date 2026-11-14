@@ -54,6 +54,32 @@ listed: true
 
 - [Scaling Laws, Carefully](https://lilianweng.github.io/posts/2026-06-24-scaling-laws/)
 
+## Jack Cook · Thinking Machines Lab
+
+- [End-to-End 4-Bit Training](https://thinkingmachines.ai/blog/end-to-end-4-bit-training/)
+
+## Kevin Lu · Thinking Machines Lab
+
+- [On-Policy Distillation](https://thinkingmachines.ai/blog/on-policy-distillation/)
+
+## John Schulman · Thinking Machines Lab
+
+- [LoRA Without Regret](https://thinkingmachines.ai/blog/lora/)
+
+## Jeremy Bernstein · Thinking Machines Lab
+
+- [Modular Manifolds](https://thinkingmachines.ai/blog/modular-manifolds/)
+
+## Horace He · Thinking Machines Lab
+
+- [Defeating Nondeterminism in LLM Inference](https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/)
+
+## Thinking Machines Lab
+
+- [A Safe Path to Open Weights](https://thinkingmachines.ai/blog/a-safe-path-to-open-weights/)
+- [The Future Worth Building Is Human](https://thinkingmachines.ai/blog/the-future-worth-building-is-human/)
+- [Interaction Models: A Scalable Approach to Human-AI Collaboration](https://thinkingmachines.ai/blog/interaction-models/)
+
 ## Will Held · Open Athena
 
 - [Scaling Laws That Extrapolate 300× Past the Fit](https://openathena.ai/blog/delphi/)
