@@ -34,17 +34,16 @@ listed: true
 <tbody>
 <tr>
 <th scope="rowgroup" rowspan="3" class="reading-org-cell">Hugging Face</th>
-<td rowspan="1">Aritra Roy Gosthipaty et al.</td>
-<td><a href="https://huggingface.co/blog/moe-transformers">Mixture of Experts (MoEs) in Transformers</a></td>
-<td class="reading-date-cell"><time datetime="2026-02-26">2026-02-26</time></td>
-</tr>
-<tr>
 <td rowspan="1">Loubna Ben Allal et al.</td>
 <td><a href="https://huggingface.co/spaces/HuggingFaceTB/smol-training-playbook#finding-the-optimal-parallelism-configuration">The Smol Training Playbook — Finding the Optimal Parallelism Configuration</a></td>
 <td class="reading-date-cell"><time datetime="2025-10-30">2025-10-30</time></td>
 </tr>
 <tr>
-<td rowspan="1">Nouamane Tazi et al.</td>
+<td rowspan="2">Nouamane Tazi et al.</td>
+<td><a href="https://huggingface.co/spaces/huggingface/moe-blogpost">The Ultimate MoE Training Handbook</a></td>
+<td class="reading-date-cell"><time datetime="2026-11-05">2026-11-05</time></td>
+</tr>
+<tr>
 <td><a href="https://huggingface.co/spaces/nanotron/ultrascale-playbook?section=expert_parallelism">The Ultra-Scale Playbook — Expert Parallelism</a></td>
 <td class="reading-date-cell"><time datetime="2025-02-19">2025-02-19</time></td>
 </tr>
