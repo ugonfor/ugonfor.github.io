@@ -58,7 +58,7 @@ npm run dev
 2. `index.md`를 `dist/index.html`로 렌더링합니다.
 3. `about/index.html`은 홈(`/`)으로 리다이렉트하는 HTML로 생성합니다.
 4. `playground/index.md`의 Liquid 스타일 토큰을 `site-config.mjs` 값으로 치환해 `dist/playground/index.html`을 만듭니다.
-5. `_posts/**/*.md`를 스캔해 front matter와 본문을 파싱하고 개별 글 및 `dist/posts/index.html`을 생성합니다.
+5. `_posts/**/*.md`를 스캔해 front matter와 본문을 파싱하고, `listed: true`인 글만 개별 페이지 및 `dist/posts/index.html`에 공개합니다.
 
 빌드는 시작 시 `dist/`를 비우고 다시 생성합니다.
 
@@ -68,6 +68,7 @@ npm run dev
 - 사이트 이름, 직함, 링크, publication 데이터, Playground API/Firebase 설정은 `scripts/site-config.mjs`를 수정합니다.
 - 사이트 스타일은 주로 `assets/css/landing.css`, `assets/css/custom-theme.css`, `assets/css/top-menu.css`, `assets/css/post.css`를 확인합니다.
 - 새 글은 `_posts/<category>/YYYY-MM-DD-slug.md` 형식으로 추가합니다.
+- 공개할 글에는 front matter에 `listed: true`를 설정합니다. 생략하거나 `false`로 두면 목록과 개별 페이지 모두 배포하지 않습니다.
 - 글 front matter에는 보통 `title`, `date`, `categories`, `tags`를 둡니다. URL은 첫 번째/이후 카테고리와 날짜, slug로 생성됩니다.
 - `dist/`는 빌드 산출물이므로 원본 변경은 `index.md`, `playground/index.md`, `_posts/`, `assets/`, `scripts/` 쪽에 하세요.
 

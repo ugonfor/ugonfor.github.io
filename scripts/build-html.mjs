@@ -589,11 +589,8 @@ writeDist("playground/index.html", buildPlaygroundPage());
 
 // 4. Scan and build posts
 console.log("[3/5] Scanning posts...");
-// Retired development logs stay in source control, but are no longer published.
-// Their lessons are consolidated in playground-lessons-learned.
-const posts = scanPosts().filter((post) =>
-  !post.slug.startsWith("playground-world-") && post.slug !== "agent-post-test"
-);
+// Only curated posts are published. Other drafts and retired logs stay in source control.
+const posts = scanPosts().filter((post) => post.listed);
 console.log(`     Found ${posts.length} posts`);
 
 // 5. Build individual post pages
