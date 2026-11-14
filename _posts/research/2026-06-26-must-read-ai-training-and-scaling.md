@@ -17,6 +17,10 @@ listed: true
 
 - [The Smol Training Playbook — Finding the Optimal Parallelism Configuration](https://huggingface.co/spaces/HuggingFaceTB/smol-training-playbook#finding-the-optimal-parallelism-configuration)
 
+## Aritra Roy Gosthipaty et al. · Hugging Face
+
+- [Mixture of Experts (MoEs) in Transformers](https://huggingface.co/blog/moe-transformers)
+
 ## Jacob Austin et al. · Google DeepMind
 
 - [All About Rooflines — How To Scale Your Model](https://jax-ml.github.io/scaling-book/roofline/)
