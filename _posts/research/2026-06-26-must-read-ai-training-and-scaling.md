@@ -75,34 +75,10 @@ listed: true
 </tbody>
 <tbody>
 <tr>
-<th scope="rowgroup" rowspan="7" class="reading-org-cell">Open Athena</th>
-<td rowspan="1">David Hall</td>
-<td><a href="https://openathena.ai/blog/open-development-of-frontier-ai/">Open Development of Frontier AI</a></td>
-<td class="reading-date-cell"><time datetime="2026-06-29">2026-06-29</time></td>
-</tr>
-<tr>
-<td rowspan="1">Eric Czech</td>
-<td><a href="https://openathena.ai/blog/problems-with-chinchilla-approach-2/">Problems with Chinchilla Approach 2</a></td>
-<td class="reading-date-cell"><time datetime="2026-03-27">2026-03-27</time></td>
-</tr>
-<tr>
-<td rowspan="2">Larry Dial</td>
+<th scope="rowgroup" rowspan="2" class="reading-org-cell">Open Athena</th>
+<td rowspan="1">Larry Dial</td>
 <td><a href="https://openathena.ai/blog/pretraining-speedup/">Improving our LLM Pretraining Efficiency</a></td>
 <td class="reading-date-cell"><time datetime="2026-06-03">2026-06-03</time></td>
-</tr>
-<tr>
-<td><a href="https://openathena.ai/blog/quantile-balancing/">Mixture of Experts Quantile Balancing</a></td>
-<td class="reading-date-cell"><time datetime="2026-04-10">2026-04-10</time></td>
-</tr>
-<tr>
-<td rowspan="1">Open Athena</td>
-<td><a href="https://openathena.ai/blog/">Open Athena Blog</a></td>
-<td class="reading-date-cell">상시 업데이트</td>
-</tr>
-<tr>
-<td rowspan="1">Russell Power</td>
-<td><a href="https://openathena.ai/blog/cluster-scheduling-with-iris/">Cluster Scheduling with Iris</a></td>
-<td class="reading-date-cell"><time datetime="2026-06-25">2026-06-25</time></td>
 </tr>
 <tr>
 <td rowspan="1">Will Held</td>
