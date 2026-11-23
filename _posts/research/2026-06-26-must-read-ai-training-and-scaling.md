@@ -101,6 +101,15 @@ listed: true
 <td class="reading-date-cell"><time datetime="2025-05-16">2025-05-16</time></td>
 </tr>
 </tbody>
+<!-- InferenceX first public release (as InferenceMAX): https://inferencex.semianalysis.com/blog/inferencemax-open-source-inference-benchmarking -->
+<tbody>
+<tr>
+<th scope="rowgroup" rowspan="1" class="reading-org-cell">SemiAnalysis</th>
+<td rowspan="1">SemiAnalysis</td>
+<td><a href="https://inferencex.semianalysis.com/">InferenceX: Inference Efficiency Benchmarks</a></td>
+<td class="reading-date-cell"><time datetime="2025-10-09">2025-10-09</time></td>
+</tr>
+</tbody>
 <tbody>
 <tr>
 <th scope="rowgroup" rowspan="9" class="reading-org-cell">Thinking Machines Lab</th>
