@@ -58,10 +58,14 @@ listed: true
 </tbody>
 <tbody>
 <tr>
-<th scope="rowgroup" rowspan="1" class="reading-org-cell">Microsoft AI</th>
-<td rowspan="1">The Microsoft AI Team</td>
+<th scope="rowgroup" rowspan="2" class="reading-org-cell">Microsoft AI</th>
+<td rowspan="2">The Microsoft AI Team</td>
 <td><a href="https://microsoft.ai/pdf/mai-thinking-1.pdf?utm_source=pytorchkr&amp;ref=pytorchkr#page=7.37">MAI-Thinking-1: Building a Hill-Climbing Machine</a></td>
 <td class="reading-date-cell"><time datetime="2026-06-02">2026-06-02</time></td>
+</tr>
+<tr>
+<td><a href="https://microsoft.ai/news/rl-infrastructure-at-microsoft-ai/">RL infrastructure at Microsoft AI</a></td>
+<td class="reading-date-cell"><time datetime="2026-11-23">2026-11-23</time></td>
 </tr>
 </tbody>
 <tbody>
@@ -154,6 +158,14 @@ listed: true
 <tr>
 <td><a href="https://thinkingmachines.ai/blog/interaction-models/">Interaction Models: A Scalable Approach to Human-AI Collaboration</a></td>
 <td class="reading-date-cell"><time datetime="2026-05-11">2026-05-11</time></td>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<th scope="rowgroup" rowspan="1" class="reading-org-cell">Together AI</th>
+<td rowspan="1">Martin Marek &amp; Max Ryabinin</td>
+<td><a href="https://arxiv.org/abs/2609.20807">Score Centering Stabilizes Off-policy Reinforcement Learning</a></td>
+<td class="reading-date-cell"><time datetime="2026-09-17">2026-09-17</time></td>
 </tr>
 </tbody>
 <tbody>
